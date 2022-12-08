@@ -1,0 +1,29 @@
+# sorted alphabetically
+AlignAfterOpenBracket: AlwaysBreak
+AllowShortFunctionsOnASingleLine: None
+AllowShortLambdasOnASingleLine: Empty
+AlwaysBreakTemplateDeclarations: 'Yes'
+BinPackArguments: false
+BraceWrapping:
+  AfterClass: true
+  AfterControlStatement: true
+  AfterEnum: true
+  AfterFunction: true
+  AfterNamespace: true
+  AfterStruct: true
+  BeforeElse: true
+  BeforeLambdaBody: true
+  BeforeWhile: true
+BreakBeforeBraces: Custom
+ColumnLimit: 110
+DerivePointerAlignment: false
+FixNamespaceComments: true
+IncludeBlocks: Preserve
+IndentPPDirectives: BeforeHash
+IndentWidth: 4
+NamespaceIndentation: All
+PPIndentWidth: -1
+PointerAlignment: Left
+SortIncludes: true
+SpaceBeforeParens: Never
+TabWidth: 4
