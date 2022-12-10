@@ -17,10 +17,13 @@ class Context
     void setInputManager(InputManager* inputManager);
     Camera* getCamera();
     void setCamera(Camera* camera);
+    void* getUserPointer();
+    void setUserPointer(void* ptr);
 
   private:
     // todo: window abstraction object that stores width/height etc
     GLFWwindow* window;
     InputManager* inputManager;
     Camera* camera;
+    void* userPointer;
 };

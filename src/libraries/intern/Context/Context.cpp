@@ -26,3 +26,12 @@ void Context::setCamera(Camera* camera)
 {
     this->camera = camera;
 }
+
+void* Context::getUserPointer()
+{
+    return userPointer;
+}
+void Context::setUserPointer(void* ptr)
+{
+    this->userPointer = ptr;
+}
