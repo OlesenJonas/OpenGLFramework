@@ -28,6 +28,11 @@ class InputManager
         return mouseDelta;
     }
 
+    inline glm::vec2 getMousePos() const
+    {
+        return {mouseX, mouseY};
+    }
+
     inline float getRealDeltaTime() const
     {
         return static_cast<float>(deltaTime);
