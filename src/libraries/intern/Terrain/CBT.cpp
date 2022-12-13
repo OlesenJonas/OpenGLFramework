@@ -137,8 +137,10 @@ CBT::neighbourhoodAfterSplit(SameDepthNeighbourhood neighbourhood, uint32_t dire
 {
     // 0 represents "null" and null+1 needs to stay 0 / null
     const uint32_t b1 = (neighbourhood.left == 0u) ? 0u : 1u;
+    const uint32_t b2 = (neighbourhood.right == 0u) ? 0u : 1u;
     const uint32_t b3 = (neighbourhood.edge == 0u) ? 0u : 1u;
 
+#if CBT_VERTEX_ORDERING == CBT_VERTEX_ORDERING_MINE
     if(direction == 0u)
     {
         return {
@@ -155,6 +157,24 @@ CBT::neighbourhoodAfterSplit(SameDepthNeighbourhood neighbourhood, uint32_t dire
             2 * neighbourhood.right,
             2 * neighbourhood.self + 1};
     }
+#elif CBT_VERTEX_ORDERING == CBT_VERTEX_ORDERING_PAPER
+    if(direction == 0u)
+    {
+        return {
+            2 * neighbourhood.self + 1, // self is always != null
+            2 * neighbourhood.edge + b3,
+            2 * neighbourhood.right + b2,
+            2 * neighbourhood.self};
+    }
+    if(direction == 1u)
+    {
+        return {
+            2 * neighbourhood.edge,
+            2 * neighbourhood.self,
+            2 * neighbourhood.left,
+            2 * neighbourhood.self + 1};
+    }
+#endif
     assert(false && "should be unreachable");
     return {};
 }
@@ -189,12 +209,20 @@ void CBT::doSumReduction()
 
 void cbt_calcCornersOfLeftChild(std::array<glm::vec2, 3>& corners)
 {
+#if CBT_VERTEX_ORDERING == CBT_VERTEX_ORDERING_MINE
     corners = {corners[2], corners[0], 0.5f * (corners[0] + corners[1])};
+#elif CBT_VERTEX_ORDERING == CBT_VERTEX_ORDERING_PAPER
+    corners = {corners[0], 0.5f * (corners[0] + corners[2]), corners[1]};
+#endif
 }
 
 void cbt_calcCornersOfRightChild(std::array<glm::vec2, 3>& corners)
 {
+#if CBT_VERTEX_ORDERING == CBT_VERTEX_ORDERING_MINE
     corners = {corners[1], corners[2], 0.5f * (corners[0] + corners[1])};
+#elif CBT_VERTEX_ORDERING == CBT_VERTEX_ORDERING_PAPER
+    corners = {corners[1], 0.5f * (corners[0] + corners[2]), corners[2]};
+#endif
 }
 
 void CBT::updateDrawData()
@@ -207,6 +235,7 @@ void CBT::updateDrawData()
         uint32_t triangleIndex = i;
         uint32_t currentHeapIndex = 1;
         std::array<glm::vec2, 3> corners{p0, p1, p2};
+        uint32_t nodeDepth = 0;
         while(heap[currentHeapIndex] > 1)
         {
             const uint32_t leftChildHeapIndex = currentHeapIndex * 2;
@@ -222,7 +251,14 @@ void CBT::updateDrawData()
                 triangleIndex -= heap[leftChildHeapIndex];
                 currentHeapIndex = rightChildHeapIndex;
             }
+            nodeDepth++;
         }
+#if CBT_VERTEX_ORDERING == CBT_VERTEX_ORDERING_PAPER
+        if((nodeDepth & 1u) != 0u)
+        {
+            corners = {corners[0], corners[2], corners[1]};
+        }
+#endif
         vertexPositions[i * 3 + 0] = corners[0];
         vertexPositions[i * 3 + 1] = corners[1];
         vertexPositions[i * 3 + 2] = corners[2];
@@ -258,20 +294,25 @@ bool cbt_pointInTriangle(glm::vec2 pos, const std::array<glm::vec2, 3>& corners)
 
     const glm::vec2 edge0 = corners[1] - corners[0];
     const glm::vec2 nrm0{-edge0.y, edge0.x};
-    if(glm::dot(pos - corners[0], nrm0) > 1.0)
-        return false;
+    const bool inside1 = glm::dot(pos - corners[0], nrm0) < 0.0;
+    // if(glm::dot(pos - corners[0], nrm0) > 0.0)
+    // return false;
 
     const glm::vec2 edge1 = corners[2] - corners[1];
     const glm::vec2 nrm1{-edge1.y, edge1.x};
-    if(glm::dot(pos - corners[1], nrm1) > 0.0)
-        return false;
+    const bool inside2 = glm::dot(pos - corners[1], nrm1) < 0.0;
+    // if(glm::dot(pos - corners[1], nrm1) > 0.0)
+    // return false;
 
     const glm::vec2 edge2 = corners[0] - corners[2];
     const glm::vec2 nrm2{-edge2.y, edge2.x};
-    if(glm::dot(pos - corners[2], nrm2) > 0.0)
-        return false;
+    const bool inside3 = glm::dot(pos - corners[2], nrm2) < 0.0;
+    // if(glm::dot(pos - corners[2], nrm2) > 0.0)
+    // return false;
 
-    return true;
+    // this test works for triangles of either winding order
+    return (inside1 == inside2 && inside2 == inside3);
+    // return true;
 }
 
 uint32_t CBT::heapIndexFromPoint(glm::vec2 p)

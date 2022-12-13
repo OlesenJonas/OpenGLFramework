@@ -9,8 +9,13 @@
 #include <glm/glm.hpp>
 
 /*
-    Inefficent data structure, just for testing stuff
+    CBT heap is very inefficent since bits arent packed
+    just for testing stuff
 */
+
+#define CBT_VERTEX_ORDERING_PAPER 0
+#define CBT_VERTEX_ORDERING_MINE 1
+#define CBT_VERTEX_ORDERING CBT_VERTEX_ORDERING_PAPER
 
 class CBT
 {
@@ -46,11 +51,17 @@ class CBT
   private:
     uint32_t getSingleBitValue(uint32_t field, int bitID);
 
+#if CBT_VERTEX_ORDERING == CBT_VERTEX_ORDERING_MINE
     // corner points, counter clockwise, starting with 1st point on base
     // in world space xz plane
     glm::vec2 p0{1.0f, 1.0f};
     glm::vec2 p1{-1.0f, -1.0f};
     glm::vec2 p2{-1.0f, 1.0f};
+#elif CBT_VERTEX_ORDERING == CBT_VERTEX_ORDERING_PAPER
+    glm::vec2 p0{-1.0f, -1.0f};
+    glm::vec2 p1{-1.0f, 1.0f};
+    glm::vec2 p2{1.0f, 1.0f};
+#endif
 
     GLuint vaoHandle = 0xffffffff;
     GLuint vboHandle = 0xffffffff;
