@@ -9,6 +9,12 @@
 #include <glm/glm.hpp>
 
 /*
+  based on: https://onrendering.com/data/papers/cbt/ConcurrentBinaryTrees.pdf
+  Concurrent Binary Trees (with application to longest edge bisection)
+    by Jonathan Dupuy
+*/
+
+/*
     CBT heap is very inefficent since bits arent packed
     just for testing stuff
 */
