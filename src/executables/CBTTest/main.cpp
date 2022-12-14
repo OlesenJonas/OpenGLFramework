@@ -24,7 +24,7 @@ struct UserPointerStruct
 {
     CBT* cbt;
     bool updateCBTdynamically = false;
-    uint32_t hitHeapIndex = 1;
+    CBT::Node hitNode{1, 0};
     glm::vec3 hitPoint;
 };
 
@@ -42,17 +42,17 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
         {
             CBT& cbt = *userPointerStruct.cbt;
 
-            const uint32_t heapIndexOfHit = userPointerStruct.hitHeapIndex;
+            const CBT::Node hitNode = userPointerStruct.hitNode;
 
-            if(heapIndexOfHit != 0)
+            if(hitNode.heapIndex != 0)
             {
                 if(key == GLFW_KEY_N)
                 {
-                    cbt.splitNodeConforming(heapIndexOfHit);
+                    cbt.splitNodeConforming(hitNode);
                 }
                 if(key == GLFW_KEY_M)
                 {
-                    cbt.mergeNodeConforming(heapIndexOfHit);
+                    cbt.mergeNodeConforming(hitNode);
                 }
                 cbt.doSumReduction();
                 cbt.updateDrawData();
@@ -114,7 +114,7 @@ void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
         userPointerStruct.hitPoint = planeHit;
         CBT& cbt = *userPointerStruct.cbt;
 
-        userPointerStruct.hitHeapIndex = cbt.heapIndexFromPoint({planeHit.x, planeHit.z});
+        userPointerStruct.hitNode = cbt.nodeFromPoint({planeHit.x, planeHit.z});
     }
 }
 
@@ -247,13 +247,13 @@ int main()
         // UI
         {
             ImGui::Begin("CBT Info");
-            if(userPointerStruct.hitHeapIndex != 0)
+            if(userPointerStruct.hitNode.heapIndex != 0)
             {
                 ImGui::Text("Update dynamically (D):\n%d", userPointerStruct.updateCBTdynamically);
                 ImGui::Separator();
                 const CBT::SameDepthNeighbourhood neighbourhood =
-                    cbt.calculateSameDepthNeighbourhood(userPointerStruct.hitHeapIndex);
-                ImGui::Text("Selected node: %u", userPointerStruct.hitHeapIndex);
+                    cbt.calculateSameDepthNeighbourhood(userPointerStruct.hitNode);
+                ImGui::Text("Selected node: %u", userPointerStruct.hitNode.heapIndex);
                 ImGui::Text("Neighbours:");
                 ImGui::Indent(5.0f);
                 ImGui::Text("Edge  : %u", neighbourhood.edge);

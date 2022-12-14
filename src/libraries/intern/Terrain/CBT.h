@@ -26,6 +26,14 @@
 class CBT
 {
   public:
+    struct Node
+    {
+        uint32_t heapIndex;
+        // depth = findMSB(heapIndex)
+        // pass around just to save those findMSB calls
+        uint32_t depth;
+    };
+
     struct SameDepthNeighbourhood
     {
         uint32_t left = 0;
@@ -36,29 +44,32 @@ class CBT
 
     explicit CBT(uint32_t maxDepth);
 
-    bool isLeafNode(uint32_t heapIndex);
-    bool isParentOfTwoLeafNodes(uint32_t heapIndex);
-    void splitNode(uint32_t heapIndex);
-    void splitNodeConforming(uint32_t heapIndex);
-    void mergeNode(uint32_t heapIndex);
-    void mergeNodeConforming(uint32_t heapIndex);
+    bool isLeafNode(Node node);
+    bool isParentOfTwoLeafNodes(Node node);
+    void splitNode(Node node);
+    void splitNodeConforming(Node node);
+    void mergeNode(Node node);
+    void mergeNodeConforming(Node node);
     SameDepthNeighbourhood neighbourhoodAfterSplit(SameDepthNeighbourhood neighbourhood, uint32_t direction);
-    SameDepthNeighbourhood calculateSameDepthNeighbourhood(uint32_t heapIndex);
-    uint32_t leafIndexToHeapIndex(uint32_t leafIndex);
-    std::array<glm::vec2, 3> cornersFromHeapIndex(uint32_t heapIndex);
+    SameDepthNeighbourhood calculateSameDepthNeighbourhood(Node node);
+    Node leafIndexToNode(uint32_t leafIndex);
+    std::array<glm::vec2, 3> cornersFromNode(Node node);
     void refineAroundPoint(glm::vec2 p);
 
     void doSumReduction();
     void updateDrawData();
 
     void draw(const glm::mat4& projViewMatrix);
-    uint32_t heapIndexFromPoint(glm::vec2 p);
+    Node nodeFromPoint(glm::vec2 p);
 
     uint32_t maxDepth = 0;
     std::vector<uint32_t> heap;
 
   private:
     uint32_t getSingleBitValue(uint32_t field, int bitID);
+    void calcCornersOfLeftChild(std::array<glm::vec2, 3>& corners);
+    void calcCornersOfRightChild(std::array<glm::vec2, 3>& corners);
+    bool pointInTriangle(glm::vec2 pos, const std::array<glm::vec2, 3>& corners);
 
 #if CBT_VERTEX_ORDERING == CBT_VERTEX_ORDERING_MINE
     // corner points, counter clockwise, starting with 1st point on base

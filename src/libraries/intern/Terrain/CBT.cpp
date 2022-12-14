@@ -9,9 +9,11 @@ CBT::CBT(uint32_t maxDepth)
           VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
           {SHADERS_PATH "/Terrain/triangleTreeVis.vert", SHADERS_PATH "/Terrain/triangleTreeVis.frag"})
 {
-    heap.resize(pow(2, maxDepth + 1));
+    // allocate 2^(D+1) nodes
+    heap.resize(1u << (maxDepth + 1));
     std::fill(heap.begin(), heap.end(), 0);
-    heap[pow(2, maxDepth)] = 1;
+    // set heap[2^D] to 1, creating a single leaf node
+    heap[1u << maxDepth] = 1;
 
     doSumReduction();
 
@@ -42,186 +44,7 @@ uint32_t CBT::getSingleBitValue(uint32_t field, int bitIndex)
     return ((field >> bitIndex) & 1u);
 }
 
-/*
-    this test is not 100% correct since a node and its left child
-    both have the same index in the bitfield.
-    That means that a "1" in the bitfield only indicates that either
-    the node itself OR any of its left children are a leaf node!
-*/
-bool CBT::isLeafNode(uint32_t heapIndex)
-{
-    const uint32_t nodeDepth = glm::findMSB(heapIndex);
-    const int shiftOffsetToBitfieldPart = maxDepth - nodeDepth;
-    const uint32_t heapIndexOfBitfieldPosition = heapIndex << shiftOffsetToBitfieldPart;
-    return heap[heapIndexOfBitfieldPosition] == 1;
-}
-
-bool CBT::isParentOfTwoLeafNodes(uint32_t heapIndex)
-{
-    return heap[heapIndex] <= 2;
-}
-
-void CBT::splitNode(uint32_t heapIndex)
-{
-    const uint32_t nodeDepth = glm::findMSB(heapIndex);
-    int shiftOffsetToBitfieldPart = maxDepth - nodeDepth;
-
-    // split
-    // this is only called from splitNodeConforming() atm which already checks this
-    // if(nodeDepth < maxDepth)
-    // {
-    const uint32_t rightChildIndex = (2 * heapIndex) | 1U;
-    const uint32_t rightChildIndexInBitfield = rightChildIndex << (shiftOffsetToBitfieldPart - 1);
-    heap[rightChildIndexInBitfield] = 1;
-    // }
-}
-
-void CBT::splitNodeConforming(uint32_t heapIndex)
-{
-    const uint32_t nodeDepth = glm::findMSB(heapIndex);
-
-    if(nodeDepth < maxDepth)
-    {
-        splitNode(heapIndex);
-        heapIndex = calculateSameDepthNeighbourhood(heapIndex).edge;
-        while(heapIndex > 1)
-        {
-            splitNode(heapIndex);
-            heapIndex = heapIndex / 2; // parent
-            splitNode(heapIndex);
-            heapIndex = calculateSameDepthNeighbourhood(heapIndex).edge;
-        }
-    }
-}
-
-void CBT::mergeNode(uint32_t heapIndex)
-{
-    const uint32_t nodeDepth = glm::findMSB(heapIndex);
-    int shiftOffsetToBitfieldPart = maxDepth - nodeDepth;
-
-    // merge
-    if(nodeDepth > 0)
-    {
-        const uint32_t rightSiblingIndex = heapIndex | 1U;
-        const uint32_t rightSiblingIndexInBitfield = rightSiblingIndex << shiftOffsetToBitfieldPart;
-        heap[rightSiblingIndexInBitfield] = 0;
-    }
-}
-
-void CBT::mergeNodeConforming(uint32_t heapIndex)
-{
-    // cant merge root node
-    if(heapIndex > 1)
-    {
-        /*
-            slightly different logic than outliend in paper
-            (mostly because isLeafNode doesnt work as intended, see function comment)
-        */
-        const uint32_t parentIndex = heapIndex / 2;
-        const bool canSplitTop = isParentOfTwoLeafNodes(parentIndex);
-
-        uint32_t diamondIndex = calculateSameDepthNeighbourhood(parentIndex).edge;
-        // set diamond index = parentIndex if diamondIndex doesnt exist, saves some braching later on
-        diamondIndex = diamondIndex == 0 ? parentIndex : diamondIndex;
-        const bool canSplitBot = isParentOfTwoLeafNodes(diamondIndex);
-
-        if(canSplitTop && canSplitBot)
-        {
-            mergeNode(heapIndex);
-            mergeNode(2 * diamondIndex + 1);
-        }
-    }
-}
-
-CBT::SameDepthNeighbourhood
-CBT::neighbourhoodAfterSplit(SameDepthNeighbourhood neighbourhood, uint32_t direction)
-{
-    // 0 represents "null" and null+1 needs to stay 0 / null
-    const uint32_t b1 = (neighbourhood.left == 0u) ? 0u : 1u;
-    const uint32_t b2 = (neighbourhood.right == 0u) ? 0u : 1u;
-    const uint32_t b3 = (neighbourhood.edge == 0u) ? 0u : 1u;
-
-#if CBT_VERTEX_ORDERING == CBT_VERTEX_ORDERING_MINE
-    if(direction == 0u)
-    {
-        return {
-            2 * neighbourhood.self + 1, // self is always != null
-            2 * neighbourhood.edge + b3,
-            2 * neighbourhood.left + b1,
-            2 * neighbourhood.self};
-    }
-    if(direction == 1u)
-    {
-        return {
-            2 * neighbourhood.edge,
-            2 * neighbourhood.self,
-            2 * neighbourhood.right,
-            2 * neighbourhood.self + 1};
-    }
-#elif CBT_VERTEX_ORDERING == CBT_VERTEX_ORDERING_PAPER
-    if(direction == 0u)
-    {
-        return {
-            2 * neighbourhood.self + 1, // self is always != null
-            2 * neighbourhood.edge + b3,
-            2 * neighbourhood.right + b2,
-            2 * neighbourhood.self};
-    }
-    if(direction == 1u)
-    {
-        return {
-            2 * neighbourhood.edge,
-            2 * neighbourhood.self,
-            2 * neighbourhood.left,
-            2 * neighbourhood.self + 1};
-    }
-#endif
-    assert(false && "should be unreachable");
-    return {};
-}
-
-CBT::SameDepthNeighbourhood CBT::calculateSameDepthNeighbourhood(uint32_t heapIndex)
-{
-    SameDepthNeighbourhood neighbourhood{0u, 0u, 0u, 1u};
-
-    const uint32_t nodeDepth = heapIndex == 0 ? 0 : glm::findMSB(heapIndex);
-    for(int bitID = nodeDepth - 1; bitID >= 0; bitID--)
-    {
-        neighbourhood = neighbourhoodAfterSplit(neighbourhood, getSingleBitValue(heapIndex, bitID));
-    }
-    assert(heapIndex == 0 || heapIndex == neighbourhood.self);
-    if(heapIndex == 0)
-    {
-        int x = 10;
-    }
-
-    return neighbourhood;
-}
-
-uint32_t CBT::leafIndexToHeapIndex(uint32_t leafIndex)
-{
-    uint32_t currentHeapIndex = 1;
-    uint32_t nodeDepth = 0;
-    while(heap[currentHeapIndex] > 1)
-    {
-        const uint32_t leftChildHeapIndex = currentHeapIndex * 2;
-        const uint32_t rightChildHeapIndex = currentHeapIndex * 2 + 1;
-        if(leafIndex < heap[leftChildHeapIndex])
-        {
-            currentHeapIndex = leftChildHeapIndex;
-        }
-        else
-        {
-            leafIndex -= heap[leftChildHeapIndex];
-            currentHeapIndex = rightChildHeapIndex;
-        }
-        nodeDepth++;
-    }
-
-    return currentHeapIndex;
-}
-
-void cbt_calcCornersOfLeftChild(std::array<glm::vec2, 3>& corners)
+void CBT::calcCornersOfLeftChild(std::array<glm::vec2, 3>& corners)
 {
 #if CBT_VERTEX_ORDERING == CBT_VERTEX_ORDERING_MINE
     corners = {corners[2], corners[0], 0.5f * (corners[0] + corners[1])};
@@ -230,7 +53,7 @@ void cbt_calcCornersOfLeftChild(std::array<glm::vec2, 3>& corners)
 #endif
 }
 
-void cbt_calcCornersOfRightChild(std::array<glm::vec2, 3>& corners)
+void CBT::calcCornersOfRightChild(std::array<glm::vec2, 3>& corners)
 {
 #if CBT_VERTEX_ORDERING == CBT_VERTEX_ORDERING_MINE
     corners = {corners[1], corners[2], 0.5f * (corners[0] + corners[1])};
@@ -239,7 +62,7 @@ void cbt_calcCornersOfRightChild(std::array<glm::vec2, 3>& corners)
 #endif
 }
 
-bool cbt_pointInTriangle(glm::vec2 pos, const std::array<glm::vec2, 3>& corners)
+bool CBT::pointInTriangle(glm::vec2 pos, const std::array<glm::vec2, 3>& corners)
 {
     /* unoptimized but readable */
 
@@ -266,19 +89,197 @@ bool cbt_pointInTriangle(glm::vec2 pos, const std::array<glm::vec2, 3>& corners)
     // return true;
 }
 
-std::array<glm::vec2, 3> CBT::cornersFromHeapIndex(uint32_t heapIndex)
+/*
+    this test is not 100% correct since a node and its left child
+    both have the same index in the bitfield.
+    That means that a "1" in the bitfield only indicates that either
+    the node itself OR any of its left children are a leaf node!
+*/
+bool CBT::isLeafNode(Node node)
 {
-    const uint32_t nodeDepth = glm::findMSB(heapIndex);
-    std::array<glm::vec2, 3> corners{p0, p1, p2};
-    for(int bitID = nodeDepth - 1; bitID >= 0; bitID--)
+    const int depthOffsetToBitfieldPart = maxDepth - node.depth;
+    const uint32_t heapIndexOfBitfieldPosition = node.heapIndex << depthOffsetToBitfieldPart;
+    return heap[heapIndexOfBitfieldPosition] == 1;
+}
+
+bool CBT::isParentOfTwoLeafNodes(Node node)
+{
+    return heap[node.heapIndex] <= 2;
+}
+
+void CBT::splitNode(Node node)
+{
+    const int depthOffsetToBitfieldPart = maxDepth - node.depth;
+
+    // split
+    // this is only called from splitNodeConforming() atm which already checks this
+    // maybe useful to have a splitNode() and a splitNodeUnsafe() function
+    // if(nodeDepth < maxDepth)
+    // {
+    const uint32_t rightChildIndex = (2 * node.heapIndex) | 1U;
+    const uint32_t rightChildIndexInBitfield = rightChildIndex << (depthOffsetToBitfieldPart - 1u);
+    heap[rightChildIndexInBitfield] = 1;
+    // }
+}
+
+void CBT::splitNodeConforming(Node node)
+{
+    if(node.depth < maxDepth)
     {
-        if(getSingleBitValue(heapIndex, bitID) == 0u)
+        splitNode(node);
+        const uint32_t edgeNeighbourID = calculateSameDepthNeighbourhood(node).edge;
+        Node currentNode{edgeNeighbourID, edgeNeighbourID == 0 ? 0 : node.depth};
+
+        while(currentNode.heapIndex > 1)
         {
-            cbt_calcCornersOfLeftChild(corners);
+            splitNode(currentNode);
+            // factor out into getParent() ?
+            currentNode.heapIndex = currentNode.heapIndex / 2;
+            currentNode.depth -= 1;
+            splitNode(currentNode);
+            const uint32_t edgeNeighbourID = calculateSameDepthNeighbourhood(currentNode).edge;
+            currentNode = {edgeNeighbourID, edgeNeighbourID == 0 ? 0 : currentNode.depth};
+        }
+    }
+}
+
+void CBT::mergeNode(Node node)
+{
+    const int depthOffsetToBitfieldPart = maxDepth - node.depth;
+
+    // merge
+    if(node.depth > 0)
+    {
+        const uint32_t rightSiblingIndex = node.heapIndex | 1U;
+        const uint32_t rightSiblingIndexInBitfield = rightSiblingIndex << depthOffsetToBitfieldPart;
+        heap[rightSiblingIndexInBitfield] = 0;
+    }
+}
+
+void CBT::mergeNodeConforming(Node node)
+{
+    // cant merge root node
+    if(node.heapIndex <= 1)
+    {
+        return;
+    }
+
+    /*
+        slightly different logic than outliend in paper
+        (mostly because isLeafNode doesnt work as intended, see function comment)
+    */
+    const Node parentNode{node.heapIndex / 2, node.depth - 1};
+    const bool canSplitTop = isParentOfTwoLeafNodes(parentNode);
+
+    const uint32_t diamondIndex = calculateSameDepthNeighbourhood(parentNode).edge;
+    // set diamond index = parentIndex if diamondIndex doesnt exist, saves some braching later on
+    const Node diamondNode{diamondIndex == 0 ? parentNode.heapIndex : diamondIndex, parentNode.depth};
+    const bool canSplitBot = isParentOfTwoLeafNodes(diamondNode);
+
+    if(canSplitTop && canSplitBot)
+    {
+        mergeNode(node);
+        const Node rightDiamondChild{2 * diamondNode.heapIndex + 1, diamondNode.depth + 1};
+        mergeNode(rightDiamondChild);
+    }
+}
+
+CBT::SameDepthNeighbourhood
+CBT::neighbourhoodAfterSplit(SameDepthNeighbourhood neighbourhood, uint32_t direction) // NOLINT
+{
+    // 0 represents "null" and null+1 needs to stay 0 / null
+    const uint32_t summandLeft = (neighbourhood.left == 0u) ? 0u : 1u;
+    const uint32_t summandRight = (neighbourhood.right == 0u) ? 0u : 1u;
+    const uint32_t summandEdge = (neighbourhood.edge == 0u) ? 0u : 1u;
+
+#if CBT_VERTEX_ORDERING == CBT_VERTEX_ORDERING_MINE
+    if(direction == 0u)
+    {
+        return {
+            2 * neighbourhood.self + 1, // self is always != null
+            2 * neighbourhood.edge + summandEdge,
+            2 * neighbourhood.left + summandLeft,
+            2 * neighbourhood.self};
+    }
+    if(direction == 1u)
+    {
+        return {
+            2 * neighbourhood.edge,
+            2 * neighbourhood.self,
+            2 * neighbourhood.right,
+            2 * neighbourhood.self + 1};
+    }
+#elif CBT_VERTEX_ORDERING == CBT_VERTEX_ORDERING_PAPER
+    if(direction == 0u)
+    {
+        return {
+            2 * neighbourhood.self + 1, // self is always != null
+            2 * neighbourhood.edge + summandEdge,
+            2 * neighbourhood.right + summandRight,
+            2 * neighbourhood.self};
+    }
+    if(direction == 1u)
+    {
+        return {
+            2 * neighbourhood.edge,
+            2 * neighbourhood.self,
+            2 * neighbourhood.left,
+            2 * neighbourhood.self + 1};
+    }
+#endif
+    assert(false && "should be unreachable");
+    return {};
+}
+
+CBT::SameDepthNeighbourhood CBT::calculateSameDepthNeighbourhood(Node node)
+{
+    SameDepthNeighbourhood neighbourhood{0u, 0u, 0u, 1u};
+
+    for(int bitID = node.depth - 1; bitID >= 0; bitID--)
+    {
+        neighbourhood = neighbourhoodAfterSplit(neighbourhood, getSingleBitValue(node.heapIndex, bitID));
+    }
+    assert(node.heapIndex == 0 || node.heapIndex == neighbourhood.self);
+
+    return neighbourhood;
+}
+
+CBT::Node CBT::leafIndexToNode(uint32_t leafIndex)
+{
+    uint32_t currentHeapIndex = 1;
+    uint32_t nodeDepth = 0;
+    while(heap[currentHeapIndex] > 1)
+    {
+        const uint32_t leftChildHeapIndex = currentHeapIndex * 2;
+        const uint32_t rightChildHeapIndex = currentHeapIndex * 2 + 1;
+        if(leafIndex < heap[leftChildHeapIndex])
+        {
+            currentHeapIndex = leftChildHeapIndex;
         }
         else
         {
-            cbt_calcCornersOfRightChild(corners);
+            leafIndex -= heap[leftChildHeapIndex];
+            currentHeapIndex = rightChildHeapIndex;
+        }
+        nodeDepth++;
+    }
+    assert(nodeDepth == glm::findMSB(currentHeapIndex));
+
+    return {currentHeapIndex, nodeDepth};
+}
+
+std::array<glm::vec2, 3> CBT::cornersFromNode(Node node)
+{
+    std::array<glm::vec2, 3> corners{p0, p1, p2};
+    for(int bitID = node.depth - 1; bitID >= 0; bitID--)
+    {
+        if(getSingleBitValue(node.heapIndex, bitID) == 0u)
+        {
+            calcCornersOfLeftChild(corners);
+        }
+        else
+        {
+            calcCornersOfRightChild(corners);
         }
     }
 
@@ -292,7 +293,7 @@ void CBT::refineAroundPoint(glm::vec2 p)
     // after sumreduction the 1st element contains the total number of leaf nodes
     for(uint32_t i = 0; i < heap[1]; i++)
     {
-        const uint32_t leafHeapIndex = leafIndexToHeapIndex(i);
+        const Node leafNode = leafIndexToNode(i);
         /*
             writing to the heap can be done atomically
             but the CBT still cant handle cases where the same
@@ -301,29 +302,30 @@ void CBT::refineAroundPoint(glm::vec2 p)
         */
         if(splitPass)
         {
-            const std::array<glm::vec2, 3> corners = cornersFromHeapIndex(leafHeapIndex);
-            if(cbt_pointInTriangle(p, corners))
+            const std::array<glm::vec2, 3> corners = cornersFromNode(leafNode);
+            if(pointInTriangle(p, corners))
             {
-                splitNodeConforming(leafHeapIndex);
+                splitNodeConforming(leafNode);
             }
         }
         else
         {
             /*
                 make sure both diamond parents fulfill the requirements for a merge
-                otherwise theyll just split again next iteration resulting in an
-                unstable look
+                otherwise theyll just split again next iteration resulting in a
+                constant back-and-fourth and no actual refinement
             */
-            const uint32_t parentHeapIndex = leafHeapIndex / 2;
-            uint32_t diamondParentIndex = calculateSameDepthNeighbourhood(parentHeapIndex).edge;
-            diamondParentIndex = diamondParentIndex == 0u ? parentHeapIndex : diamondParentIndex;
+            const Node parentNode{leafNode.heapIndex / 2, leafNode.depth - 1};
+            const uint32_t diamondParentIndex = calculateSameDepthNeighbourhood(parentNode).edge;
+            const Node diamondParentNode{
+                diamondParentIndex == 0u ? parentNode.heapIndex : diamondParentIndex, parentNode.depth};
 
-            const std::array<glm::vec2, 3> parentCorners = cornersFromHeapIndex(parentHeapIndex);
-            const std::array<glm::vec2, 3> diamondParentCorners = cornersFromHeapIndex(diamondParentIndex);
+            const std::array<glm::vec2, 3> parentCorners = cornersFromNode(parentNode);
+            const std::array<glm::vec2, 3> diamondParentCorners = cornersFromNode(diamondParentNode);
 
-            if(!cbt_pointInTriangle(p, parentCorners) && !cbt_pointInTriangle(p, diamondParentCorners))
+            if(!pointInTriangle(p, parentCorners) && !pointInTriangle(p, diamondParentCorners))
             {
-                mergeNodeConforming(leafHeapIndex);
+                mergeNodeConforming(leafNode);
             }
         }
     }
@@ -352,14 +354,13 @@ void CBT::updateDrawData()
     // after sumreduction the 1st element contains the total number of leaf nodes
     for(uint32_t i = 0; i < heap[1]; i++)
     {
-        const uint32_t leafHeapIndex = leafIndexToHeapIndex(i);
+        const Node leafNode = leafIndexToNode(i);
 
-        // could build the corner data at the same time that heapIndex is calculated from the leaf index
-        std::array<glm::vec2, 3> corners = cornersFromHeapIndex(leafHeapIndex);
+        // could build the corner data at the same time that node is calculated from the leaf index
+        std::array<glm::vec2, 3> corners = cornersFromNode(leafNode);
 
 #if CBT_VERTEX_ORDERING == CBT_VERTEX_ORDERING_PAPER
-        const uint32_t nodeDepth = glm::findMSB(leafHeapIndex);
-        if((nodeDepth & 1u) != 0u)
+        if((leafNode.depth & 1u) != 0u)
         {
             corners = {corners[0], corners[2], corners[1]};
         }
@@ -393,20 +394,21 @@ void CBT::draw(const glm::mat4& projViewMatrix)
     glBindVertexArray(0);
 }
 
-uint32_t CBT::heapIndexFromPoint(glm::vec2 p)
+CBT::Node CBT::nodeFromPoint(glm::vec2 p)
 {
     std::array<glm::vec2, 3> corners{p0, p1, p2};
-    if(!cbt_pointInTriangle(p, corners))
+    if(!pointInTriangle(p, corners))
     {
-        return 0;
+        return {0, 0};
     }
     // point is inside 0th-level triangle, so its definitly inside one of the leaf triangles
     uint32_t currentHeapIndex = 1;
+    uint32_t nodeDepth = 0;
     while(heap[currentHeapIndex] > 1)
     {
         auto leftChildCorners = corners;
-        cbt_calcCornersOfLeftChild(leftChildCorners);
-        if(cbt_pointInTriangle(p, leftChildCorners))
+        calcCornersOfLeftChild(leftChildCorners);
+        if(pointInTriangle(p, leftChildCorners))
         {
             // inside left child triangle
             currentHeapIndex = 2 * currentHeapIndex;
@@ -416,8 +418,10 @@ uint32_t CBT::heapIndexFromPoint(glm::vec2 p)
         {
             // else must be inside right child triangle
             currentHeapIndex = 2 * currentHeapIndex + 1;
-            cbt_calcCornersOfRightChild(corners);
+            calcCornersOfRightChild(corners);
         }
+        nodeDepth++;
     }
-    return currentHeapIndex;
+    assert(nodeDepth == glm::findMSB(currentHeapIndex));
+    return {currentHeapIndex, nodeDepth};
 }
