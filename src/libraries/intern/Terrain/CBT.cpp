@@ -44,21 +44,21 @@ uint32_t CBT::getSingleBitValue(uint32_t field, int bitIndex)
     return ((field >> bitIndex) & 1u);
 }
 
-void CBT::calcCornersOfLeftChild(std::array<glm::vec2, 3>& corners)
+CBT::Corners CBT::cornersOfLeftChild(const Corners& corners)
 {
 #if CBT_VERTEX_ORDERING == CBT_VERTEX_ORDERING_MINE
-    corners = {corners[2], corners[0], 0.5f * (corners[0] + corners[1])};
+    return {corners[2], corners[0], 0.5f * (corners[0] + corners[1])};
 #elif CBT_VERTEX_ORDERING == CBT_VERTEX_ORDERING_PAPER
-    corners = {corners[0], 0.5f * (corners[0] + corners[2]), corners[1]};
+    return {corners[0], 0.5f * (corners[0] + corners[2]), corners[1]};
 #endif
 }
 
-void CBT::calcCornersOfRightChild(std::array<glm::vec2, 3>& corners)
+CBT::Corners CBT::cornersOfRightChild(const Corners& corners)
 {
 #if CBT_VERTEX_ORDERING == CBT_VERTEX_ORDERING_MINE
-    corners = {corners[1], corners[2], 0.5f * (corners[0] + corners[1])};
+    return {corners[1], corners[2], 0.5f * (corners[0] + corners[1])};
 #elif CBT_VERTEX_ORDERING == CBT_VERTEX_ORDERING_PAPER
-    corners = {corners[1], 0.5f * (corners[0] + corners[2]), corners[2]};
+    return {corners[1], 0.5f * (corners[0] + corners[2]), corners[2]};
 #endif
 }
 
@@ -275,11 +275,11 @@ std::array<glm::vec2, 3> CBT::cornersFromNode(Node node)
     {
         if(getSingleBitValue(node.heapIndex, bitID) == 0u)
         {
-            calcCornersOfLeftChild(corners);
+            corners = cornersOfLeftChild(corners);
         }
         else
         {
-            calcCornersOfRightChild(corners);
+            corners = cornersOfRightChild(corners);
         }
     }
 
@@ -406,8 +406,7 @@ CBT::Node CBT::nodeFromPoint(glm::vec2 p)
     uint32_t nodeDepth = 0;
     while(heap[currentHeapIndex] > 1)
     {
-        auto leftChildCorners = corners;
-        calcCornersOfLeftChild(leftChildCorners);
+        const Corners leftChildCorners = cornersOfLeftChild(leftChildCorners);
         if(pointInTriangle(p, leftChildCorners))
         {
             // inside left child triangle
@@ -418,7 +417,7 @@ CBT::Node CBT::nodeFromPoint(glm::vec2 p)
         {
             // else must be inside right child triangle
             currentHeapIndex = 2 * currentHeapIndex + 1;
-            calcCornersOfRightChild(corners);
+            corners = cornersOfRightChild(corners);
         }
         nodeDepth++;
     }

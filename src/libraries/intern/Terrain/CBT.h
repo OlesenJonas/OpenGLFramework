@@ -66,9 +66,15 @@ class CBT
     std::vector<uint32_t> heap;
 
   private:
+    /*
+        alternatively could use a matrix3x2 type
+        would also allow for calculating the corners by chaining
+        matrix multiplications
+    */
+    using Corners = std::array<glm::vec2, 3>;
     uint32_t getSingleBitValue(uint32_t field, int bitID);
-    void calcCornersOfLeftChild(std::array<glm::vec2, 3>& corners);
-    void calcCornersOfRightChild(std::array<glm::vec2, 3>& corners);
+    [[nodiscard]] Corners cornersOfLeftChild(const Corners& corners);
+    [[nodiscard]] Corners cornersOfRightChild(const Corners& corners);
     bool pointInTriangle(glm::vec2 pos, const std::array<glm::vec2, 3>& corners);
 
 #if CBT_VERTEX_ORDERING == CBT_VERTEX_ORDERING_MINE
