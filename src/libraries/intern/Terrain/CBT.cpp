@@ -406,7 +406,7 @@ CBT::Node CBT::nodeFromPoint(glm::vec2 p)
     uint32_t nodeDepth = 0;
     while(heap[currentHeapIndex] > 1)
     {
-        const Corners leftChildCorners = cornersOfLeftChild(leftChildCorners);
+        const Corners leftChildCorners = cornersOfLeftChild(corners);
         if(pointInTriangle(p, leftChildCorners))
         {
             // inside left child triangle

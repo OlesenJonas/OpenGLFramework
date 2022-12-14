@@ -38,7 +38,7 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
     auto& userPointerStruct = *static_cast<UserPointerStruct*>(ctx.getUserPointer());
     if((key == GLFW_KEY_N || key == GLFW_KEY_M) && action == GLFW_PRESS)
     {
-        if(userPointerStruct.updateCBTdynamically == false)
+        if(!userPointerStruct.updateCBTdynamically)
         {
             CBT& cbt = *userPointerStruct.cbt;
 
@@ -61,7 +61,11 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
     }
     if(key == GLFW_KEY_D && action == GLFW_PRESS)
     {
+        auto& userPointerStruct = *static_cast<UserPointerStruct*>(ctx.getUserPointer());
+        CBT& cbt = *userPointerStruct.cbt;
         userPointerStruct.updateCBTdynamically = !userPointerStruct.updateCBTdynamically;
+        cbt.doSumReduction();
+        cbt.updateDrawData();
     }
 }
 
@@ -176,7 +180,7 @@ int main()
     Camera cam{ctx, static_cast<float>(WIDTH) / static_cast<float>(HEIGHT)};
     ctx.setCamera(&cam);
 
-    CBT cbt(7);
+    CBT cbt(10);
     UserPointerStruct userPointerStruct{};
     userPointerStruct.cbt = &cbt;
     ctx.setUserPointer(&userPointerStruct);
