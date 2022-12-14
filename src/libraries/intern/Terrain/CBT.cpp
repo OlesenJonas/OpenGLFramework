@@ -17,7 +17,6 @@ CBT::CBT(uint32_t maxDepth)
 
     doSumReduction();
 
-    const uint32_t maxNumberOfLeafNodes = 1U << maxDepth;
     {
         glCreateVertexArrays(1, &vaoHandle);
         glBindVertexArray(vaoHandle);
@@ -26,6 +25,9 @@ CBT::CBT(uint32_t maxDepth)
 
         glBindBuffer(GL_ARRAY_BUFFER, vboHandle);
         // allocate space for 3 corners of type vec2 for the max number of possible leaf nodes
+        // the max number of leaf nodes possible exists if every single node is split
+        // the amount of leaf nodes is then equal to the amount of nodes on the last level
+        const uint32_t maxNumberOfLeafNodes = 1U << maxDepth;
         glBufferStorage(
             GL_ARRAY_BUFFER, sizeof(glm::vec2) * 3 * maxNumberOfLeafNodes, nullptr, GL_DYNAMIC_STORAGE_BIT);
 
@@ -104,6 +106,9 @@ bool CBT::isLeafNode(Node node)
 
 bool CBT::isParentOfTwoLeafNodes(Node node)
 {
+
+    // A node is the parent of two leaf nodes if the sum reduction of its
+    // two children is equal to 2
     return heap[node.heapIndex] <= 2;
 }
 
@@ -130,14 +135,18 @@ void CBT::splitNodeConforming(Node node)
         const uint32_t edgeNeighbourID = calculateSameDepthNeighbourhood(node).edge;
         Node currentNode{edgeNeighbourID, edgeNeighbourID == 0 ? 0 : node.depth};
 
+        // until we reach the root node, or theres no edge neighbour left
         while(currentNode.heapIndex > 1)
         {
+            // split current node
             splitNode(currentNode);
             // factor out into getParent() ?
             currentNode.heapIndex = currentNode.heapIndex / 2;
             currentNode.depth -= 1;
+            // split its parent
             splitNode(currentNode);
             const uint32_t edgeNeighbourID = calculateSameDepthNeighbourhood(currentNode).edge;
+            // continue with parents edge neighbour
             currentNode = {edgeNeighbourID, edgeNeighbourID == 0 ? 0 : currentNode.depth};
         }
     }
@@ -235,6 +244,8 @@ CBT::SameDepthNeighbourhood CBT::calculateSameDepthNeighbourhood(Node node)
 {
     SameDepthNeighbourhood neighbourhood{0u, 0u, 0u, 1u};
 
+    // retrace splitting operations that result in the given node using its bit representation
+    // and apply the same splits to the "base neighbourhood"
     for(int bitID = node.depth - 1; bitID >= 0; bitID--)
     {
         neighbourhood = neighbourhoodAfterSplit(neighbourhood, getSingleBitValue(node.heapIndex, bitID));
@@ -246,6 +257,8 @@ CBT::SameDepthNeighbourhood CBT::calculateSameDepthNeighbourhood(Node node)
 
 CBT::Node CBT::leafIndexToNode(uint32_t leafIndex)
 {
+    // use sum reduction results to step back through tree
+    // detailed in paper
     uint32_t currentHeapIndex = 1;
     uint32_t nodeDepth = 0;
     while(heap[currentHeapIndex] > 1)
@@ -297,8 +310,8 @@ void CBT::refineAroundPoint(glm::vec2 p)
         /*
             writing to the heap can be done atomically
             but the CBT still cant handle cases where the same
-            node is split and merged (by a different mode) in
-            the same iteration, so alternate
+            node is split and merged (possibly by a different node) in
+            the same iteration, so alternate between both
         */
         if(splitPass)
         {
@@ -356,12 +369,12 @@ void CBT::updateDrawData()
     {
         const Node leafNode = leafIndexToNode(i);
 
-        // could build the corner data at the same time that node is calculated from the leaf index
         std::array<glm::vec2, 3> corners = cornersFromNode(leafNode);
 
 #if CBT_VERTEX_ORDERING == CBT_VERTEX_ORDERING_PAPER
         if((leafNode.depth & 1u) != 0u)
         {
+            // tri subdivision used in paper has the disadvantege of flipping the winding order every level
             corners = {corners[0], corners[2], corners[1]};
         }
 #endif
