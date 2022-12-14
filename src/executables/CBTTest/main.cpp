@@ -23,6 +23,7 @@
 struct UserPointerStruct
 {
     CBT* cbt;
+    bool updateCBTdynamically = false;
     uint32_t hitHeapIndex = 1;
     glm::vec3 hitPoint;
 };
@@ -37,23 +38,30 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
     auto& userPointerStruct = *static_cast<UserPointerStruct*>(ctx.getUserPointer());
     if((key == GLFW_KEY_N || key == GLFW_KEY_M) && action == GLFW_PRESS)
     {
-        CBT& cbt = *userPointerStruct.cbt;
-
-        const uint32_t heapIndexOfHit = userPointerStruct.hitHeapIndex;
-
-        if(heapIndexOfHit != 0)
+        if(userPointerStruct.updateCBTdynamically == false)
         {
-            if(key == GLFW_KEY_N)
+            CBT& cbt = *userPointerStruct.cbt;
+
+            const uint32_t heapIndexOfHit = userPointerStruct.hitHeapIndex;
+
+            if(heapIndexOfHit != 0)
             {
-                cbt.splitNodeConforming(heapIndexOfHit);
+                if(key == GLFW_KEY_N)
+                {
+                    cbt.splitNodeConforming(heapIndexOfHit);
+                }
+                if(key == GLFW_KEY_M)
+                {
+                    cbt.mergeNodeConforming(heapIndexOfHit);
+                }
+                cbt.doSumReduction();
+                cbt.updateDrawData();
             }
-            if(key == GLFW_KEY_M)
-            {
-                cbt.mergeNodeConforming(heapIndexOfHit);
-            }
-            cbt.doSumReduction();
-            cbt.updateDrawData();
         }
+    }
+    if(key == GLFW_KEY_D && action == GLFW_PRESS)
+    {
+        userPointerStruct.updateCBTdynamically = !userPointerStruct.updateCBTdynamically;
     }
 }
 
@@ -168,7 +176,7 @@ int main()
     Camera cam{ctx, static_cast<float>(WIDTH) / static_cast<float>(HEIGHT)};
     ctx.setCamera(&cam);
 
-    CBT cbt(6);
+    CBT cbt(7);
     UserPointerStruct userPointerStruct{};
     userPointerStruct.cbt = &cbt;
     ctx.setUserPointer(&userPointerStruct);
@@ -206,6 +214,34 @@ int main()
         glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(*cam.getProj()));
         cube.draw();
 
+        if(userPointerStruct.updateCBTdynamically)
+        {
+            const glm::mat4 invView = glm::inverse(*ctx.getCamera()->getView());
+            const glm::vec4 camOriginWorld = invView * glm::vec4(0, 0, 0, 1);
+            const glm::vec4 camDirection = invView * glm::vec4(0, 0, -1, 0);
+            if(camOriginWorld.y > 0 && camDirection.y < 0)
+            {
+                const glm::mat4 invProjection = glm::inverse(*ctx.getCamera()->getProj());
+                int width = 0;
+                int height = 0;
+                glfwGetWindowSize(window, &width, &height);
+                const glm::vec2 mousePos = ctx.getInputManager()->getMousePos();
+                const glm::vec4 cursorPosNDC = glm::vec4(
+                    2.0f * (mousePos.x / width) - 1.0, 2.0f * (1.0 - (mousePos.y / height)) - 1.0, -1, 1);
+                glm::vec4 cursorPosView = invProjection * cursorPosNDC;
+                cursorPosView /= cursorPosView.w;
+                const glm::vec4 cursorPosWorld = invView * cursorPosView;
+                const glm::vec4 cursorDirectionWorld = cursorPosWorld - camOriginWorld;
+
+                const glm::vec4 planeHit =
+                    camOriginWorld + cursorDirectionWorld * (camOriginWorld.y / -cursorDirectionWorld.y);
+                userPointerStruct.hitPoint = planeHit;
+
+                cbt.refineAroundPoint({planeHit.x, planeHit.z});
+                cbt.updateDrawData();
+            }
+        }
+
         cbt.draw(*cam.getProj() * *cam.getView());
 
         // UI
@@ -213,6 +249,8 @@ int main()
             ImGui::Begin("CBT Info");
             if(userPointerStruct.hitHeapIndex != 0)
             {
+                ImGui::Text("Update dynamically (D):\n%d", userPointerStruct.updateCBTdynamically);
+                ImGui::Separator();
                 const CBT::SameDepthNeighbourhood neighbourhood =
                     cbt.calculateSameDepthNeighbourhood(userPointerStruct.hitHeapIndex);
                 ImGui::Text("Selected node: %u", userPointerStruct.hitHeapIndex);

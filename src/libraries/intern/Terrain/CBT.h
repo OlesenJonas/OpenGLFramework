@@ -42,9 +42,12 @@ class CBT
     void splitNodeConforming(uint32_t heapIndex);
     void mergeNode(uint32_t heapIndex);
     void mergeNodeConforming(uint32_t heapIndex);
-    SameDepthNeighbourhood calculateSameDepthNeighbourhood(uint32_t heapIndex);
     SameDepthNeighbourhood neighbourhoodAfterSplit(SameDepthNeighbourhood neighbourhood, uint32_t direction);
+    SameDepthNeighbourhood calculateSameDepthNeighbourhood(uint32_t heapIndex);
     uint32_t leafIndexToHeapIndex(uint32_t leafIndex);
+    std::array<glm::vec2, 3> cornersFromHeapIndex(uint32_t heapIndex);
+    void refineAroundPoint(glm::vec2 p);
+
     void doSumReduction();
     void updateDrawData();
 
