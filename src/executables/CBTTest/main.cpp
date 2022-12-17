@@ -16,15 +16,15 @@
 #include <intern/Misc/ImGuiExtensions.h>
 #include <intern/Misc/OpenGLErrorHandler.h>
 #include <intern/ShaderProgram/ShaderProgram.h>
-#include <intern/Terrain/CBT.h>
+#include <intern/Terrain/CBTOptimized.h>
 #include <intern/Texture/Texture.h>
 #include <intern/Window/Window.h>
 
 struct UserPointerStruct
 {
-    CBT* cbt;
+    CBTOptimized* cbt;
     bool updateCBTdynamically = false;
-    CBT::Node hitNode{1, 0};
+    CBTOptimized::Node hitNode{1, 0};
     glm::vec3 hitPoint;
 };
 
@@ -40,9 +40,9 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
     {
         if(!userPointerStruct.updateCBTdynamically)
         {
-            CBT& cbt = *userPointerStruct.cbt;
+            CBTOptimized& cbt = *userPointerStruct.cbt;
 
-            const CBT::Node hitNode = userPointerStruct.hitNode;
+            const CBTOptimized::Node hitNode = userPointerStruct.hitNode;
 
             if(hitNode.heapIndex != 0)
             {
@@ -62,7 +62,7 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
     if(key == GLFW_KEY_D && action == GLFW_PRESS)
     {
         auto& userPointerStruct = *static_cast<UserPointerStruct*>(ctx.getUserPointer());
-        CBT& cbt = *userPointerStruct.cbt;
+        CBTOptimized& cbt = *userPointerStruct.cbt;
         userPointerStruct.updateCBTdynamically = !userPointerStruct.updateCBTdynamically;
         cbt.doSumReduction();
         cbt.updateDrawData();
@@ -116,7 +116,7 @@ void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
         const glm::vec4 planeHit =
             camOriginWorld + cursorDirectionWorld * (camOriginWorld.y / -cursorDirectionWorld.y);
         userPointerStruct.hitPoint = planeHit;
-        CBT& cbt = *userPointerStruct.cbt;
+        CBTOptimized& cbt = *userPointerStruct.cbt;
 
         userPointerStruct.hitNode = cbt.nodeFromPoint({planeHit.x, planeHit.z});
     }
@@ -180,7 +180,7 @@ int main()
     Camera cam{ctx, static_cast<float>(WIDTH) / static_cast<float>(HEIGHT)};
     ctx.setCamera(&cam);
 
-    CBT cbt(10);
+    CBTOptimized cbt(10);
     UserPointerStruct userPointerStruct{};
     userPointerStruct.cbt = &cbt;
     ctx.setUserPointer(&userPointerStruct);
@@ -255,7 +255,7 @@ int main()
             {
                 ImGui::Text("Update dynamically (D):\n%d", userPointerStruct.updateCBTdynamically);
                 ImGui::Separator();
-                const CBT::SameDepthNeighbourhood neighbourhood =
+                const CBTOptimized::SameDepthNeighbourhood neighbourhood =
                     cbt.calculateSameDepthNeighbourhood(userPointerStruct.hitNode);
                 ImGui::Text("Selected node: %u", userPointerStruct.hitNode.heapIndex);
                 ImGui::Text("Neighbours:");
