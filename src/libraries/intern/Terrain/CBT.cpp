@@ -360,6 +360,11 @@ void CBT::doSumReduction()
     }
 }
 
+uint32_t CBT::getAmountOfLeafNodes()
+{
+    return heap[1];
+}
+
 void CBT::updateDrawData()
 {
     std::vector<glm::vec2> vertexPositions(heap[1] * 3);

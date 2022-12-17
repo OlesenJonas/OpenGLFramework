@@ -61,15 +61,14 @@ class CBTOptimized
 
     void doSumReduction();
 
+    uint32_t getAmountOfLeafNodes();
+
     void updateDrawData();
     void draw(const glm::mat4& projViewMatrix);
 
     Node nodeFromPoint(glm::vec2 p);
 
     uint32_t maxDepth = 0;
-
-  private:
-    std::vector<uint32_t> heap;
 
     Node getNodeAtBitfieldDepth(Node node);
 
@@ -95,6 +94,9 @@ class CBTOptimized
     uint32_t getNodeValue(Node node);
 
     uint32_t getSingleBitValue(uint32_t field, int bitIndex);
+
+  private:
+    std::vector<uint32_t> heap;
 
     using Corners = std::array<glm::vec2, 3>;
     [[nodiscard]] Corners cornersOfLeftChild(const Corners& corners);

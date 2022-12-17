@@ -20,10 +20,12 @@ DerivePointerAlignment: false
 FixNamespaceComments: true
 IncludeBlocks: Preserve
 IndentPPDirectives: BeforeHash
+IndentRequiresClause: true
 IndentWidth: 4
 NamespaceIndentation: All
 PPIndentWidth: -1
 PointerAlignment: Left
+RequiresClausePosition: OwnLine
 SortIncludes: true
 SpaceBeforeParens: Never
 TabWidth: 4

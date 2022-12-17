@@ -115,6 +115,11 @@ class CBT
     void doSumReduction();
 
     /*
+        Get the number of leaf nodes
+    */
+    uint32_t getAmountOfLeafNodes();
+
+    /*
         Update the necessary draw data
         to reflect changes in the CBT
     */

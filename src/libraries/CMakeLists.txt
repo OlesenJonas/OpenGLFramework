@@ -2,6 +2,8 @@ add_subdirectory(thirdparty)
 
 add_subdirectory(intern)
 
+add_subdirectory(testing)
+
 # otherwise glad.h complains that it already has been included
 target_compile_definitions(glfw INTERFACE "-DGLFW_INCLUDE_NONE" )
 

@@ -11,5 +11,5 @@ add_subdirectory("libraries/")
 # create executables
 add_subdirectory("executables/")
 
-# tests
-# todo: add a tests folder if needed
+# create tests
+add_subdirectory("tests/")

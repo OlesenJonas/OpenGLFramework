@@ -466,6 +466,11 @@ void CBTOptimized::doSumReduction()
     }
 }
 
+uint32_t CBTOptimized::getAmountOfLeafNodes()
+{
+    return getNodeValue({1, 0});
+}
+
 void CBTOptimized::updateDrawData()
 {
     const uint32_t leafNodeAmnt = getNodeValue({1, 0});

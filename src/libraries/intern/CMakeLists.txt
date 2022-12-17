@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.2)
 include(DefaultLibrary)
-target_link_libraries(intern PRIVATE glfw)
-target_link_libraries(intern PRIVATE glm::glm)
-target_link_libraries(intern PRIVATE glad)
-target_link_libraries(intern PRIVATE ImGui)
-target_link_libraries(intern PRIVATE stb)
+#need to link as public, so tests linking against "intern" also get them
+target_link_libraries(intern PUBLIC glfw)
+target_link_libraries(intern PUBLIC glm::glm)
+target_link_libraries(intern PUBLIC glad)
+target_link_libraries(intern PUBLIC ImGui)
+target_link_libraries(intern PUBLIC stb)

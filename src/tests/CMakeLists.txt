@@ -1,0 +1,15 @@
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/out/debug_tests)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/out/debug_tests)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/out/release_tests)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/out/release_tests)
+
+# todo:
+# could replace these hardcoded entries
+# with a structure similar to the executables folder
+
+# Define the executable
+add_executable(CBT_test CBT.cpp)
+# link needed libraries
+target_link_libraries(CBT_test intern testing)
+# Define the test
+add_test(NAME "run_CBT_test" COMMAND $<TARGET_FILE:CBT_test>)
