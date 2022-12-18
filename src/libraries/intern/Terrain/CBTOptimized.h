@@ -68,8 +68,6 @@ class CBTOptimized
 
     Node nodeFromPoint(glm::vec2 p);
 
-    uint32_t maxDepth = 0;
-
     Node getNodeAtBitfieldDepth(Node node);
 
     void setNodeBitInBitfield(Node node, uint32_t value);
@@ -94,6 +92,8 @@ class CBTOptimized
     uint32_t getNodeValue(Node node);
 
     uint32_t getSingleBitValue(uint32_t field, int bitIndex);
+
+    uint32_t getMaxDepth();
 
   private:
     std::vector<uint32_t> heap;

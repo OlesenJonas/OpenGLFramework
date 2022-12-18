@@ -28,7 +28,7 @@ int main()
         {
             auto cbtLeafNodes = cbt.getAmountOfLeafNodes();
             auto cbtOptLeafNodes = cbtOpt.getAmountOfLeafNodes();
-            success &= expectedValue(cbtLeafNodes, cbtOptLeafNodes);
+            success &= expectedValue(cbtOptLeafNodes, cbtLeafNodes);
 
             abandonIfFalse(success, GLCONTEXT_CLEANUP(GLContext));
 
@@ -51,13 +51,13 @@ int main()
             cbtOpt.doSumReduction();
 
             const uint32_t maxNodeIndex = (1u << (MAX_DEPTH + 1u)) - 1u;
-            for(uint32_t j = 0; j < maxNodeIndex; j++)
+            for(uint32_t j = 1; j < maxNodeIndex; j++)
             {
                 const uint32_t cbtValue = cbt.heap[j];
                 const uint32_t nodeDepth = glm::findMSB(j);
                 const uint32_t cbtOptValue = cbtOpt.getNodeValue({j, nodeDepth});
 
-                success &= expectedValue(cbtValue, cbtOptValue);
+                success &= expectedValue(cbtOptValue, cbtValue);
 
                 abandonIfFalse(success, GLCONTEXT_CLEANUP(GLContext));
             }

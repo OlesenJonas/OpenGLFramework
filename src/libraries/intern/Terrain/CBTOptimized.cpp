@@ -5,8 +5,7 @@
 #include <glm/integer.hpp>
 
 CBTOptimized::CBTOptimized(uint32_t maxDepth)
-    : maxDepth(maxDepth),
-      shader(
+    : shader(
           VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
           {SHADERS_PATH "/Terrain/triangleTreeVis.vert", SHADERS_PATH "/Terrain/triangleTreeVis.frag"})
 {
@@ -23,12 +22,13 @@ CBTOptimized::CBTOptimized(uint32_t maxDepth)
     heap.resize(uint32Needed);
     std::fill(heap.begin(), heap.end(), 0u);
 
+    // store max depth in first D+3 bits
+    heap[0] = 1u << maxDepth;
     setNodeBitInBitfield({1, 0}, 1u);
     assert(getNodeBitInBitfield({1, 0}) == 1u);
     // set bitheap[2^D] (converted to index in packed uint array) to 1, creating a single leaf node
     assert(heap[3 * (1u << maxDepth) / 32] == 1u);
-
-    // todo: store maxDepth in first (unused element)
+    assert(glm::findLSB(heap[0]) == maxDepth);
 
     doSumReduction();
 
@@ -61,11 +61,16 @@ uint32_t CBTOptimized::getSingleBitValue(uint32_t field, int bitIndex)
     return ((field >> bitIndex) & 1u);
 }
 
+uint32_t CBTOptimized::getMaxDepth()
+{
+    return glm::findLSB(heap[0]);
+}
+
 CBTOptimized::Node CBTOptimized::getNodeAtBitfieldDepth(Node node)
 {
-    const int depthOffsetToBitfieldPart = maxDepth - node.depth;
+    const int depthOffsetToBitfieldPart = getMaxDepth() - node.depth;
 
-    return {node.heapIndex << depthOffsetToBitfieldPart, maxDepth};
+    return {node.heapIndex << depthOffsetToBitfieldPart, getMaxDepth()};
 }
 
 void CBTOptimized::setNodeBitInBitfield(Node node, uint32_t value)
@@ -74,7 +79,7 @@ void CBTOptimized::setNodeBitInBitfield(Node node, uint32_t value)
     const Node nodeAtBitfieldDepth = getNodeAtBitfieldDepth(node);
     // todo: could factor out into getBitIndexFromNode()
     const uint32_t bitIndex =
-        (1u << (maxDepth + 1u)) +
+        (1u << (getMaxDepth() + 1u)) +
         nodeAtBitfieldDepth.heapIndex; // * nodeAtBitfieldDepth.depth (which is == 1 here);
 
     const uint32_t arrIndex = bitIndex / 32u;
@@ -92,7 +97,7 @@ uint32_t CBTOptimized::getNodeBitInBitfield(Node node)
     const Node nodeAtBitfieldDepth = getNodeAtBitfieldDepth(node);
     // todo: could factor out into getBitIndexFromNode()
     const uint32_t bitIndex =
-        (1u << (maxDepth + 1u)) +
+        (1u << (getMaxDepth() + 1u)) +
         nodeAtBitfieldDepth.heapIndex; // * nodeAtBitfieldDepth.depth (which is == 1 here);
 
     const uint32_t arrIndex = bitIndex / 32u;
@@ -140,14 +145,14 @@ CBTOptimized::calculateArrayAccesArguments(uint32_t bitIndex, uint32_t bitAmount
 uint32_t CBTOptimized::getNodeBitIndex(Node node)
 {
     const uint32_t sum1 = 1u << (node.depth + 1);
-    const uint32_t sum2 = node.heapIndex * (maxDepth - node.depth + 1);
+    const uint32_t sum2 = node.heapIndex * (getMaxDepth() - node.depth + 1);
     return sum1 + sum2;
 }
 
 void CBTOptimized::setNodeValue(Node node, uint32_t value)
 {
     const ArrayAccessArguments args =
-        calculateArrayAccesArguments(getNodeBitIndex(node), maxDepth - node.depth + 1);
+        calculateArrayAccesArguments(getNodeBitIndex(node), getMaxDepth() - node.depth + 1);
 
     bitheapWriteIntoChunk(args.firstIndex, args.bitOffsetInFirstIndex, args.bitCountInFirstIndex, value);
     bitheapWriteIntoChunk(
@@ -157,7 +162,7 @@ void CBTOptimized::setNodeValue(Node node, uint32_t value)
 uint32_t CBTOptimized::getNodeValue(Node node)
 {
     const ArrayAccessArguments args =
-        calculateArrayAccesArguments(getNodeBitIndex(node), maxDepth - node.depth + 1);
+        calculateArrayAccesArguments(getNodeBitIndex(node), getMaxDepth() - node.depth + 1);
 
     const uint32_t chunk1Data =
         bitheapReadFromChunk(args.firstIndex, args.bitOffsetInFirstIndex, args.bitCountInFirstIndex);
@@ -237,7 +242,7 @@ void CBTOptimized::splitNode(Node node)
 
 void CBTOptimized::splitNodeConforming(Node node)
 {
-    if(node.depth < maxDepth)
+    if(node.depth < getMaxDepth())
     {
         splitNode(node);
         const uint32_t edgeNeighbourID = calculateSameDepthNeighbourhood(node).edge;
@@ -453,6 +458,7 @@ void CBTOptimized::refineAroundPoint(glm::vec2 p)
 
 void CBTOptimized::doSumReduction()
 {
+    const uint32_t maxDepth = getMaxDepth();
     // looping until >=0 doesnt work here since level is a uint, so its always >=0
     for(uint32_t level = maxDepth - 1; level < maxDepth; level--)
     {
