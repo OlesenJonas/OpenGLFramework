@@ -17,14 +17,20 @@ int main()
     {
         CBT cbt(i);
     }
+
     {
         bool success = true;
 
-        const uint32_t MAX_DEPTH = 20;
+        const uint32_t MAX_DEPTH = 18;
         CBT cbt(MAX_DEPTH);
         CBTOptimized cbtOpt(MAX_DEPTH);
+
+        std::vector<uint32_t> heapBackup;
+
+        srand(time(nullptr));
+
         // do random mutations on both trees
-        for(int i = 0; i < 25; i++)
+        for(int iter = 0; iter < 50; iter++)
         {
             auto cbtLeafNodes = cbt.getAmountOfLeafNodes();
             auto cbtOptLeafNodes = cbtOpt.getAmountOfLeafNodes();
@@ -47,19 +53,59 @@ int main()
                 cbtOpt.mergeNodeConforming(nodeOpt);
             }
 
-            cbt.doSumReduction();
-            cbtOpt.doSumReduction();
-
-            const uint32_t maxNodeIndex = (1u << (MAX_DEPTH + 1u)) - 1u;
-            for(uint32_t j = 1; j < maxNodeIndex; j++)
+            // check if leaf nodes are still the same
             {
-                const uint32_t cbtValue = cbt.heap[j];
-                const uint32_t nodeDepth = glm::findMSB(j);
-                const uint32_t cbtOptValue = cbtOpt.getNodeValue({j, nodeDepth});
+                const uint32_t level = MAX_DEPTH;
 
-                success &= expectedValue(cbtOptValue, cbtValue);
+                const uint32_t loopStart = 1u << level;
+                const uint32_t loopEnd = 1u << (level + 1u);
+                for(uint32_t j = loopStart; j < loopEnd; j++)
+                {
+                    const uint32_t localIndex = j - loopStart;
 
-                abandonIfFalse(success, GLCONTEXT_CLEANUP(GLContext));
+                    const uint32_t cbtValue = cbt.heap[j];
+                    const uint32_t nodeDepth = glm::findMSB(j);
+                    assert(nodeDepth == level);
+                    const uint32_t cbtOptValue = cbtOpt.getNodeValue({j, nodeDepth});
+
+                    success &= expectedValue(cbtOptValue, cbtValue);
+
+                    abandonIfFalse(success, GLCONTEXT_CLEANUP(GLContext));
+                }
+            }
+
+            cbt.doSumReduction();
+            heapBackup = cbtOpt.getHeap();
+            // cbtOpt.doSumReduction();
+            cbtOpt.doSumReductionOptimized();
+
+            // check if interior nodes are the same after sum reduction
+            for(uint32_t level = MAX_DEPTH - 1; level <= MAX_DEPTH; level--)
+            {
+                const uint32_t loopStart = 1u << level;
+                const uint32_t loopEnd = 1u << (level + 1u);
+                for(uint32_t j = loopStart; j < loopEnd; j++)
+                {
+                    const uint32_t localIndex = j - loopStart;
+
+                    const uint32_t cbtValue = cbt.heap[j];
+                    const uint32_t nodeDepth = glm::findMSB(j);
+                    assert(nodeDepth == level);
+                    const uint32_t cbtOptValue = cbtOpt.getNodeValue({j, nodeDepth});
+
+                    success &= expectedValue(cbtOptValue, cbtValue);
+
+                    if(!success)
+                    {
+                        const uint32_t arrIndex = cbtOpt.getNodeBitIndex({j, nodeDepth}) / 32u;
+                        const uint32_t bitIndex = cbtOpt.getNodeBitIndex({j, nodeDepth}) % 32u;
+                        const uint32_t beforeHeapEntry = heapBackup[arrIndex];
+                        cbtOpt.setHeap(heapBackup);
+                        cbtOpt.doSumReductionOptimized();
+                    }
+
+                    abandonIfFalse(success, GLCONTEXT_CLEANUP(GLContext));
+                }
             }
         }
     }
