@@ -10,6 +10,7 @@
 #include <iostream>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <vector>
 
 constexpr static GLuint VERTEX_SHADER_BIT = 1U << 0U;
@@ -42,8 +43,11 @@ class ShaderProgram
     /* Loads a file from the give path while adding all defines in the define list
      * Stores it in the given OpenGL handle
      */
-    void
-    loadShaderSource(GLint shaderID, const char* path, const std::initializer_list<DefinePair> defines = {});
+    static std::string
+    loadShaderSource(std::string_view path, const std::initializer_list<DefinePair> defines = {});
+    static std::string loadShaderSourceForInclude(
+        std::string_view includeSourceLine, const std::filesystem::path& baseDirectory,
+        std::unordered_set<std::filesystem::path>& includedSet);
     bool checkShader(GLuint shaderID);
 
     bool checkProgram(GLuint programID);

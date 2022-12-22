@@ -1,4 +1,8 @@
+#include <algorithm>
 #include <array>
+#include <filesystem>
+#include <string>
+#include <unordered_set>
 
 #include "ShaderProgram.h"
 
@@ -32,7 +36,12 @@ ShaderProgram::ShaderProgram(
             bool success = true;
             shaderStageIDs[i] = glCreateShader(stages[i].shaderEnum);
             std::string_view stagePath = std::data(shaderFiles)[nextName++];
-            loadShaderSource(shaderStageIDs[i], stagePath.data(), defines);
+
+            std::string shaderSource = loadShaderSource(stagePath.data(), defines);
+            const char* source = shaderSource.c_str();
+            const auto size = static_cast<GLint>(strlen(source));
+            glShaderSource(shaderStageIDs[i], 1, &source, &size);
+
             glCompileShader(shaderStageIDs[i]);
             success &= checkShader(shaderStageIDs[i]);
             if(!success)
@@ -82,19 +91,28 @@ void ShaderProgram::useProgram()
     glUseProgram(programID);
 }
 
-void ShaderProgram::loadShaderSource(
-    GLint shaderID, const char* path, const std::initializer_list<DefinePair> defines)
+std::string
+ShaderProgram::loadShaderSource(std::string_view pathString, const std::initializer_list<DefinePair> defines)
 {
+    std::filesystem::path path(pathString);
+    path = std::filesystem::absolute(path);
+    assert(std::filesystem::is_regular_file(path));
+    std::string pathForwardSlash = path.string();
+    std::replace(pathForwardSlash.begin(), pathForwardSlash.end(), '\\', '/');
+
+    auto baseDirectory = path.parent_path();
+    assert(std::filesystem::is_directory(baseDirectory));
+
     std::ifstream file(path);
     if(!file.is_open())
     {
         std::cerr << "ERROR: Unable to open file " << path << std::endl;
-        return;
+        return {};
     }
     if(file.eof())
     {
         std::cerr << "ERROR: File is empty " << path << std::endl;
-        return;
+        return {};
     }
 
     // load file
@@ -121,15 +139,30 @@ void ShaderProgram::loadShaderSource(
         fileContent += definePair.second;
         fileContent += "\n";
     }
-    fileContent += "#line " + std::to_string(lineNumber) + "\n";
+    fileContent += "#line " + std::to_string(lineNumber) + " " + "\"" + pathForwardSlash + "\"" + "\n";
+
+    // keep tracks of which files have already been included to avoid duplicates
+    std::unordered_set<std::filesystem::path> includedSet = {};
+    includedSet.emplace(path.lexically_normal());
+    assert(includedSet.size() == 1);
 
     while(!file.eof())
     {
         getline(file, line);
+        lineNumber++;
         if(line.length() >= 8 && line.substr(0, 8) == "#include")
         {
-            // todo: handle includes
-            //  shaderString += insertFile(line);
+            const std::string includedCode = loadShaderSourceForInclude(line, baseDirectory, includedSet);
+            if(includedCode.empty())
+            {
+                fileContent += "\n";
+            }
+            else
+            {
+                fileContent += includedCode;
+                fileContent +=
+                    "#line " + std::to_string(lineNumber) + " " + "\"" + pathForwardSlash + "\"" + "\n";
+            }
         }
         else
         {
@@ -138,9 +171,68 @@ void ShaderProgram::loadShaderSource(
     }
     file.close();
 
-    const char* source = fileContent.c_str();
-    const auto size = static_cast<GLint>(strlen(source));
-    glShaderSource(shaderID, 1, &source, &size);
+    return fileContent;
+}
+
+std::string ShaderProgram::loadShaderSourceForInclude(
+    std::string_view includeSourceLine, const std::filesystem::path& baseDirectory,
+    std::unordered_set<std::filesystem::path>& includedSet)
+{
+    auto includePathStart = includeSourceLine.find_first_of('\"');
+    auto includePathEnd = includeSourceLine.find_last_of('\"');
+    std::filesystem::path includePath =
+        baseDirectory /
+        (includeSourceLine.substr(includePathStart + 1, includePathEnd - includePathStart - 1));
+    includePath = std::filesystem::absolute(includePath);
+    std::string pathForwardSlash = includePath.string();
+    std::replace(pathForwardSlash.begin(), pathForwardSlash.end(), '\\', '/');
+
+    if(includedSet.contains(includePath.lexically_normal()))
+        return {};
+
+    if(!std::filesystem::is_regular_file(includePath))
+        return "ERROR: COULDNT FIND FILE: " + includePath.string();
+
+    includedSet.emplace(includePath.lexically_normal());
+
+    // load file
+    std::ifstream file(includePath);
+    if(!file.is_open())
+    {
+        return "ERROR: COULDNT OPEN FILE: " + includePath.string();
+    }
+    std::string fileContent = "#line 1 \"" + pathForwardSlash + "\"\n";
+    std::string line;
+    uint16_t lineNumber = 1;
+    while(!file.eof())
+    {
+        getline(file, line);
+        lineNumber++;
+        if(line.length() >= 8 && line.substr(0, 8) == "#include")
+        {
+            const std::string includedCode =
+                loadShaderSourceForInclude(line, includePath.parent_path(), includedSet);
+            if(includedCode.empty())
+            {
+                fileContent += "\n";
+            }
+            else
+            {
+                fileContent += includedCode;
+                fileContent +=
+                    "#line " + std::to_string(lineNumber) + " " + "\"" + pathForwardSlash + "\"" + "\n";
+            }
+        }
+        else
+        {
+            fileContent += line + "\n";
+        }
+    }
+    file.close();
+
+    return fileContent;
+
+    return {};
 }
 
 bool ShaderProgram::checkShader(GLuint shaderID)
