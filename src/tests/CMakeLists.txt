@@ -8,8 +8,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/out/release_tests
 # with a structure similar to the executables folder
 
 # Define the executable
-add_executable(CBT_test CBT.cpp)
+add_executable(CBT_CPU_test CBT_CPU.cpp)
 # link needed libraries
-target_link_libraries(CBT_test intern testing)
+target_link_libraries(CBT_CPU_test intern testing)
 # Define the test
-add_test(NAME "run_CBT_test" COMMAND $<TARGET_FILE:CBT_test>)
+add_test(NAME "run_CBT_CPU_test" COMMAND $<TARGET_FILE:CBT_CPU_test>)

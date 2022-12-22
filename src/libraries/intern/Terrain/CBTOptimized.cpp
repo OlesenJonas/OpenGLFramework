@@ -55,11 +55,6 @@ CBTOptimized::CBTOptimized(uint32_t maxDepth)
     updateDrawData();
 }
 
-uint32_t CBTOptimized::getSingleBitValue(uint32_t field, int bitIndex)
-{
-    return ((field >> bitIndex) & 1u);
-}
-
 CBTOptimized::Corners CBTOptimized::cornersOfLeftChild(const Corners& corners)
 {
 #if CBT_VERTEX_ORDERING == CBT_VERTEX_ORDERING_MINE

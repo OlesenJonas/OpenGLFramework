@@ -1,5 +1,10 @@
 #include "CBTOptimized.h"
 
+uint32_t CBTOptimized::getSingleBitValue(uint32_t field, int bitIndex)
+{
+    return ((field >> bitIndex) & 1u);
+}
+
 uint32_t CBTOptimized::getMaxDepth()
 {
     return glm::findLSB(heap[0]);

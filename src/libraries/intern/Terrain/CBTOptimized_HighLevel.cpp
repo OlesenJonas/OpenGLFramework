@@ -9,26 +9,28 @@ CBTOptimized::Node CBTOptimized::leafIndexToNode(uint32_t leafIndex)
 {
     // use sum reduction results to step back through tree
     // detailed in paper
-    uint32_t currentHeapIndex = 1;
-    uint32_t nodeDepth = 0;
-    while(getNodeValue({currentHeapIndex, nodeDepth}) > 1)
+    // uint32_t currentHeapIndex = 1;
+    // uint32_t nodeDepth = 0;
+    Node iterator{1, 0};
+    while(getNodeValue(iterator) > 1)
     {
-        const uint32_t leftChildHeapIndex = currentHeapIndex * 2;
-        const uint32_t rightChildHeapIndex = currentHeapIndex * 2 + 1;
-        if(leafIndex < getNodeValue({leftChildHeapIndex, nodeDepth + 1}))
+        const uint32_t leftChildHeapIndex = iterator.heapIndex * 2;
+        const uint32_t rightChildHeapIndex = leftChildHeapIndex + 1;
+        const uint32_t leftChildValue = getNodeValue(Node{leftChildHeapIndex, iterator.depth + 1});
+        if(leafIndex < leftChildValue)
         {
-            currentHeapIndex = leftChildHeapIndex;
+            iterator.heapIndex = leftChildHeapIndex;
         }
         else
         {
-            leafIndex -= getNodeValue({leftChildHeapIndex, nodeDepth + 1});
-            currentHeapIndex = rightChildHeapIndex;
+            leafIndex -= leftChildValue;
+            iterator.heapIndex = rightChildHeapIndex;
         }
-        nodeDepth++;
-        assert(nodeDepth == glm::findMSB(currentHeapIndex));
+        iterator.depth++;
+        assert(iterator.depth == glm::findMSB(iterator.heapIndex));
     }
 
-    return {currentHeapIndex, nodeDepth};
+    return iterator;
 }
 
 /*
