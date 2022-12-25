@@ -48,9 +48,13 @@ class ShaderProgram
     static std::string loadShaderSourceForInclude(
         std::string_view includeSourceLine, const std::filesystem::path& baseDirectory,
         std::unordered_set<std::filesystem::path>& includedSet);
-    bool checkShader(GLuint shaderID);
 
+    static std::string getLineDirective(uint16_t lineNumber, const std::string& path);
+
+    bool checkShader(GLuint shaderID);
     bool checkProgram(GLuint programID);
+
+    static const char* vendor;
 
     std::string shaderName;
     GLuint programID = 0xFFFFFFFF;
