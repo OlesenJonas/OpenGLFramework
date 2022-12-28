@@ -8,10 +8,14 @@ uniform layout (binding = 3) sampler2D attributesTex;
 
 out vec4 fragmentColor;
 
-in vec2 oUv;
-in vec3 oNormal;
-in vec4 oViewPosition;
-in mat3 oTangentFrame;
+in VSOutput
+{
+    vec4 ViewPos;
+    vec2 TexCoord;
+    vec3 Normal;
+	mat3 TangentFrame;
+} Input;
+
 
 //--------------------------------------------------------------------------------------------------------------------------------------------
 float saturate(float v)
@@ -28,7 +32,7 @@ float specularG1(float NdotV, float k)
 //--------------------------------------------------------------------------------------------------------------------------------------------
 float specularG(float L, float V, float alpha)
 {
-	const float k = alpha / 2;
+	const float k  = alpha / 2;
 	const float gl = specularG1(L, k);
 	const float gv = specularG1(V, k);
 
@@ -54,7 +58,7 @@ vec3 specularBRDF(float NdotL, float NdotV, float NdotH, float LdotH, float alph
 {
 	const float D = specularD(NdotH, alpha);
 	const float G = specularG(NdotL, NdotV, alpha);
-	const vec3 F = specularF(LdotH, F0);
+	const vec3  F = specularF(LdotH, F0);
 	return F * (D * G);
 }
 
@@ -99,17 +103,17 @@ void imageBasedLighting(in vec3 V)
 //--------------------------------------------------------------------------------------------------------------------------------------------
 void main()
 {
-	const vec3 P = oViewPosition.xyz;
+	const vec3 P = Input.ViewPos.xyz;
 	const vec3 V = normalize(-P);
 
 	vec3 diffuse = vec3(0,0,0);
 	vec3 specular = vec3(0,0,0);
 	
-	vec3 normal = texture(normalTex, oUv).xyz;
+	vec3 normal = texture(normalTex, Input.TexCoord).xyz;
     normal = normalize(normal * 2.0 - 1.0);  
-    normal *= oTangentFrame;
+    normal *= Input.TangentFrame;
 
-	directIllumination(V, P, normal, oUv, diffuse, specular);
+	directIllumination(V, P, normal, Input.TexCoord, diffuse, specular);
 	imageBasedLighting(V);
 
 	const vec3 color = diffuse + specular;
