@@ -4,6 +4,7 @@
 #include <vector>
 
 #include <intern/ShaderProgram/ShaderProgram.h>
+#include <intern/Terrain/TriangleTemplate.h>
 
 #include <glad/glad/glad.h>
 #include <glm/glm.hpp>
@@ -21,7 +22,8 @@ class CBTGPU
     explicit CBTGPU(uint32_t maxDepth);
 
     void update(glm::vec2 point);
-    void draw(glm::mat4 projView);
+    void draw(const glm::mat4& projViewMatrix);
+    void drawOutline(const glm::mat4& projViewMatrix);
 
   private:
     uint32_t maxDepth = 0xFFFFFFFF;
@@ -30,4 +32,7 @@ class CBTGPU
     GLuint indirectDispatchCommandBuffer = 0xFFFFFFFF;
     GLuint indirectDrawCommandBuffer = 0xFFFFFFFF;
     ShaderProgram cbtUpdateShader;
+
+    TriangleTemplate triangleMesh;
+    ShaderProgram drawShader;
 };

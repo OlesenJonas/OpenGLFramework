@@ -1,60 +1,71 @@
 #include "TriangleTemplate.h"
 
 #include <array>
+#include <cmath>
 
 TriangleTemplate::TriangleTemplate(uint8_t subDivLevel)
 {
     // todo: just copy pasted from cube for now. Actually create triangle geo!
-    std::vector<VertexStruct> vertices = {};
-    vertices.reserve(6 * 4);
-    // half size
-    float hs = 0.5f * size;
-    // front face
-    vertices.push_back({.pos = {-hs, -hs, hs}, .nrm = {0, 0, 1}, .uv = {0, 0}, .tang = {1, 0, 0, 1}});
-    vertices.push_back({.pos = {hs, -hs, hs}, .nrm = {0, 0, 1}, .uv = {1, 0}, .tang = {1, 0, 0, 1}});
-    vertices.push_back({.pos = {hs, hs, hs}, .nrm = {0, 0, 1}, .uv = {1, 1}, .tang = {1, 0, 0, 1}});
-    vertices.push_back({.pos = {-hs, hs, hs}, .nrm = {0, 0, 1}, .uv = {0, 1}, .tang = {1, 0, 0, 1}});
-    // back face
-    vertices.push_back({.pos = {hs, -hs, -hs}, .nrm = {0, 0, -1}, .uv = {0, 0}, .tang = {-1, 0, 0, 1}});
-    vertices.push_back({.pos = {-hs, -hs, -hs}, .nrm = {0, 0, -1}, .uv = {1, 0}, .tang = {-1, 0, 0, 1}});
-    vertices.push_back({.pos = {-hs, hs, -hs}, .nrm = {0, 0, -1}, .uv = {1, 1}, .tang = {-1, 0, 0, 1}});
-    vertices.push_back({.pos = {hs, hs, -hs}, .nrm = {0, 0, -1}, .uv = {0, 1}, .tang = {-1, 0, 0, 1}});
-    // right face
-    vertices.push_back({.pos = {hs, -hs, hs}, .nrm = {1, 0, 0}, .uv = {0, 0}, .tang = {0, 0, -1, 1}});
-    vertices.push_back({.pos = {hs, -hs, -hs}, .nrm = {1, 0, 0}, .uv = {1, 0}, .tang = {0, 0, -1, 1}});
-    vertices.push_back({.pos = {hs, hs, -hs}, .nrm = {1, 0, 0}, .uv = {1, 1}, .tang = {0, 0, -1, 1}});
-    vertices.push_back({.pos = {hs, hs, hs}, .nrm = {1, 0, 0}, .uv = {0, 1}, .tang = {0, 0, -1, 1}});
-    // left face
-    vertices.push_back({.pos = {-hs, -hs, -hs}, .nrm = {-1, 0, 0}, .uv = {0, 0}, .tang = {0, 0, 1, 1}});
-    vertices.push_back({.pos = {-hs, -hs, hs}, .nrm = {-1, 0, 0}, .uv = {1, 0}, .tang = {0, 0, 1, 1}});
-    vertices.push_back({.pos = {-hs, hs, hs}, .nrm = {-1, 0, 0}, .uv = {1, 1}, .tang = {0, 0, 1, 1}});
-    vertices.push_back({.pos = {-hs, hs, -hs}, .nrm = {-1, 0, 0}, .uv = {0, 1}, .tang = {0, 0, 1, 1}});
-    // top face
-    vertices.push_back({.pos = {-hs, hs, hs}, .nrm = {0, 1, 0}, .uv = {0, 0}, .tang = {1, 0, 0, 1}});
-    vertices.push_back({.pos = {hs, hs, hs}, .nrm = {0, 1, 0}, .uv = {1, 0}, .tang = {1, 0, 0, 1}});
-    vertices.push_back({.pos = {hs, hs, -hs}, .nrm = {0, 1, 0}, .uv = {1, 1}, .tang = {1, 0, 0, 1}});
-    vertices.push_back({.pos = {-hs, hs, -hs}, .nrm = {0, 1, 0}, .uv = {0, 1}, .tang = {1, 0, 0, 1}});
-    // bottom face
-    vertices.push_back({.pos = {-hs, -hs, -hs}, .nrm = {0, -1, 0}, .uv = {0, 0}, .tang = {1, 0, 0, 1}});
-    vertices.push_back({.pos = {hs, -hs, -hs}, .nrm = {0, -1, 0}, .uv = {1, 0}, .tang = {1, 0, 0, 1}});
-    vertices.push_back({.pos = {hs, -hs, hs}, .nrm = {0, -1, 0}, .uv = {1, 1}, .tang = {1, 0, 0, 1}});
-    vertices.push_back({.pos = {-hs, -hs, hs}, .nrm = {0, -1, 0}, .uv = {0, 1}, .tang = {1, 0, 0, 1}});
+    std::vector<glm::vec2> vertices;
+    vertices.reserve(6);
+    vertices.emplace_back(0.f, 0.f);
+    vertices.emplace_back(0.5f, 0.f);
+    vertices.emplace_back(1.f, 0.f);
+
+    vertices.emplace_back(0.f, 0.5f);
+    vertices.emplace_back(0.5f, 0.5f);
+
+    vertices.emplace_back(0.f, 1.f);
 
     // index structure
-    std::vector<GLuint> indices = {};
-    indices.reserve(6 * 6);
-    for(int i = 0; i < 6; i++)
-    {
-        indices.push_back(i * 4 + 0);
-        indices.push_back(i * 4 + 1);
-        indices.push_back(i * 4 + 3);
+    std::vector<GLuint> indices;
+    indices.reserve(12);
+    indices.emplace_back(0);
+    indices.emplace_back(4);
+    indices.emplace_back(3);
 
-        indices.push_back(i * 4 + 3);
-        indices.push_back(i * 4 + 1);
-        indices.push_back(i * 4 + 2);
-    }
+    indices.emplace_back(0);
+    indices.emplace_back(1);
+    indices.emplace_back(4);
 
-    // TODO: MAKE INIT VIRTUAL AND OVERRIDE IN THIS CLASS! 100% ONLY NEED POSITION ATTRIBUTE!
-    //       MAYBE UV LATER FOR SOME FANCY BARYCENTRIC EFFECT (BIG IF)
+    indices.emplace_back(1);
+    indices.emplace_back(2);
+    indices.emplace_back(4);
+
+    indices.emplace_back(3);
+    indices.emplace_back(4);
+    indices.emplace_back(5);
+
     init(vertices, indices);
+}
+
+void TriangleTemplate::init(std::span<const glm::vec2> vertices, std::span<const GLuint> indices)
+{
+    indexCount = indices.size();
+
+    glCreateVertexArrays(1, &vaoHandle);
+    glBindVertexArray(vaoHandle);
+
+    glGenBuffers(2, &vboHandles[0]);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vboHandles[0]);
+    glBufferStorage(GL_ARRAY_BUFFER, 2 * sizeof(float) * vertices.size(), vertices.data(), 0);
+
+    // position
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
+
+    // use the second buffer as the source for indices
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vboHandles[1]);
+    glBufferStorage(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLuint) * indexCount, indices.data(), 0);
+
+    // unbind the VBO, we don't need it anymore
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    initialized = true;
+}
+
+GLuint TriangleTemplate::getVAO() const
+{
+    return vaoHandle;
 }

@@ -33,7 +33,7 @@ class Mesh
   protected:
     void init(std::span<const VertexStruct> vertices, std::span<const GLuint> indices = {});
 
-  private:
+  protected:
     bool initialized = false;
     GLuint vaoHandle = 0xffffffff;
     GLuint vboHandles[2] = {0xffffffff, 0xffffffff}; // NOLINT

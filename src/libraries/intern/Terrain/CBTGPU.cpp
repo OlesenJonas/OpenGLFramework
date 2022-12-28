@@ -1,11 +1,17 @@
 #include "CBTGPU.h"
 #include "ShaderProgram/ShaderProgram.h"
+#include "Terrain/TriangleTemplate.h"
 
 #include <array>
 #include <glm/integer.hpp>
 
 CBTGPU::CBTGPU(uint32_t maxDepth)
-    : maxDepth(maxDepth), cbtUpdateShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/Update.comp"})
+    : maxDepth(maxDepth),                                                             //
+      cbtUpdateShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/Update.comp"}), //
+      triangleMesh(0),                                                                //
+      drawShader(
+          VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
+          {SHADERS_PATH "/Terrain/CBT/drawing.vert", SHADERS_PATH "/Terrain/CBT/drawing.frag"})
 {
     // im not actually sure what the max possible depth is when using uint32_ts for the bitheap
     // would need to check code, but I think 30 should be fine. That way 1 << (30+1) can still be represented
@@ -52,6 +58,7 @@ CBTGPU::CBTGPU(uint32_t maxDepth)
     }
 
     {
+        // TODO: need to read amount of triangles in current selcted templateMesh
         typedef struct
         {
             uint32_t count;
@@ -60,6 +67,16 @@ CBTGPU::CBTGPU(uint32_t maxDepth)
             uint32_t baseInstance;
         } DrawArraysIndirectCommand;
         const DrawArraysIndirectCommand temp{1, 1, 0, 0};
+
+        // TODO: switch. using index buffer, so this indirect command strcture is needed
+        typedef struct
+        {
+            uint32_t count;
+            uint32_t primCount;
+            uint32_t firstIndex;
+            uint32_t baseVertex;
+            uint32_t baseInstance;
+        } DrawElementsIndirectCommand;
 
         glCreateBuffers(1, &indirectDrawCommandBuffer);
         glNamedBufferStorage(indirectDrawCommandBuffer, sizeof(DrawArraysIndirectCommand), &temp, 0);
@@ -98,6 +115,40 @@ void CBTGPU::update(glm::vec2 point)
 {
 }
 
-void CBTGPU::draw(glm::mat4 projView)
+void CBTGPU::draw(const glm::mat4& projViewMatrix)
 {
+    drawShader.useProgram();
+    // a lot of this will simplify to indirect calls later
+    glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
+    glBindVertexArray(triangleMesh.getVAO());
+
+    // const uint32_t leafNodeAmnt = getNodeValue({1, 0});
+    const uint32_t leafNodeAmnt = 4;
+
+    glUniform1i(1, 0);
+    glDrawElementsInstancedBaseVertexBaseInstance(
+        GL_TRIANGLES, leafNodeAmnt * 3, GL_UNSIGNED_INT, nullptr, 1, 0, 0);
+}
+
+void CBTGPU::drawOutline(const glm::mat4& projViewMatrix)
+{
+    drawShader.useProgram();
+    // a lot of this will simplify to indirect calls later
+    glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
+    glBindVertexArray(triangleMesh.getVAO());
+
+    // const uint32_t leafNodeAmnt = getNodeValue({1, 0});
+    const uint32_t leafNodeAmnt = 4;
+
+    // render triangle outlines with hidden line removal
+    glEnable(GL_POLYGON_OFFSET_LINE);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    glUniform1i(1, 1);
+    glPolygonOffset(-1.0, 1.0);
+    glDrawElementsInstancedBaseVertexBaseInstance(
+        GL_TRIANGLES, leafNodeAmnt * 3, GL_UNSIGNED_INT, nullptr, 1, 0, 0);
+    glDisable(GL_POLYGON_OFFSET_LINE);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+    glBindVertexArray(0);
 }
