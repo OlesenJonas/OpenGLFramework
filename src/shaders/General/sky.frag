@@ -6,7 +6,7 @@ out vec4 fragmentColor;
 
 in vec2 passTextureCoord;
 
-uniform samplerCube sky;
+uniform layout (binding = 4) samplerCube sky;
 
 void main() {
     const vec2 coord = passTextureCoord + vec2(-0.5, -0.5);

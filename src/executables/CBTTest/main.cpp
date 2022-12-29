@@ -194,20 +194,10 @@ int main()
         {SHADERS_PATH "/General/simple.vert", SHADERS_PATH "/General/simple.frag"}};
 
     Texture Heightmap(MISC_PATH "/Heightmap.hdr", true);
-
     Texture tAlbedo(MISC_PATH "/YellowBrick_basecolor.tga", true);
     Texture tNormal(MISC_PATH "/YellowBrick_normal.tga", true);
     Texture tAttributes(MISC_PATH "/YellowBrick_attributes.tga", true);
-
-    std::vector<std::string> cubeTextures = {
-        MISC_PATH "/GridTexture.png",
-        MISC_PATH "/GridTexture.png",
-        MISC_PATH "/GridTexture.png",
-        MISC_PATH "/GridTexture.png",
-        MISC_PATH "/GridTexture.png",
-        MISC_PATH "/GridTexture.png"};
-    TextureCube tSky(cubeTextures);
-
+    TextureCube tSky(MISC_PATH "/HDRPanorama.jpg");
 
     Cube matCube{1.0f};
     ShaderProgram pbsShader{
@@ -257,6 +247,7 @@ int main()
             glBindTextureUnit(1, tAlbedo.getTextureID());
             glBindTextureUnit(2, tNormal.getTextureID());
             glBindTextureUnit(3, tAttributes.getTextureID());
+            glBindTextureUnit(4, tSky.getTextureID());
             matCube.draw();
         }
 
@@ -296,7 +287,7 @@ int main()
         //----------------------- Sky
         {
             skyShader.useProgram();
-            glBindTexture(GL_TEXTURE_CUBE_MAP, tSky.getTextureID());
+            glBindTextureUnit(4, tSky.getTextureID());
             glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(cam.getSkyProj()));
             glDepthFunc(GL_EQUAL);
             tri.draw();

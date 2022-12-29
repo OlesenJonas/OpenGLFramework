@@ -8,6 +8,11 @@
 // forward declared, part of Texture.h
 struct TextureDesc;
 
+struct Color
+{
+    uint8_t r,g,b;
+};
+
 /** Texture class encapsulating and managing an OpenGL 3D texture object.
  */
 class TextureCube : public GLTexture
@@ -24,7 +29,9 @@ class TextureCube : public GLTexture
     /** Creates an immutable Texture object based on a given descriptor.
      * @param descriptor Descriptor to use for configuring the texture
      */
-    explicit TextureCube(std::vector<std::string> files);
+    explicit TextureCube(const std::vector<std::string>& files);
+
+    explicit TextureCube(const std::string& file);
 
     /*
         Move constructor
