@@ -193,6 +193,8 @@ int main()
         VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
         {SHADERS_PATH "/General/simple.vert", SHADERS_PATH "/General/simple.frag"}};
 
+    Texture Heightmap(MISC_PATH "/Heightmap.hdr", true);
+
     Texture tAlbedo(MISC_PATH "/YellowBrick_basecolor.tga", true);
     Texture tNormal(MISC_PATH "/YellowBrick_normal.tga", true);
     Texture tAttributes(MISC_PATH "/YellowBrick_attributes.tga", true);
@@ -288,18 +290,14 @@ int main()
             }
         }
 
+        glBindTextureUnit(1, Heightmap.getTextureID());
         cbt.draw(*cam.getProj() * *cam.getView());
 
         //----------------------- Sky
         {
-            glm::mat4 view = *cam.getView();
-            view[3] = glm::vec4(0, 0, 0, 1);
-            glm::mat4 proj = *cam.getProj();
-            glm::mat4 inv = glm::inverse(proj * view);
-
             skyShader.useProgram();
             glBindTexture(GL_TEXTURE_CUBE_MAP, tSky.getTextureID());
-            glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(inv));
+            glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(cam.getSkyProj()));
             glDepthFunc(GL_EQUAL);
             tri.draw();
         }

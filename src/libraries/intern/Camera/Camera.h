@@ -44,6 +44,7 @@ class Camera
     glm::mat4* getView();
     glm::mat4* getProj();
     glm::mat4* getMatricesPointer();
+    glm::mat4 getSkyProj();
     float getNear() const;
     float getFar() const;
     Mode getMode() const;
