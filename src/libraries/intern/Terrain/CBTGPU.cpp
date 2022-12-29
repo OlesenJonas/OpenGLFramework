@@ -127,7 +127,7 @@ void CBTGPU::draw(const glm::mat4& projViewMatrix)
 
     glUniform1i(1, 0);
     glDrawElementsInstancedBaseVertexBaseInstance(
-        GL_TRIANGLES, leafNodeAmnt * 3, GL_UNSIGNED_INT, nullptr, 2, 0, 0);
+        GL_TRIANGLES, triangleMesh.getIndexCount(), GL_UNSIGNED_INT, nullptr, 2, 0, 0);
 }
 
 void CBTGPU::drawOutline(const glm::mat4& projViewMatrix)
@@ -146,7 +146,7 @@ void CBTGPU::drawOutline(const glm::mat4& projViewMatrix)
     glUniform1i(1, 1);
     glPolygonOffset(-1.0, 1.0);
     glDrawElementsInstancedBaseVertexBaseInstance(
-        GL_TRIANGLES, leafNodeAmnt * 3, GL_UNSIGNED_INT, nullptr, 2, 0, 0);
+        GL_TRIANGLES, triangleMesh.getIndexCount(), GL_UNSIGNED_INT, nullptr, 2, 0, 0);
     glDisable(GL_POLYGON_OFFSET_LINE);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 

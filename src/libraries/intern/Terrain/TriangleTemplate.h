@@ -13,4 +13,5 @@ class TriangleTemplate : public Mesh
     void init(std::span<const glm::vec2> vertices, std::span<const GLuint> indices);
 
     [[nodiscard]] GLuint getVAO() const;
+    [[nodiscard]] uint32_t getIndexCount() const;
 };

@@ -38,5 +38,5 @@ class Mesh
     GLuint vaoHandle = 0xffffffff;
     GLuint vboHandles[2] = {0xffffffff, 0xffffffff}; // NOLINT
     GLenum indexType = GL_UNSIGNED_INT;
-    unsigned int indexCount = 0;
+    uint32_t indexCount = 0;
 };
