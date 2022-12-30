@@ -149,7 +149,7 @@ int main()
     userPointerStruct.cbt = &cbt;
     ctx.setUserPointer(&userPointerStruct);
 
-    Cube cube{0.01f};
+    Cube cube{.1f};
     ShaderProgram simpleShader{
         VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
         {SHADERS_PATH "/General/simple.vert", SHADERS_PATH "/General/simple.frag"}};
@@ -206,11 +206,12 @@ int main()
 
             const glm::vec4 planeHit =
                 camOriginWorld + cursorDirectionWorld * (camOriginWorld.y / -cursorDirectionWorld.y);
-            userPointerStruct.hitPoint = planeHit;
+            userPointerStruct.hitPoint = {planeHit.x, planeHit.z};
         }
         cbt.update(userPointerStruct.hitPoint);
 
         cbt.draw(*cam.getProj() * *cam.getView());
+        cbt.drawOutline(*cam.getProj() * *cam.getView());
 
         // UI
         {
