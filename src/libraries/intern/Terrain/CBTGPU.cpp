@@ -59,16 +59,7 @@ CBTGPU::CBTGPU(uint32_t maxDepth)
 
     {
         // TODO: need to read amount of triangles in current selcted templateMesh
-        typedef struct
-        {
-            uint32_t count;
-            uint32_t instanceCount;
-            uint32_t first;
-            uint32_t baseInstance;
-        } DrawArraysIndirectCommand;
-        const DrawArraysIndirectCommand temp{1, 1, 0, 0};
 
-        // TODO: switch. using index buffer, so this indirect command strcture is needed
         typedef struct
         {
             uint32_t count;
@@ -78,10 +69,17 @@ CBTGPU::CBTGPU(uint32_t maxDepth)
             uint32_t baseInstance;
         } DrawElementsIndirectCommand;
 
+        const DrawElementsIndirectCommand temp{
+            .count = triangleMesh.getIndexCount(),
+            .primCount = 2, // number of instances
+            .firstIndex = 0,
+            .baseVertex = 0,
+            .baseInstance = 0};
+
         glCreateBuffers(1, &indirectDrawCommandBuffer);
-        glNamedBufferStorage(indirectDrawCommandBuffer, sizeof(DrawArraysIndirectCommand), &temp, 0);
-        glObjectLabel(GL_BUFFER, indirectDispatchCommandBuffer, -1, "Indirect Draw Command Buffer");
-        glBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirectDispatchCommandBuffer);
+        glNamedBufferStorage(indirectDrawCommandBuffer, sizeof(DrawElementsIndirectCommand), &temp, 0);
+        glObjectLabel(GL_BUFFER, indirectDrawCommandBuffer, -1, "Indirect Draw Command Buffer");
+        glBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirectDrawCommandBuffer);
     }
 
     // doSumReduction();
@@ -126,8 +124,9 @@ void CBTGPU::draw(const glm::mat4& projViewMatrix)
     const uint32_t leafNodeAmnt = 4;
 
     glUniform1i(1, 0);
-    glDrawElementsInstancedBaseVertexBaseInstance(
-        GL_TRIANGLES, triangleMesh.getIndexCount(), GL_UNSIGNED_INT, nullptr, 2, 0, 0);
+    // glDrawElementsInstancedBaseVertexBaseInstance(
+    // GL_TRIANGLES, triangleMesh.getIndexCount(), GL_UNSIGNED_INT, nullptr, 2, 0, 0);
+    glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
 }
 
 void CBTGPU::drawOutline(const glm::mat4& projViewMatrix)
@@ -145,8 +144,9 @@ void CBTGPU::drawOutline(const glm::mat4& projViewMatrix)
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glUniform1i(1, 1);
     glPolygonOffset(-1.0, 1.0);
-    glDrawElementsInstancedBaseVertexBaseInstance(
-        GL_TRIANGLES, triangleMesh.getIndexCount(), GL_UNSIGNED_INT, nullptr, 2, 0, 0);
+    glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
+    // glDrawElementsInstancedBaseVertexBaseInstance(
+    // GL_TRIANGLES, triangleMesh.getIndexCount(), GL_UNSIGNED_INT, nullptr, 2, 0, 0);
     glDisable(GL_POLYGON_OFFSET_LINE);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
