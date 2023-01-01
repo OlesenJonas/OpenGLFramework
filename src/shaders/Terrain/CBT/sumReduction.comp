@@ -1,0 +1,39 @@
+#version 460
+
+#ifdef GLSLANGVALIDATOR
+    // otherwise glslangValidator complains about #include
+    #extension GL_GOOGLE_include_directive : require
+    //for OpenGL those will be parsed when shader is loaded
+#endif
+
+#ifndef LOCAL_SIZE_X
+    #define LOCAL_SIZE_X 256
+#endif
+
+layout(std430, binding = 0) restrict buffer cbtSSBO
+{
+    uint heap[];
+};
+
+#define HEAP_ALREADY_DEFINED
+#include "LowLevel.glsl"
+
+layout(location = 0) uniform uint depth;
+
+layout(local_size_x = LOCAL_SIZE_X, local_size_y = 1, local_size_z = 1) in;
+
+void main() 
+{
+    const uint nodeAmountsAtDepth = (1u << depth);
+    const uint threadID = gl_GlobalInvocationID.x;
+    const uint startIndexAtDepth = nodeAmountsAtDepth;
+
+    if (threadID < nodeAmountsAtDepth)
+    {
+        uint nodeHeapIndex = threadID + startIndexAtDepth;
+        uint left = getNodeValue(Node(nodeHeapIndex * 2, depth + 1));
+        uint right = getNodeValue(Node(nodeHeapIndex * 2 + 1, depth + 1));
+
+        setNodeValue(Node(nodeHeapIndex, depth), left+right);
+    }
+}

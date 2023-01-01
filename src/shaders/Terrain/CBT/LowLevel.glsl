@@ -1,3 +1,6 @@
+#ifndef CBTLOWLEVELGLSL
+#define CBTLOWLEVELGLSL
+
 #ifdef GLSLANGVALIDATOR
     // otherwise glslangValidator complains about #include
     #extension GL_GOOGLE_include_directive : require
@@ -30,15 +33,17 @@ Node getNodeAtBitfieldDepth(const Node node)
     return Node(node.heapIndex << depthOffsetToBitfieldPart, getMaxDepth());
 }
 
-void bitheapWriteIntoSingleChunk(
-    const uint arrayIndex, const uint bitOffset, const uint bitAmount, const uint bitData)
-{
-    const uint mask = (~(0xFFFFFFFFu << bitAmount)) << bitOffset;
-    // heap[arrayIndex] &= ~mask;
-    atomicAnd(heap[arrayIndex],~mask);
-    // heap[arrayIndex] |= bitData << bitOffset;
-    atomicOr(heap[arrayIndex], bitData << bitOffset);
-}
+#ifndef HEAP_READ_ONLY
+    void bitheapWriteIntoSingleChunk(
+        const uint arrayIndex, const uint bitOffset, const uint bitAmount, const uint bitData)
+    {
+        const uint mask = (~(0xFFFFFFFFu << bitAmount)) << bitOffset;
+        // heap[arrayIndex] &= ~mask;
+        atomicAnd(heap[arrayIndex],~mask);
+        // heap[arrayIndex] |= bitData << bitOffset;
+        atomicOr(heap[arrayIndex], bitData << bitOffset);
+    }
+#endif
 
 uint bitheapReadFromSingleChunk(const uint arrayIndex, const uint bitOffset, const uint bitAmount)
 {
@@ -62,19 +67,21 @@ calculateArrayAccesArguments(const uint bitIndex, const uint bitAmount)
     return args;
 }
 
-void bitheapWriteBits(const uint startIndex, const uint amount, const uint value)
-{
-    const ArrayAccessArguments args = calculateArrayAccesArguments(startIndex, amount);
-    bitheapWriteIntoSingleChunk(
-        args.firstIndex, args.bitOffsetInFirstIndex, args.bitCountInFirstIndex, value);
-    bitheapWriteIntoSingleChunk(
-        args.secondIndex, 0u, args.bitCountInSecondIndex, value >> args.bitCountInFirstIndex);
-}
+#ifndef HEAP_READ_ONLY
+    void bitheapWriteBits(const uint startIndex, const uint amount, const uint value)
+    {
+        const ArrayAccessArguments args = calculateArrayAccesArguments(startIndex, amount);
+        bitheapWriteIntoSingleChunk(
+            args.firstIndex, args.bitOffsetInFirstIndex, args.bitCountInFirstIndex, value);
+        bitheapWriteIntoSingleChunk(
+            args.secondIndex, 0u, args.bitCountInSecondIndex, value >> args.bitCountInFirstIndex);
+    }
 
-void setNodeValue(const Node node, const uint value)
-{
-    bitheapWriteBits(getNodeBitIndex(node), getMaxDepth() - node.depth + 1, value);
-}
+    void setNodeValue(const Node node, const uint value)
+    {
+        bitheapWriteBits(getNodeBitIndex(node), getMaxDepth() - node.depth + 1, value);
+    }
+#endif
 
 uint getNodeValue(const Node node)
 {
@@ -89,22 +96,24 @@ uint getNodeValue(const Node node)
     return result;
 }
 
-void setNodeBitInBitfield(const Node node, const uint value)
-{
-    const Node nodeAtBitfieldDepth = getNodeAtBitfieldDepth(node);
-    const uint bitIndex =
-        (1u << (getMaxDepth() + 1u)) +
-        nodeAtBitfieldDepth.heapIndex; // * nodeAtBitfieldDepth.depth (which is == 1 here);
+#ifndef HEAP_READ_ONLY
+    void setNodeBitInBitfield(const Node node, const uint value)
+    {
+        const Node nodeAtBitfieldDepth = getNodeAtBitfieldDepth(node);
+        const uint bitIndex =
+            (1u << (getMaxDepth() + 1u)) +
+            nodeAtBitfieldDepth.heapIndex; // * nodeAtBitfieldDepth.depth (which is == 1 here);
 
-    const uint arrIndex = bitIndex / 32u;
-    const uint localBitIndex = bitIndex % 32u;
+        const uint arrIndex = bitIndex / 32u;
+        const uint localBitIndex = bitIndex % 32u;
 
-    const uint mask = ~(1u << localBitIndex);
-    // heap[arrIndex] &= mask;
-    atomicAnd(heap[arrIndex], mask);
-    // heap[arrIndex] |= (value << localBitIndex);
-    atomicOr(heap[arrIndex], value << localBitIndex);
-}
+        const uint mask = ~(1u << localBitIndex);
+        // heap[arrIndex] &= mask;
+        atomicAnd(heap[arrIndex], mask);
+        // heap[arrIndex] |= (value << localBitIndex);
+        atomicOr(heap[arrIndex], value << localBitIndex);
+    }
+#endif
 
 uint getNodeBitInBitfield(const Node node)
 {
@@ -125,3 +134,5 @@ uint getNodeBitInBitfield(const Node node)
 
     return result;
 }
+
+#endif

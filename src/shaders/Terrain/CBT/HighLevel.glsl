@@ -98,71 +98,75 @@ bool isParentOfTwoLeafNodes(const Node node)
     return getNodeValue(node) <= 2;
 }
 
-void splitNode(const Node node)
-{
-    setNodeBitInBitfield(Node(2 * node.heapIndex + 1u, node.depth + 1), 1u);
-}
+#ifndef HEAP_READ_ONLY
 
-void splitNodeConforming(const Node node)
-{
-    if(node.depth < getMaxDepth())
+    void splitNode(const Node node)
     {
-        splitNode(node);
-        const uint edgeNeighbourID = calculateSameDepthNeighbourhood(node).edge;
-        Node currentNode = Node(edgeNeighbourID, edgeNeighbourID == 0 ? 0 : node.depth);
+        setNodeBitInBitfield(Node(2 * node.heapIndex + 1u, node.depth + 1), 1u);
+    }
 
-        // until we reach the root node, or theres no edge neighbour left
-        while(currentNode.heapIndex > 1)
+    void splitNodeConforming(const Node node)
+    {
+        if(node.depth < getMaxDepth())
         {
-            // split current node
-            splitNode(currentNode);
-            // factor out into getParent() ?
-            currentNode.heapIndex = currentNode.heapIndex / 2;
-            currentNode.depth -= 1;
-            // split its parent
-            splitNode(currentNode);
-            const uint edgeNeighbourID = calculateSameDepthNeighbourhood(currentNode).edge;
-            // continue with parents edge neighbour
-            // currentNode = Node(edgeNeighbourID, edgeNeighbourID == 0 ? 0 : currentNode.depth);
-            currentNode.heapIndex = edgeNeighbourID;
-            currentNode.depth = edgeNeighbourID == 0 ? 0 : currentNode.depth;
+            splitNode(node);
+            const uint edgeNeighbourID = calculateSameDepthNeighbourhood(node).edge;
+            Node currentNode = Node(edgeNeighbourID, edgeNeighbourID == 0 ? 0 : node.depth);
+
+            // until we reach the root node, or theres no edge neighbour left
+            while(currentNode.heapIndex > 1)
+            {
+                // split current node
+                splitNode(currentNode);
+                // factor out into getParent() ?
+                currentNode.heapIndex = currentNode.heapIndex / 2;
+                currentNode.depth -= 1;
+                // split its parent
+                splitNode(currentNode);
+                const uint edgeNeighbourID = calculateSameDepthNeighbourhood(currentNode).edge;
+                // continue with parents edge neighbour
+                // currentNode = Node(edgeNeighbourID, edgeNeighbourID == 0 ? 0 : currentNode.depth);
+                currentNode.heapIndex = edgeNeighbourID;
+                currentNode.depth = edgeNeighbourID == 0 ? 0 : currentNode.depth;
+            }
         }
     }
-}
 
-void mergeNode(const Node node)
-{
-    // merge
-    if(node.depth > 0)
+    void mergeNode(const Node node)
     {
-        setNodeBitInBitfield(Node(node.heapIndex | 1u, node.depth), 0u);
-    }
-}
-
-void mergeNodeConforming(const Node node)
-{
-    // cant merge root node
-    if(node.heapIndex <= 1)
-    {
-        return;
+        // merge
+        if(node.depth > 0)
+        {
+            setNodeBitInBitfield(Node(node.heapIndex | 1u, node.depth), 0u);
+        }
     }
 
-    /*
-        slightly different logic than outliend in paper
-        (mostly because isLeafNode doesnt work as intended, see function comment)
-    */
-    const Node parentNode = Node(node.heapIndex / 2, node.depth - 1);
-    const bool canSplitTop = isParentOfTwoLeafNodes(parentNode);
-
-    const uint diamondIndex = calculateSameDepthNeighbourhood(parentNode).edge;
-    // set diamond index = parentIndex if diamondIndex doesnt exist, saves some braching later on
-    const Node diamondNode = Node(diamondIndex == 0 ? parentNode.heapIndex : diamondIndex, parentNode.depth);
-    const bool canSplitBot = isParentOfTwoLeafNodes(diamondNode);
-
-    if(canSplitTop && canSplitBot)
+    void mergeNodeConforming(const Node node)
     {
-        mergeNode(node);
-        const Node rightDiamondChild = Node(2 * diamondNode.heapIndex + 1, diamondNode.depth + 1);
-        mergeNode(rightDiamondChild);
+        // cant merge root node
+        if(node.heapIndex <= 1)
+        {
+            return;
+        }
+
+        /*
+            slightly different logic than outliend in paper
+            (mostly because isLeafNode doesnt work as intended, see function comment)
+        */
+        const Node parentNode = Node(node.heapIndex / 2, node.depth - 1);
+        const bool canSplitTop = isParentOfTwoLeafNodes(parentNode);
+
+        const uint diamondIndex = calculateSameDepthNeighbourhood(parentNode).edge;
+        // set diamond index = parentIndex if diamondIndex doesnt exist, saves some braching later on
+        const Node diamondNode = Node(diamondIndex == 0 ? parentNode.heapIndex : diamondIndex, parentNode.depth);
+        const bool canSplitBot = isParentOfTwoLeafNodes(diamondNode);
+
+        if(canSplitTop && canSplitBot)
+        {
+            mergeNode(node);
+            const Node rightDiamondChild = Node(2 * diamondNode.heapIndex + 1, diamondNode.depth + 1);
+            mergeNode(rightDiamondChild);
+        }
     }
-}
+
+#endif

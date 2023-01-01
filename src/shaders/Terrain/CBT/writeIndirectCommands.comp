@@ -1,0 +1,38 @@
+#version 460
+
+#ifdef GLSLANGVALIDATOR
+    // otherwise glslangValidator complains about #include
+    #extension GL_GOOGLE_include_directive : require
+    //for OpenGL those will be parsed when shader is loaded
+#endif
+
+layout(std430, binding = 0) readonly restrict buffer cbtSSBO
+{
+    uint heap[];
+};
+
+#include "indirectCommandStructs.glsl"
+#define HEAP_ALREADY_DEFINED
+#define HEAP_READ_ONLY
+#include "HighLevel.glsl"
+
+layout(std430, binding = 1) writeonly restrict buffer computeCommand
+{
+    DispatchIndirectCommand compCmd;
+};
+
+layout(std430, binding = 2) writeonly restrict buffer drawCommand
+{
+    DrawElementsIndirectCommand drawCmd;
+};
+
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+void main() 
+{
+    const uint leafNodeAmount = getAmountOfLeafNodes();
+
+    drawCmd.primCount = leafNodeAmount;
+    //up rounded result of leafNodeAmount/256
+    compCmd.num_groups_x = ((leafNodeAmount + 256 - 1) / 256);
+}

@@ -13,3 +13,10 @@ add_executable(CBT_CPU_test CBT_CPU.cpp)
 target_link_libraries(CBT_CPU_test intern testing)
 # Define the test
 add_test(NAME "run_CBT_CPU_test" COMMAND $<TARGET_FILE:CBT_CPU_test>)
+
+# Define the executable
+add_executable(CBT_GPU_test CBT_GPU.cpp)
+# link needed libraries
+target_link_libraries(CBT_GPU_test intern testing)
+# Define the test
+add_test(NAME "run_CBT_GPU_test" COMMAND $<TARGET_FILE:CBT_GPU_test>)

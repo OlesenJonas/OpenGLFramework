@@ -120,8 +120,6 @@ int main()
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
     // glEnable(GL_FRAMEBUFFER_SRGB);
-    // for triangle vis mode
-    glProvokingVertex(GL_FIRST_VERTEX_CONVENTION);
 
     //----------------------- INIT IMGUI & Input
 
@@ -144,12 +142,12 @@ int main()
     Camera cam{ctx, static_cast<float>(WIDTH) / static_cast<float>(HEIGHT)};
     ctx.setCamera(&cam);
 
-    CBTGPU cbt(10);
+    CBTGPU cbt(12);
     UserPointerStruct userPointerStruct{};
     userPointerStruct.cbt = &cbt;
     ctx.setUserPointer(&userPointerStruct);
 
-    Cube cube{.1f};
+    Cube cube{.01f};
     ShaderProgram simpleShader{
         VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
         {SHADERS_PATH "/General/simple.vert", SHADERS_PATH "/General/simple.frag"}};
@@ -208,7 +206,9 @@ int main()
                 camOriginWorld + cursorDirectionWorld * (camOriginWorld.y / -cursorDirectionWorld.y);
             userPointerStruct.hitPoint = {planeHit.x, planeHit.z};
         }
-        cbt.update(userPointerStruct.hitPoint);
+        cbt.refineAroundPoint(userPointerStruct.hitPoint);
+        cbt.doSumReduction();
+        cbt.writeIndirectCommands();
 
         cbt.draw(*cam.getProj() * *cam.getView());
         cbt.drawOutline(*cam.getProj() * *cam.getView());

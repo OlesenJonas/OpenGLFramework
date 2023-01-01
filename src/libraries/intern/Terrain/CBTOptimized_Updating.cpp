@@ -46,7 +46,7 @@ void CBTOptimized::refineAroundPoint(glm::vec2 p)
             }
         }
     }
-    doSumReduction();
+    doSumReductionOptimized();
     splitPass = !splitPass;
 }
 
