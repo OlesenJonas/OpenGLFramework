@@ -34,6 +34,15 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
         glfwSetWindowShouldClose(window, true);
     }
     auto& userPointerStruct = *static_cast<UserPointerStruct*>(ctx.getUserPointer());
+    CBTGPU& cbt = *userPointerStruct.cbt;
+    if(key == GLFW_KEY_K && action == GLFW_PRESS)
+    {
+        cbt.setTemplateLevel(cbt.getTemplateLevel() - 1);
+    }
+    if(key == GLFW_KEY_L && action == GLFW_PRESS)
+    {
+        cbt.setTemplateLevel(cbt.getTemplateLevel() + 1);
+    }
 }
 
 void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
@@ -232,6 +241,7 @@ int main()
                 ImGui::Text("Sum reduction : %.3f ms", cbt.getSumReductionTimer().timeMilliseconds());
                 ImGui::Text("Indirect write: %.3f ms", cbt.getIndirectWriteTimer().timeMilliseconds());
                 ImGui::Text("Drawing       : %.3f ms", cbt.getDrawTimer().timeMilliseconds());
+                ImGui::Text("Global subdiv level: %d", cbt.getTemplateLevel());
             }
             ImGui::End();
         }

@@ -26,6 +26,5 @@ void main() {
         // float gs = 0.2+0.6*hashwithoutsine11(gl_PrimitiveID);
         float gs = 0.2+0.6*fast(cornerPoint);
         fragmentColor = vec4(gs,gs,gs,1.0);
-
     }
 }

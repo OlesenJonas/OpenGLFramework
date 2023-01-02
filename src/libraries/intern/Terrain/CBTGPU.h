@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <vector>
 
@@ -32,6 +33,9 @@ class CBTGPU
     void draw(const glm::mat4& projViewMatrix);
     void drawOutline(const glm::mat4& projViewMatrix);
 
+    void setTemplateLevel(int newLevel);
+    [[nodiscard]] int getTemplateLevel() const;
+
     // helpers for tests
     void replaceHeap(const std::vector<uint32_t>& heapData);
     std::vector<uint32_t> getHeap();
@@ -50,7 +54,9 @@ class CBTGPU
     ShaderProgram sumReductionPassShader;
     ShaderProgram writeIndirectCommandsShader;
 
-    TriangleTemplate triangleMesh;
+    std::array<TriangleTemplate, 4> triangleTemplates = {
+        TriangleTemplate{0}, TriangleTemplate{1}, TriangleTemplate{2}, TriangleTemplate{3}};
+    int selectedLevel = 0;
     ShaderProgram drawShader;
 
     GPUTimer<128> mergeTimer{"Merge"};

@@ -14,7 +14,6 @@ CBTGPU::CBTGPU(uint32_t maxDepth)
       sumReductionPassShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/sumReduction.comp"}),
       writeIndirectCommandsShader(
           COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/writeIndirectCommands.comp"}),
-      triangleMesh(0),
       drawShader(
           VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
           {SHADERS_PATH "/Terrain/CBT/drawing.vert", SHADERS_PATH "/Terrain/CBT/drawing.frag"})
@@ -60,7 +59,7 @@ CBTGPU::CBTGPU(uint32_t maxDepth)
     {
         // TODO: need to read amount of triangles in current selcted templateMesh
         const DrawElementsIndirectCommand temp{
-            .count = triangleMesh.getIndexCount(),
+            .count = triangleTemplates[selectedLevel].getIndexCount(),
             .primCount = 1, // number of instances
             .firstIndex = 0,
             .baseVertex = 0,
@@ -71,6 +70,9 @@ CBTGPU::CBTGPU(uint32_t maxDepth)
         glObjectLabel(GL_BUFFER, indirectDrawCommandBuffer, -1, "Indirect Draw Command Buffer");
         glBindBuffer(GL_DRAW_INDIRECT_BUFFER, indirectDrawCommandBuffer);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, indirectDrawCommandBuffer);
+
+        writeIndirectCommandsShader.useProgram();
+        glUniform1ui(0, triangleTemplates[selectedLevel].getIndexCount());
     }
 
     doSumReduction();
@@ -147,7 +149,7 @@ void CBTGPU::draw(const glm::mat4& projViewMatrix)
     drawTimer.start();
     drawShader.useProgram();
     glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
-    glBindVertexArray(triangleMesh.getVAO());
+    glBindVertexArray(triangleTemplates[selectedLevel].getVAO());
 
     // const uint32_t leafNodeAmnt = getNodeValue({1, 0});
     const uint32_t leafNodeAmnt = 4;
@@ -164,7 +166,7 @@ void CBTGPU::drawOutline(const glm::mat4& projViewMatrix)
 {
     drawShader.useProgram();
     glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
-    glBindVertexArray(triangleMesh.getVAO());
+    glBindVertexArray(triangleTemplates[selectedLevel].getVAO());
 
     // const uint32_t leafNodeAmnt = getNodeValue({1, 0});
     const uint32_t leafNodeAmnt = 4;
@@ -181,6 +183,20 @@ void CBTGPU::drawOutline(const glm::mat4& projViewMatrix)
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     glBindVertexArray(0);
+}
+
+void CBTGPU::setTemplateLevel(int newLevel)
+{
+    if(newLevel < 0 || newLevel >= triangleTemplates.size())
+        return;
+    selectedLevel = newLevel;
+    writeIndirectCommandsShader.useProgram();
+    glUniform1ui(0, triangleTemplates[selectedLevel].getIndexCount());
+}
+
+[[nodiscard]] int CBTGPU::getTemplateLevel() const
+{
+    return selectedLevel;
 }
 
 void CBTGPU::replaceHeap(const std::vector<uint32_t>& heapData)
