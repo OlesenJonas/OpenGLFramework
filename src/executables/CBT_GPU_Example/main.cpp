@@ -215,7 +215,24 @@ int main()
 
         // UI
         {
-            ImGui::Begin("CBT Info");
+            ImGui::Begin("Performance", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+            ImGui::TextUnformatted("ImGui Measurement:");
+            const ImGuiIO& io = ImGui::GetIO(); // NOLINT
+            ImGui::Text(
+                "Application average %.3f ms/frame (%.1f FPS)",
+                1000.0f / ImGui::GetIO().Framerate,
+                io.Framerate);
+            if(ImGui::CollapsingHeader("CBT", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::TextUnformatted("Update");
+                ImGui::Indent(5.0f);
+                ImGui::Text("Split: %.3f ms", cbt.getSplitTimer().timeMilliseconds());
+                ImGui::Text("Merge: %.3f ms", cbt.getMergeTimer().timeMilliseconds());
+                ImGui::Indent(-5.0f);
+                ImGui::Text("Sum reduction : %.3f ms", cbt.getSumReductionTimer().timeMilliseconds());
+                ImGui::Text("Indirect write: %.3f ms", cbt.getIndirectWriteTimer().timeMilliseconds());
+                ImGui::Text("Drawing       : %.3f ms", cbt.getDrawTimer().timeMilliseconds());
+            }
             ImGui::End();
         }
 

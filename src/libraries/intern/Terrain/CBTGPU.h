@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <vector>
 
+#include <intern/Misc/GPUTimer.h>
 #include <intern/ShaderProgram/ShaderProgram.h>
 #include <intern/Terrain/TriangleTemplate.h>
 
@@ -19,6 +20,7 @@ class CBTGPU
 {
   public:
     explicit CBTGPU(uint32_t maxDepth);
+    ~CBTGPU();
 
     void update(glm::vec2 point);
     /* specific update function for tests replicating the CPU version */
@@ -50,6 +52,22 @@ class CBTGPU
 
     TriangleTemplate triangleMesh;
     ShaderProgram drawShader;
+
+    GPUTimer<128> mergeTimer{"Merge"};
+    GPUTimer<128> splitTimer{"Split"};
+    GPUTimer<128> sumReductionTimer{"Sum reduction"};
+    GPUTimer<128> indirectWriteTimer{"Indirect command write"};
+    GPUTimer<128> drawTimer{"Draw"};
+
+  public:
+    /* clang-format off */
+#define TIMER_RETURN [[nodiscard]] inline const GPUTimer<128>&
+    TIMER_RETURN getMergeTimer() const {return mergeTimer;}
+    TIMER_RETURN getSplitTimer() const {return splitTimer;}
+    TIMER_RETURN getSumReductionTimer() const {return sumReductionTimer;}
+    TIMER_RETURN getIndirectWriteTimer() const {return indirectWriteTimer;}
+    TIMER_RETURN getDrawTimer() const {return drawTimer;}
+    /* clang-format on */
 
   public:
     struct DrawElementsIndirectCommand

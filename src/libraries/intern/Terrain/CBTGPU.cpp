@@ -1,4 +1,4 @@
-#include "CBTGPU.h"
+#include "Terrain/CBTGPU.h"
 #include "Misc/Misc.h"
 #include "ShaderProgram/ShaderProgram.h"
 #include "TriangleTemplate.h"
@@ -77,6 +77,13 @@ CBTGPU::CBTGPU(uint32_t maxDepth)
     writeIndirectCommands();
 }
 
+CBTGPU::~CBTGPU()
+{
+    glDeleteBuffers(1, &cbtBuffer);
+    glDeleteBuffers(1, &indirectDispatchCommandBuffer);
+    glDeleteBuffers(1, &indirectDrawCommandBuffer);
+}
+
 void CBTGPU::update(glm::vec2 point)
 {
 }
@@ -84,23 +91,32 @@ void CBTGPU::update(glm::vec2 point)
 void CBTGPU::refineAroundPoint(glm::vec2 point)
 {
     static bool splitPass = true;
-
     if(splitPass)
     {
+        splitTimer.start();
         refineAroundPointSplitShader.useProgram();
+        glUniform2fv(0, 1, glm::value_ptr(point));
+        glDispatchComputeIndirect(0);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        splitTimer.end();
+        splitTimer.evaluate();
     }
     else
     {
+        mergeTimer.start();
         refineAroundPointMergeShader.useProgram();
+        glUniform2fv(0, 1, glm::value_ptr(point));
+        glDispatchComputeIndirect(0);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        mergeTimer.end();
+        mergeTimer.evaluate();
     }
-    glUniform2fv(0, 1, glm::value_ptr(point));
-    glDispatchComputeIndirect(0);
-    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     splitPass = !splitPass;
 }
 
 void CBTGPU::doSumReduction()
 {
+    sumReductionTimer.start();
     sumReductionPassShader.useProgram();
     // looping until >=0 doesnt work here since level is a uint, so its always >=0
     for(uint32_t level = maxDepth - 1; level < maxDepth; level--)
@@ -110,19 +126,25 @@ void CBTGPU::doSumReduction()
         glDispatchCompute(UintDivAndCeil(nodesAtDepth, 256), 1, 1);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     }
+    sumReductionTimer.end();
+    sumReductionTimer.evaluate();
 }
 
 void CBTGPU::writeIndirectCommands()
 {
+    indirectWriteTimer.start();
     writeIndirectCommandsShader.useProgram();
     glDispatchCompute(1, 1, 1);
     // spec says that command_barrier is for draw*indirect, but nothing about dispatchIndirect ?!
     glMemoryBarrier(GL_COMMAND_BARRIER_BIT);
     // glMemoryBarrier(GL_COMMAND_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
+    indirectWriteTimer.end();
+    indirectWriteTimer.evaluate();
 }
 
 void CBTGPU::draw(const glm::mat4& projViewMatrix)
 {
+    drawTimer.start();
     drawShader.useProgram();
     glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
     glBindVertexArray(triangleMesh.getVAO());
@@ -134,6 +156,8 @@ void CBTGPU::draw(const glm::mat4& projViewMatrix)
     // glDrawElementsInstancedBaseVertexBaseInstance(
     // GL_TRIANGLES, triangleMesh.getIndexCount(), GL_UNSIGNED_INT, nullptr, 2, 0, 0);
     glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
+    drawTimer.end();
+    drawTimer.evaluate();
 }
 
 void CBTGPU::drawOutline(const glm::mat4& projViewMatrix)
