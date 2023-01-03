@@ -124,6 +124,7 @@ int main()
     setupOpenGLMessageCallback();
 #endif
     glClearColor(0.3f, 0.7f, 1.0f, 1.0f);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);

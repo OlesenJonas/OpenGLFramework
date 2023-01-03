@@ -18,7 +18,12 @@ CBTGPU::CBTGPU(uint32_t maxDepth)
           COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/writeIndirectCommands.comp"}),
       drawShader(
           VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
-          {SHADERS_PATH "/Terrain/CBT/drawing.vert", SHADERS_PATH "/Terrain/CBT/drawing.frag"})
+          {SHADERS_PATH "/Terrain/CBT/drawing.vert", SHADERS_PATH "/Terrain/CBT/drawing.frag"}),
+      outlineShader(
+          VERTEX_SHADER_BIT | GEOMETRY_SHADER_BIT | FRAGMENT_SHADER_BIT,
+          {SHADERS_PATH "/Terrain/CBT/outline.vert",
+           SHADERS_PATH "/Terrain/CBT/outline.geom",
+           SHADERS_PATH "/Terrain/CBT/outline.frag"})
 {
     // im not actually sure what the max possible depth is when using uint32_ts for the bitheap
     // would need to check code, but I think 30 should be fine. That way 1 << (30+1) can still be represented
@@ -175,12 +180,8 @@ void CBTGPU::draw(const glm::mat4& projViewMatrix)
     glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
     glBindVertexArray(triangleTemplates[selectedLevel].getVAO());
 
-    // const uint32_t leafNodeAmnt = getNodeValue({1, 0});
-    const uint32_t leafNodeAmnt = 4;
-
-    glUniform1i(1, 0);
     // glDrawElementsInstancedBaseVertexBaseInstance(
-    // GL_TRIANGLES, triangleMesh.getIndexCount(), GL_UNSIGNED_INT, nullptr, 2, 0, 0);
+    // GL_TRIANGLES, triangleMesh.getIndexCount(), GL_UNSIGNED_INT, nullptr, leafNodeAmnt, 0, 0);
     glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
     drawTimer.end();
     drawTimer.evaluate();
@@ -188,25 +189,20 @@ void CBTGPU::draw(const glm::mat4& projViewMatrix)
 
 void CBTGPU::drawOutline(const glm::mat4& projViewMatrix)
 {
-    drawShader.useProgram();
+    // with the current depth range (0.01 to 1000) using just a depth offset
+    // doesnt work anymore. Either its too small or too large
+    // so just render without depth test and do masking in fragment shader
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    outlineShader.useProgram();
     glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
     glBindVertexArray(triangleTemplates[selectedLevel].getVAO());
 
-    // const uint32_t leafNodeAmnt = getNodeValue({1, 0});
-    const uint32_t leafNodeAmnt = 4;
-
-    // render triangle outlines with hidden line removal
-    glEnable(GL_POLYGON_OFFSET_LINE);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    glUniform1i(1, 1);
-    glPolygonOffset(-1.0, 1.0);
-    glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
     // glDrawElementsInstancedBaseVertexBaseInstance(
-    // GL_TRIANGLES, triangleMesh.getIndexCount(), GL_UNSIGNED_INT, nullptr, 2, 0, 0);
-    glDisable(GL_POLYGON_OFFSET_LINE);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-    glBindVertexArray(0);
+    // GL_TRIANGLES, triangleMesh.getIndexCount(), GL_UNSIGNED_INT, nullptr, leafNodeAmnt, 0, 0);
+    glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
+    glDisable(GL_BLEND);
+    glEnable(GL_DEPTH_TEST);
 }
 
 void CBTGPU::setTemplateLevel(int newLevel)

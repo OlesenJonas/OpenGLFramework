@@ -59,6 +59,7 @@ class CBTGPU
         TriangleTemplate{0}, TriangleTemplate{1}, TriangleTemplate{2}, TriangleTemplate{3}};
     int selectedLevel = 0;
     ShaderProgram drawShader;
+    ShaderProgram outlineShader;
 
     GPUTimer<128> mergeTimer{"Merge"};
     GPUTimer<128> splitTimer{"Split"};

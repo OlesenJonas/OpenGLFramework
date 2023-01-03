@@ -20,8 +20,6 @@ layout (location = 0) in vec2 xzPosition;
 
 layout (location = 0) uniform mat4 projectionViewMatrix;
 
-flat out vec2 cornerPoint;
-
 void main()
 {
     const Node leafNode = leafIndexToNode(gl_InstanceID);
@@ -42,8 +40,6 @@ void main()
           xzPosition.y * vec3(currentCorners[0]-currentCorners[1],0);
 
     worldPosition = worldPosition.xzy;
-
-    cornerPoint = 0.3*(currentCorners[0]+currentCorners[1]+currentCorners[2]);
-
+    
     gl_Position = projectionViewMatrix * vec4(worldPosition, 1);
 }
