@@ -34,6 +34,8 @@ void main()
         currentCorners = vec2[3](currentCorners[2], currentCorners[1], currentCorners[0]);
     }
 
+    centerAndScaleCorners(currentCorners, 500.0);
+
     // vec3 worldPosition = vec3(xzPosition.x, 0, xzPosition.y);
     vec3 worldPosition = vec3(                  currentCorners[1],0) + 
           xzPosition.x * vec3(currentCorners[2]-currentCorners[1],0) + 

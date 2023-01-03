@@ -11,6 +11,8 @@ CBTGPU::CBTGPU(uint32_t maxDepth)
           COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/refineAroundPoint.comp"}, {{"PASS", "SPLIT"}}),
       refineAroundPointMergeShader(
           COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/refineAroundPoint.comp"}, {{"PASS", "MERGE"}}),
+      updateSplitShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/update.comp"}, {{"PASS", "SPLIT"}}),
+      updateMergeShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/update.comp"}, {{"PASS", "MERGE"}}),
       sumReductionPassShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/sumReduction.comp"}),
       writeIndirectCommandsShader(
           COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/writeIndirectCommands.comp"}),
@@ -88,6 +90,28 @@ CBTGPU::~CBTGPU()
 
 void CBTGPU::update(glm::vec2 point)
 {
+    static bool splitPass = true;
+    if(splitPass)
+    {
+        splitTimer.start();
+        updateSplitShader.useProgram();
+        glUniform2fv(0, 1, glm::value_ptr(point));
+        glDispatchComputeIndirect(0);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        splitTimer.end();
+        splitTimer.evaluate();
+    }
+    else
+    {
+        mergeTimer.start();
+        updateMergeShader.useProgram();
+        glUniform2fv(0, 1, glm::value_ptr(point));
+        glDispatchComputeIndirect(0);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        mergeTimer.end();
+        mergeTimer.evaluate();
+    }
+    splitPass = !splitPass;
 }
 
 void CBTGPU::refineAroundPoint(glm::vec2 point)

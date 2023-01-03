@@ -104,8 +104,7 @@ int main()
     int WIDTH = 1200;
     int HEIGHT = 800;
 
-    GLFWwindow* window =
-        initAndCreateGLFWWindow(WIDTH, HEIGHT, "Binary triangle tree test", {{GLFW_MAXIMIZED, GLFW_TRUE}});
+    GLFWwindow* window = initAndCreateGLFWWindow(WIDTH, HEIGHT, "Terrain", {{GLFW_MAXIMIZED, GLFW_TRUE}});
 
     ctx.setWindow(window);
     // disable VSYNC
@@ -148,10 +147,10 @@ int main()
 
     //----------------------- INIT REST
 
-    Camera cam{ctx, static_cast<float>(WIDTH) / static_cast<float>(HEIGHT)};
+    Camera cam{ctx, static_cast<float>(WIDTH) / static_cast<float>(HEIGHT), 0.01f, 500.0f};
     ctx.setCamera(&cam);
 
-    CBTGPU cbt(12);
+    CBTGPU cbt(25);
     UserPointerStruct userPointerStruct{};
     userPointerStruct.cbt = &cbt;
     ctx.setUserPointer(&userPointerStruct);
@@ -215,7 +214,7 @@ int main()
                 camOriginWorld + cursorDirectionWorld * (camOriginWorld.y / -cursorDirectionWorld.y);
             userPointerStruct.hitPoint = {planeHit.x, planeHit.z};
         }
-        cbt.refineAroundPoint(userPointerStruct.hitPoint);
+        cbt.update(userPointerStruct.hitPoint);
         cbt.doSumReduction();
         cbt.writeIndirectCommands();
 

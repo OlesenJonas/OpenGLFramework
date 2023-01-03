@@ -2,8 +2,16 @@
 
 #ifdef GLSLANGVALIDATOR
     // otherwise glslangValidator complains about #include
+    //for OpenGL they will be replaced when shader is loaded
     #extension GL_GOOGLE_include_directive : require
-    //for OpenGL those will be parsed when shader is loaded
+    #define PASS SPLIT
+#endif
+
+#define SPLIT 0
+#define MERGE 1
+
+#ifndef LOCAL_SIZE_X
+    #define LOCAL_SIZE_X 256
 #endif
 
 layout(std430, binding = 0) restrict buffer cbtSSBO
@@ -13,9 +21,52 @@ layout(std430, binding = 0) restrict buffer cbtSSBO
 
 #define HEAP_ALREADY_DEFINED
 #include "HighLevel.glsl"
+#include "Misc.glsl"
 
-layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+layout (location = 0) uniform vec2 target;
+
+layout(local_size_x = LOCAL_SIZE_X, local_size_y = 1, local_size_z = 1) in;
 
 void main() 
 {
+    const uint leafNodeAmount = getAmountOfLeafNodes();
+    const uint threadID = gl_GlobalInvocationID.x;
+
+    if (threadID < leafNodeAmount)
+    {
+        const Node leafNode = leafIndexToNode(threadID);
+
+        #if PASS == SPLIT
+
+            vec2[3] corners = cornersFromNode(leafNode);
+            centerAndScaleCorners(corners, 500.0);
+            if(pointInTriangle(target, corners))
+            {
+                splitNodeConforming(leafNode);
+            }
+
+        #elif PASS == MERGE
+
+            /*
+                make sure both diamond parents fulfill the requirements for a merge
+                otherwise theyll just split again next iteration resulting in a
+                constant back-and-fourth and no actual refinement
+            */
+            const Node parentNode = Node(leafNode.heapIndex / 2, leafNode.depth - 1);
+            const uint diamondParentIndex = calculateSameDepthNeighbourhood(parentNode).edge;
+            const Node diamondParentNode = Node(
+                diamondParentIndex == 0u ? parentNode.heapIndex : diamondParentIndex, parentNode.depth);
+
+            vec2[3] parentCorners = cornersFromNode(parentNode);
+            centerAndScaleCorners(parentCorners, 500.0);
+            vec2[3] diamondParentCorners = cornersFromNode(diamondParentNode);
+            centerAndScaleCorners(diamondParentCorners, 500.0);
+
+            if(!pointInTriangle(target, parentCorners) && !pointInTriangle(target, diamondParentCorners))
+            {
+                mergeNodeConforming(leafNode);
+            }
+
+        #endif
+    }
 }

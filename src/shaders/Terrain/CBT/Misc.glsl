@@ -63,3 +63,13 @@ vec2[3] cornersFromNode(const Node node)
 
     return corners;
 }
+
+void centerAndScaleCorners(inout vec2[3] corners, float scale)
+{
+    #pragma optionNV (unroll all)
+    for(int i=0; i<3; i++)
+    {
+        corners[i] += vec2(0.5,-0.5);
+        corners[i] *= scale;
+    }
+}

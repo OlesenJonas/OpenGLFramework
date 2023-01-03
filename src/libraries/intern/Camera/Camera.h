@@ -24,7 +24,7 @@ class Camera
         FLY
     };
 
-    explicit Camera(Context& ctx, float aspect);
+    explicit Camera(Context& ctx, float aspect, float near = 0.1f, float far = 100.0f);
 
     void update();
     void move(glm::vec3 offset);

@@ -48,7 +48,8 @@ class CBTGPU
     GLuint indirectDispatchCommandBuffer = 0xFFFFFFFF;
     GLuint indirectDrawCommandBuffer = 0xFFFFFFFF;
 
-    // ShaderProgram cbtUpdateShader;
+    ShaderProgram updateSplitShader;
+    ShaderProgram updateMergeShader;
     ShaderProgram refineAroundPointSplitShader;
     ShaderProgram refineAroundPointMergeShader;
     ShaderProgram sumReductionPassShader;

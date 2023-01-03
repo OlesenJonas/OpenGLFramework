@@ -9,9 +9,9 @@
 #include <intern/Context/Context.h>
 #include <intern/Misc/Misc.h>
 
-Camera::Camera(Context& ctx, float aspect) : ctx(ctx)
+Camera::Camera(Context& ctx, float aspect, float near, float far)
+    : ctx(ctx), cam_near(near), cam_far(far), aspect(aspect)
 {
-    this->aspect = aspect;
     init();
 }
 
