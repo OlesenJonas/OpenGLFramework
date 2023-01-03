@@ -147,7 +147,7 @@ int main()
 
     //----------------------- INIT REST
 
-    Camera cam{ctx, static_cast<float>(WIDTH) / static_cast<float>(HEIGHT), 0.01f, 500.0f};
+    Camera cam{ctx, static_cast<float>(WIDTH) / static_cast<float>(HEIGHT), 0.01f, 1000.0f};
     ctx.setCamera(&cam);
 
     CBTGPU cbt(25);
@@ -155,10 +155,11 @@ int main()
     userPointerStruct.cbt = &cbt;
     ctx.setUserPointer(&userPointerStruct);
 
-    Cube cube{.01f};
+    const Cube cube{1.0f};
+    const Texture gridTexture{MISC_PATH "/GridTexture.png", true};
     ShaderProgram simpleShader{
         VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
-        {SHADERS_PATH "/General/simple.vert", SHADERS_PATH "/General/simple.frag"}};
+        {SHADERS_PATH "/General/simpleTexture.vert", SHADERS_PATH "/General/simpleTexture.frag"}};
 
     //----------------------- RENDERLOOP
 
@@ -181,17 +182,6 @@ int main()
         auto currentTime = static_cast<float>(input.getSimulationTime());
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        simpleShader.useProgram();
-        glUniformMatrix4fv(
-            0,
-            1,
-            GL_FALSE,
-            glm::value_ptr(
-                glm::translate(glm::vec3{userPointerStruct.hitPoint.x, 0.0f, userPointerStruct.hitPoint.y})));
-        glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(*cam.getView()));
-        glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(*cam.getProj()));
-        cube.draw();
 
         const glm::mat4 invView = glm::inverse(*ctx.getCamera()->getView());
         const glm::vec4 camOriginWorld = invView * glm::vec4(0, 0, 0, 1);
@@ -220,6 +210,13 @@ int main()
 
         cbt.draw(*cam.getProj() * *cam.getView());
         cbt.drawOutline(*cam.getProj() * *cam.getView());
+
+        simpleShader.useProgram();
+        glBindTextureUnit(0, gridTexture.getTextureID());
+        glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(glm::translate(glm::vec3{0.0f, 0.5f, 0.0f})));
+        glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(*cam.getView()));
+        glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(*cam.getProj()));
+        cube.draw();
 
         // UI
         {
