@@ -62,7 +62,8 @@ void main()
             vec2[3] diamondParentCorners = cornersFromNode(diamondParentNode);
             centerAndScaleCorners(diamondParentCorners, 500.0);
 
-            if(!pointInTriangle(target, parentCorners) && !pointInTriangle(target, diamondParentCorners))
+            if((!pointInTriangle(target, parentCorners) && !pointInTriangle(target, diamondParentCorners))
+            )
             {
                 mergeNodeConforming(leafNode);
             }

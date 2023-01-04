@@ -36,13 +36,6 @@ void main()
 
     vec2[3] currentCorners = cornersFromNode(leafNode);
 
-    // corners change winding order every 2nd depth
-    if((leafNode.depth & 1u) != 0u)
-    {
-        // tri subdivision used in paper has the disadvantege of flipping the winding order every level
-        currentCorners = vec2[3](currentCorners[2], currentCorners[1], currentCorners[0]);
-    }
-
     centerAndScaleCorners(currentCorners, 500.0);
 
     // vec3 worldPosition = vec3(xzPosition.x, 0, xzPosition.y);
