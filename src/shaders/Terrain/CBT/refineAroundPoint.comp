@@ -39,6 +39,11 @@ void main()
         #if PASS == SPLIT
 
             vec2[3] corners = cornersFromNode(leafNode);
+            #pragma optionNV (unroll all)
+            for(int i=0; i<3; i++)
+            {
+                corners[i] += vec2(-0.5,0.5);
+            }
             if(pointInTriangle(target, corners))
             {
                 splitNodeConforming(leafNode);
@@ -56,8 +61,14 @@ void main()
             const Node diamondParentNode = Node(
                 diamondParentIndex == 0u ? parentNode.heapIndex : diamondParentIndex, parentNode.depth);
 
-            const vec2[3] parentCorners = cornersFromNode(parentNode);
-            const vec2[3] diamondParentCorners = cornersFromNode(diamondParentNode);
+            vec2[3] parentCorners = cornersFromNode(parentNode);
+            vec2[3] diamondParentCorners = cornersFromNode(diamondParentNode);
+            #pragma optionNV (unroll all)
+            for(int i=0; i<3; i++)
+            {
+                parentCorners[i] += vec2(-0.5,0.5);
+                diamondParentCorners[i] += vec2(-0.5,0.5);
+            }
 
             if(!pointInTriangle(target, parentCorners) && !pointInTriangle(target, diamondParentCorners))
             {

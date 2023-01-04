@@ -43,11 +43,16 @@ bool pointInTriangle(const vec2 pos, const vec2[3] corners)
     // return true;
 }
 
+/*
+    returns the corners of a triangle,
+        centered in a way that the "center square" of a triangle at subdivision level 2
+        has dimensions [-0.5,0.5]^2
+*/
 vec2[3] cornersFromNode(const Node node)
 {
-    const vec2 p0 = vec2(-1.0f, -1.0f);
-    const vec2 p1 = vec2(-1.0f, 1.0f);
-    const vec2 p2 = vec2(1.0f, 1.0f);
+    const vec2 p0 = vec2(-0.5f, -1.5f);
+    const vec2 p1 = vec2(-0.5f,  0.5f);
+    const vec2 p2 = vec2( 1.5f,  0.5f);
     vec2[3] corners = vec2[3](p0, p1, p2);
     for(int bitID = int(node.depth) - 1; bitID >= 0; bitID--)
     {
@@ -69,7 +74,6 @@ void centerAndScaleCorners(inout vec2[3] corners, float scale)
     #pragma optionNV (unroll all)
     for(int i=0; i<3; i++)
     {
-        corners[i] += vec2(0.5,-0.5);
         corners[i] *= scale;
     }
 }
