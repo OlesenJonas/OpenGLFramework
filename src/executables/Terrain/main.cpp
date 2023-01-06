@@ -186,6 +186,7 @@ int main()
 
         cbt.draw(*cam.getProj() * *cam.getView());
         cbt.drawOutline(*cam.getProj() * *cam.getView());
+        cbt.drawOverlay(cam.getAspect());
 
         simpleShader.useProgram();
         glBindTextureUnit(0, gridTexture.getTextureID());

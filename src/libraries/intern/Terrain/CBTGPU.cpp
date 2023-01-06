@@ -23,7 +23,12 @@ CBTGPU::CBTGPU(uint32_t maxDepth)
           VERTEX_SHADER_BIT | GEOMETRY_SHADER_BIT | FRAGMENT_SHADER_BIT,
           {SHADERS_PATH "/Terrain/CBT/outline.vert",
            SHADERS_PATH "/Terrain/CBT/outline.geom",
-           SHADERS_PATH "/Terrain/CBT/outline.frag"})
+           SHADERS_PATH "/Terrain/CBT/outline.frag"}),
+      overlayShader(
+          VERTEX_SHADER_BIT | GEOMETRY_SHADER_BIT | FRAGMENT_SHADER_BIT,
+          {SHADERS_PATH "/Terrain/CBT/overlay.vert",
+           SHADERS_PATH "/Terrain/CBT/overlay.geom",
+           SHADERS_PATH "/Terrain/CBT/overlay.frag"})
 {
     // im not actually sure what the max possible depth is when using uint32_ts for the bitheap
     // would need to check code, but I think 30 should be fine. That way 1 << (30+1) can still be represented
@@ -203,6 +208,17 @@ void CBTGPU::drawOutline(const glm::mat4& projViewMatrix)
     glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
+}
+
+void CBTGPU::drawOverlay(float aspect)
+{
+    overlayShader.useProgram();
+    glUniform1f(0, aspect);
+    glBindVertexArray(triangleTemplates[selectedLevel].getVAO());
+
+    // glDrawElementsInstancedBaseVertexBaseInstance(
+    // GL_TRIANGLES, triangleMesh.getIndexCount(), GL_UNSIGNED_INT, nullptr, leafNodeAmnt, 0, 0);
+    glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
 }
 
 void CBTGPU::setTemplateLevel(int newLevel)

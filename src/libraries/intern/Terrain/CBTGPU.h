@@ -32,6 +32,7 @@ class CBTGPU
 
     void draw(const glm::mat4& projViewMatrix);
     void drawOutline(const glm::mat4& projViewMatrix);
+    void drawOverlay(float aspect);
 
     void setTemplateLevel(int newLevel);
     [[nodiscard]] int getTemplateLevel() const;
@@ -60,6 +61,7 @@ class CBTGPU
     int selectedLevel = 0;
     ShaderProgram drawShader;
     ShaderProgram outlineShader;
+    ShaderProgram overlayShader;
 
     GPUTimer<128> mergeTimer{"Merge"};
     GPUTimer<128> splitTimer{"Split"};

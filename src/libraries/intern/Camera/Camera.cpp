@@ -184,6 +184,11 @@ glm::vec3 Camera::getPosition()
     return position;
 }
 
+float Camera::getAspect() const
+{
+    return aspect;
+}
+
 float Camera::getNear() const
 {
     return cam_near;
