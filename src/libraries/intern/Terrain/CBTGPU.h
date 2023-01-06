@@ -54,6 +54,7 @@ class CBTGPU
     ShaderProgram refineAroundPointSplitShader;
     ShaderProgram refineAroundPointMergeShader;
     ShaderProgram sumReductionPassShader;
+    ShaderProgram sumReductionLastDepthsShader;
     ShaderProgram writeIndirectCommandsShader;
 
     std::array<TriangleTemplate, 4> triangleTemplates = {

@@ -14,6 +14,8 @@ CBTGPU::CBTGPU(uint32_t maxDepth)
       updateSplitShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/update.comp"}, {{"PASS", "SPLIT"}}),
       updateMergeShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/update.comp"}, {{"PASS", "MERGE"}}),
       sumReductionPassShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/sumReduction.comp"}),
+      sumReductionLastDepthsShader(
+          COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/sumReductionLastDepths.comp"}),
       writeIndirectCommandsShader(
           COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/writeIndirectCommands.comp"}),
       drawShader(
@@ -152,18 +154,35 @@ void CBTGPU::refineAroundPoint(glm::vec2 point)
 
 void CBTGPU::doSumReduction()
 {
+#define USE_OPTIMIZED
+
     sumReductionTimer.start();
+
+#ifdef USE_OPTIMIZED
+    sumReductionLastDepthsShader.useProgram();
+    glUniform1ui(0, maxDepth - 5);
+    const uint32_t nodesAtDepth = 1u << (maxDepth - 5);
+    glDispatchCompute(UintDivAndCeil(nodesAtDepth, 256), 1, 1);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+#endif
+
     sumReductionPassShader.useProgram();
     // looping until >=0 doesnt work here since level is a uint, so its always >=0
+#ifdef USE_OPTIMIZED
+    for(uint32_t level = maxDepth - 6; level < maxDepth; level--)
+#else
     for(uint32_t level = maxDepth - 1; level < maxDepth; level--)
+#endif
     {
         glUniform1ui(0, level);
         const uint32_t nodesAtDepth = 1u << level;
         glDispatchCompute(UintDivAndCeil(nodesAtDepth, 256), 1, 1);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     }
+
     sumReductionTimer.end();
     sumReductionTimer.evaluate();
+#undef USE_OPTIMIZED
 }
 
 void CBTGPU::writeIndirectCommands()
