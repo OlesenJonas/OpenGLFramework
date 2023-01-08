@@ -1,4 +1,4 @@
-#include <glad/glad/glad.h>
+﻿#include <glad/glad/glad.h>
 
 #include <GLFW/glfw3.h>
 
@@ -18,6 +18,7 @@
 #include <intern/ShaderProgram/ShaderProgram.h>
 #include <intern/Terrain/CBTOptimized.h>
 #include <intern/Texture/Texture.h>
+#include <intern/Texture/TextureCube.h>
 #include <intern/Window/Window.h>
 
 struct UserPointerStruct
@@ -152,6 +153,8 @@ int main()
     setupOpenGLMessageCallback();
 #endif
     glClearColor(0.3f, 0.7f, 1.0f, 1.0f);
+    glDepthRange(0.0f, 1.0f);
+    glClearDepth(1.0f);
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
@@ -190,6 +193,22 @@ int main()
         VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
         {SHADERS_PATH "/General/simple.vert", SHADERS_PATH "/General/simple.frag"}};
 
+    Texture Heightmap(MISC_PATH "/Heightmap.hdr", true);
+    Texture tAlbedo(MISC_PATH "/YellowBrick_basecolor.tga", true);
+    Texture tNormal(MISC_PATH "/YellowBrick_normal.tga", true);
+    Texture tAttributes(MISC_PATH "/YellowBrick_attributes.tga", true);
+    TextureCube tSky(MISC_PATH "/HDRPanorama.jpg");
+
+    Cube matCube{1.0f};
+    ShaderProgram pbsShader{
+        VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
+        {SHADERS_PATH "/General/pbs.vert", SHADERS_PATH "/General/pbs.frag"}};
+
+    ShaderProgram skyShader{
+    VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
+    {SHADERS_PATH "/General/sky.vert", SHADERS_PATH "/General/sky.frag"}};
+    FullscreenTri tri = FullscreenTri();
+
     //----------------------- RENDERLOOP
 
     // reset time to 0 before renderloop starts
@@ -211,12 +230,28 @@ int main()
         auto currentTime = static_cast<float>(input.getSimulationTime());
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glDepthFunc(GL_LESS);
 
         simpleShader.useProgram();
         glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(glm::translate(userPointerStruct.hitPoint)));
         glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(*cam.getView()));
         glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(*cam.getProj()));
         cube.draw();
+
+        //----------------------- PBS
+        {
+            pbsShader.useProgram();
+            glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(glm::translate(glm::vec3(0,1,0))));
+            glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(*cam.getView()));
+            glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(*cam.getProj()));
+            glBindTextureUnit(1, tAlbedo.getTextureID());
+            glBindTextureUnit(2, tNormal.getTextureID());
+            glBindTextureUnit(3, tAttributes.getTextureID());
+            glBindTextureUnit(4, tSky.getTextureID());
+            matCube.draw();
+        }
+
+        //----------------------- CBT
 
         if(userPointerStruct.updateCBTdynamically)
         {
@@ -246,7 +281,17 @@ int main()
             }
         }
 
+        glBindTextureUnit(1, Heightmap.getTextureID());
         cbt.draw(*cam.getProj() * *cam.getView());
+
+        //----------------------- Sky
+        {
+            skyShader.useProgram();
+            glBindTextureUnit(4, tSky.getTextureID());
+            glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(cam.getSkyProj()));
+            glDepthFunc(GL_EQUAL);
+            tri.draw();
+        }
 
         // UI
         {

@@ -11,7 +11,7 @@ Texture::Texture(const std::string& file, bool mipMap)
     // todo: load image data first, then use descriptor based constructor
 
     //  load texture data from file
-    int bytesPerPixel = 0;
+    int channels = 0;
     stbi_set_flip_vertically_on_load(true);
 
     std::string texName = file;
@@ -23,15 +23,15 @@ Texture::Texture(const std::string& file, bool mipMap)
     unsigned char* image = nullptr;
     if(!isHdr)
     {
-        image = stbi_load(file.c_str(), &width, &height, &bytesPerPixel, 0);
+        image = stbi_load(file.c_str(), &width, &height, &channels, 0);
     }
     else
     {
-        assert(false && "todo: hdr image load");
-        image = (unsigned char*)stbi_loadf(file.c_str(), &width, &height, &bytesPerPixel, 0);
+        stbi_ldr_to_hdr_gamma(1.0f);
+        image = (unsigned char*)stbi_loadf(file.c_str(), &width, &height, &channels, 0);
     }
 
-    if(bytesPerPixel == 0 || width == 0 || height == 0)
+    if(channels == 0 || width == 0 || height == 0)
     {
         std::cout << "Could not load texture " << file << std::endl;
     }
@@ -46,15 +46,20 @@ Texture::Texture(const std::string& file, bool mipMap)
     glTextureParameterf(textureID, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTextureParameterf(textureID, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     // todo: calculate if changing alignment is needed (or worst case set alignment to 1 by default)
-    if(bytesPerPixel == 3)
+    if(channels == 1)
+    {
+        glTextureStorage2D(textureID, levels, GL_R32F, width, height);
+        glTextureSubImage2D(textureID, 0, 0, 0, width, height, GL_RED, isHdr ? GL_FLOAT : GL_UNSIGNED_BYTE, image);
+    }
+    else if(channels == 3)
     {
         glTextureStorage2D(textureID, levels, GL_RGB8, width, height);
-        glTextureSubImage2D(textureID, 0, 0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, image);
+        glTextureSubImage2D(textureID, 0, 0, 0, width, height, GL_RGB, isHdr ? GL_FLOAT : GL_UNSIGNED_BYTE, image);
     }
-    else if(bytesPerPixel == 4)
+    else if(channels == 4)
     {
         glTextureStorage2D(textureID, levels, GL_RGBA8, width, height);
-        glTextureSubImage2D(textureID, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, image);
+        glTextureSubImage2D(textureID, 0, 0, 0, width, height, GL_RGBA, isHdr ? GL_FLOAT : GL_UNSIGNED_BYTE, image);
     }
     else
     {
