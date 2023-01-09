@@ -19,5 +19,5 @@ float edgeFactor()
 void main()
 {
     float alpha = 1.0-edgeFactor();
-    fragmentColor = vec4(vec3(alpha),alpha);
+    fragmentColor = vec4(vec3(alpha),alpha*0.5);
 }

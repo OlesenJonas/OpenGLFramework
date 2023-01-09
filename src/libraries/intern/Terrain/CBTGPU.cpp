@@ -217,7 +217,8 @@ void CBTGPU::drawOutline(const glm::mat4& projViewMatrix)
     // with the current depth range (0.01 to 1000) using just a depth offset
     // doesnt work anymore. Either its too small or too large
     // so just render without depth test and do masking in fragment shader
-    glDisable(GL_DEPTH_TEST);
+    // glDisable(GL_DEPTH_TEST);
+    glDepthFunc(GL_EQUAL);
     glEnable(GL_BLEND);
     outlineShader.useProgram();
     glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
@@ -227,7 +228,8 @@ void CBTGPU::drawOutline(const glm::mat4& projViewMatrix)
     // GL_TRIANGLES, triangleMesh.getIndexCount(), GL_UNSIGNED_INT, nullptr, leafNodeAmnt, 0, 0);
     glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
     glDisable(GL_BLEND);
-    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+    // glEnable(GL_DEPTH_TEST);
 }
 
 void CBTGPU::drawOverlay(float aspect)

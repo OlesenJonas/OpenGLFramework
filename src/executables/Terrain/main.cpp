@@ -216,7 +216,7 @@ int main()
                 ImGui::Text("Sum reduction : %.3f ms", cbt.getSumReductionTimer().timeMilliseconds());
                 ImGui::Text("Indirect write: %.3f ms", cbt.getIndirectWriteTimer().timeMilliseconds());
                 ImGui::Text("Drawing       : %.3f ms", cbt.getDrawTimer().timeMilliseconds());
-                ImGui::Text("Global subdiv level: %d", cbt.getTemplateLevel());
+                ImGui::Text("Additional subdiv level: %d", cbt.getTemplateLevel());
             }
             ImGui::End();
         }
