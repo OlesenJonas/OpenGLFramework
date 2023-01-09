@@ -26,6 +26,7 @@ void main()
 {
     float alpha = 1.0-edgeFactor();
     vec3 color = vec3(0.3+0.4*fast(center));
+    color = pow(color,vec3(2.2));
     color = mix(color,alpha.xxx,alpha);
     fragmentColor = vec4(color,1.0);
 }
