@@ -11,7 +11,7 @@
 #include <memory>
 #include <stb/stb_image.h>
 
-Texture::Texture(const std::string& file, bool mipMap)
+Texture::Texture(const std::string& file, bool imageIsInSRGB, bool mipMap)
 {
     // todo: load image data first, then use descriptor based constructor
 
@@ -21,7 +21,7 @@ Texture::Texture(const std::string& file, bool mipMap)
 
     if(extension == ".png")
     {
-        imageData = png::read(file, true);
+        imageData = png::read(file, imageIsInSRGB, true);
         assert(imageData.data.get() != nullptr);
     }
     else

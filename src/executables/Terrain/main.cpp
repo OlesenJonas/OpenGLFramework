@@ -103,7 +103,7 @@ int main()
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
-    // glEnable(GL_FRAMEBUFFER_SRGB);
+    glEnable(GL_FRAMEBUFFER_SRGB);
 
     //----------------------- INIT IMGUI & Input
 
@@ -130,10 +130,10 @@ int main()
     UserPointerStruct userPointerStruct{};
     userPointerStruct.cbt = &cbt;
     ctx.setUserPointer(&userPointerStruct);
-    const Texture testHeightmap{MISC_PATH "/CBT/testHeight.png", false};
+    const Texture testHeightmap{MISC_PATH "/CBT/testHeight.png", false, false};
 
     const Cube cube{1.0f};
-    const Texture gridTexture{MISC_PATH "/GridTexture.png", true};
+    const Texture gridTexture{MISC_PATH "/GridTexture.png", true, false};
     ShaderProgram simpleShader{
         VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
         {SHADERS_PATH "/General/simpleTexture.vert", SHADERS_PATH "/General/simpleTexture.frag"}};
@@ -221,9 +221,9 @@ int main()
         }
 
         // sRGB is broken in Dear ImGui
-        //  glDisable(GL_FRAMEBUFFER_SRGB);
+        glDisable(GL_FRAMEBUFFER_SRGB);
         ImGui::Extensions::FrameEnd();
-        // glEnable(GL_FRAMEBUFFER_SRGB);
+        glEnable(GL_FRAMEBUFFER_SRGB);
 
         glfwSwapBuffers(window);
         glfwPollEvents();

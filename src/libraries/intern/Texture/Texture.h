@@ -40,9 +40,10 @@ class Texture : public GLTexture
 
     /** Sets up and loads a texture from a file.
      * @param file Name of the image file within the resource folder
+     * @param imageIsInSRGB Is the image data in the file in sRGB color space
      * @param mipMap True if texture is supposed to generate mipmapping
      */
-    Texture(const std::string& file, bool mipMap);
+    Texture(const std::string& file, bool imageIsInSRGB, bool mipMap);
 
     /** Creates an immutable Texture object based on a given descriptor.
      * @param descriptor Descriptor to use for configuring the texture

@@ -9,7 +9,7 @@
 #include <cstddef>
 #include <vector>
 
-ImageData png::read(std::string_view path, bool flip)
+ImageData png::read(std::string_view path, bool imageIsInSRGB, bool flip)
 {
     // todo: on errors dont just return {}, at least print why error happened
 
@@ -95,8 +95,12 @@ ImageData png::read(std::string_view path, bool flip)
     imageData.width = static_cast<int>(width);
     imageData.height = static_cast<int>(height);
 
-    int srgbIntent = 0;
-    png_get_sRGB(png_ptr, info_ptr, &srgbIntent);
+    // int srgbIntent = 0;
+    // png_get_sRGB(png_ptr, info_ptr, &srgbIntent);
+    // havent come across any png that actually has this flag set
+    // so just let the user decide if the data is supposed to be in sRGB space
+    int srgbIntent = static_cast<int>(imageIsInSRGB);
+
     bool transform16BitToLinear = false;
     switch(bit_depth)
     {
