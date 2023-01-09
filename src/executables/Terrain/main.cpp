@@ -130,6 +130,7 @@ int main()
     UserPointerStruct userPointerStruct{};
     userPointerStruct.cbt = &cbt;
     ctx.setUserPointer(&userPointerStruct);
+    const Texture testHeightmap{MISC_PATH "/CBT/testHeight.png", false};
 
     const Cube cube{1.0f};
     const Texture gridTexture{MISC_PATH "/GridTexture.png", true};

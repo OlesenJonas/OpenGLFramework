@@ -160,6 +160,7 @@ void CBTGPU::doSumReduction()
 
 #ifdef USE_OPTIMIZED
     sumReductionLastDepthsShader.useProgram();
+    // todo: really only need to set this uniform once in ctor!
     glUniform1ui(0, maxDepth - 5);
     const uint32_t nodesAtDepth = 1u << (maxDepth - 5);
     glDispatchCompute(UintDivAndCeil(nodesAtDepth, 256), 1, 1);
