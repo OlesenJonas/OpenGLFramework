@@ -37,7 +37,7 @@ void main()
     {
         const Node leafNode = leafIndexToNode(threadID);
 
-        uint globalLevelMinimum = 10;
+        uint globalLevelMinimum = 14;
 
         #if PASS == SPLIT
 

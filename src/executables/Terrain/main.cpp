@@ -185,6 +185,7 @@ int main()
         cbt.doSumReduction();
         cbt.writeIndirectCommands();
 
+        glBindTextureUnit(0, testHeightmap.getTextureID());
         cbt.draw(*cam.getProj() * *cam.getView());
         cbt.drawOutline(*cam.getProj() * *cam.getView());
         cbt.drawOverlay(cam.getAspect());

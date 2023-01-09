@@ -20,6 +20,10 @@ layout (location = 0) in vec2 xzPosition;
 
 layout (location = 0) uniform mat4 projectionViewMatrix;
 
+layout (binding = 0) uniform sampler2D tex;
+
+layout (location = 0) out vec2 uv;
+
 flat out vec2 cornerPoint;
 
 void main()
@@ -36,14 +40,18 @@ void main()
 
     vec2[3] currentCorners = cornersFromNode(leafNode);
 
-    centerAndScaleCorners(currentCorners, 500.0);
-
     // vec3 worldPosition = vec3(xzPosition.x, 0, xzPosition.y);
-    vec3 worldPosition = vec3(                  currentCorners[1],0) + 
-          xzPosition.x * vec3(currentCorners[2]-currentCorners[1],0) + 
-          xzPosition.y * vec3(currentCorners[0]-currentCorners[1],0);
+    vec2 flatPosition =                     currentCorners[1] + 
+          xzPosition.x * (currentCorners[2]-currentCorners[1]) + 
+          xzPosition.y * (currentCorners[0]-currentCorners[1]);
 
-    worldPosition = worldPosition.xzy;
+    uv = vec2(1,-1)*flatPosition + 0.5;
+
+    vec3 worldPosition = vec3(flatPosition.x, 0, flatPosition.y);
+    worldPosition *= 500;
+
+    float heightValue = texture(tex,uv).r;
+    worldPosition.y = (heightValue-0.5)*100;
 
     cornerPoint = 0.3*(currentCorners[0]+currentCorners[1]+currentCorners[2]);
 

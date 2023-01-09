@@ -4,6 +4,10 @@ out vec4 fragmentColor;
 
 layout (location = 1) uniform bool isLinePass;
 
+layout (binding = 0) uniform sampler2D tex;
+
+layout (location = 0) in vec2 uv;
+
 flat in vec2 cornerPoint;
 
 // UE4's RandFast function
@@ -21,5 +25,5 @@ void main()
     // float gs = 0.2+0.6*hashwithoutsine11(gl_PrimitiveID);
     float gs = 0.2+0.6*fast(cornerPoint);
     gs = pow(gs,2.2);
-    fragmentColor = vec4(gs,gs,gs,1.0);
+    fragmentColor = vec4(texture(tex, uv).rrr,1.0);
 }
