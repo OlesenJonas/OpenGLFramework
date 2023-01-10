@@ -131,6 +131,7 @@ int main()
     userPointerStruct.cbt = &cbt;
     ctx.setUserPointer(&userPointerStruct);
     const Texture testHeightmap{MISC_PATH "/CBT/testHeight.png", false, false};
+    const Texture testNormal{MISC_PATH "/CBT/testNrm.png", false, false};
 
     const Cube cube{1.0f};
     const Mesh referenceHuman{MISC_PATH "/HumanScaleReference.obj"};
@@ -187,6 +188,7 @@ int main()
         cbt.writeIndirectCommands();
 
         glBindTextureUnit(0, testHeightmap.getTextureID());
+        glBindTextureUnit(1, testNormal.getTextureID());
         cbt.draw(*cam.getProj() * *cam.getView());
         static bool drawCBTOutline = false;
         if(drawCBTOutline)

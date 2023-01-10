@@ -37,8 +37,8 @@ void main()
     vec3 worldPosition = vec3(flatPosition.x, 0, flatPosition.y);
     worldPosition *= 500;
 
-    float heightValue = texture(tex,uv).r;
-    worldPosition.y = (heightValue-0.5)*100;
+    float heightValue = textureLod(tex,uv,0.0).r;
+    worldPosition.y = heightValue*20;
     
     gl_Position = projectionViewMatrix * vec4(worldPosition, 1);
 }

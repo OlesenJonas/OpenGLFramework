@@ -2,13 +2,10 @@
 
 out vec4 fragmentColor;
 
-layout (location = 1) uniform bool isLinePass;
-
-layout (binding = 0) uniform sampler2D tex;
+layout (binding = 1) uniform sampler2D normalMap;
 
 layout (location = 0) in vec2 uv;
-
-flat in vec2 cornerPoint;
+layout (location = 1) flat in vec2 cornerPoint;
 
 // UE4's RandFast function
 // https://github.com/EpicGames/UnrealEngine/blob/release/Engine/Shaders/Private/Random.ush
@@ -22,8 +19,9 @@ float fast(vec2 v)
 
 void main()
 {
-    // float gs = 0.2+0.6*hashwithoutsine11(gl_PrimitiveID);
     float gs = 0.2+0.6*fast(cornerPoint);
     gs = pow(gs,2.2);
-    fragmentColor = vec4(texture(tex, uv).rrr,1.0);
+    vec3 normal = texture(normalMap, uv).xyz;
+    vec3 color = vec3(normal);
+    fragmentColor = vec4(color,1.0);
 }

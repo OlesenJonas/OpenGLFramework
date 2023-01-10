@@ -19,12 +19,10 @@ layout(std430, binding = 0) readonly restrict buffer cbtSSBO
 layout (location = 0) in vec2 xzPosition;
 
 layout (location = 0) uniform mat4 projectionViewMatrix;
-
-layout (binding = 0) uniform sampler2D tex;
+layout (binding = 0) uniform sampler2D displacementTex;
 
 layout (location = 0) out vec2 uv;
-
-flat out vec2 cornerPoint;
+layout (location = 1) flat out vec2 cornerPoint;
 
 void main()
 {
@@ -50,8 +48,8 @@ void main()
     vec3 worldPosition = vec3(flatPosition.x, 0, flatPosition.y);
     worldPosition *= 500;
 
-    float heightValue = texture(tex,uv).r;
-    worldPosition.y = (heightValue-0.5)*100;
+    float heightValue = textureLod(displacementTex,uv,0).r;
+    worldPosition.y = heightValue*20;
 
     cornerPoint = 0.3*(currentCorners[0]+currentCorners[1]+currentCorners[2]);
 
