@@ -188,7 +188,11 @@ int main()
 
         glBindTextureUnit(0, testHeightmap.getTextureID());
         cbt.draw(*cam.getProj() * *cam.getView());
-        cbt.drawOutline(*cam.getProj() * *cam.getView());
+        static bool drawCBTOutline = false;
+        if(drawCBTOutline)
+        {
+            cbt.drawOutline(*cam.getProj() * *cam.getView());
+        }
         cbt.drawOverlay(cam.getAspect());
 
         simpleShader.useProgram();
@@ -201,6 +205,11 @@ int main()
         referenceHuman.draw();
 
         // UI
+        {
+            ImGui::Begin("Settings", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+            ImGui::Checkbox("Draw outline", &drawCBTOutline);
+            ImGui::End();
+        }
         {
             ImGui::Begin("Performance", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
             ImGui::TextUnformatted("ImGui Measurement:");
