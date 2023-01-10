@@ -133,6 +133,7 @@ int main()
     const Texture testHeightmap{MISC_PATH "/CBT/testHeight.png", false, false};
 
     const Cube cube{1.0f};
+    const Mesh referenceHuman{MISC_PATH "/HumanScaleReference.obj"};
     const Texture gridTexture{MISC_PATH "/GridTexture.png", true, false};
     ShaderProgram simpleShader{
         VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
@@ -196,6 +197,8 @@ int main()
         glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(*cam.getView()));
         glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(*cam.getProj()));
         cube.draw();
+        glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(glm::translate(glm::vec3{1.0f, 0.0f, 0.0f})));
+        referenceHuman.draw();
 
         // UI
         {
