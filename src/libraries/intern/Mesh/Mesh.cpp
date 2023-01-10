@@ -1,6 +1,23 @@
 #include "Mesh.h"
+#include "IO/obj.h"
+#include "Mesh/IO/obj.h"
 
 #include <numeric>
+
+Mesh::Mesh(const std::string& path)
+{
+    auto extensionStart = path.find_last_of('.');
+    const std::string extension = path.substr(extensionStart, path.size());
+
+    if(extension == ".obj")
+    {
+        init(OBJ::load(path));
+    }
+    else
+    {
+        assert(false);
+    }
+}
 
 Mesh::~Mesh()
 {
