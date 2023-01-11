@@ -4,9 +4,11 @@
     // otherwise glslangValidator complains about #include
     //for OpenGL they will be replaced when shader is loaded
     #extension GL_GOOGLE_include_directive : require
-    // #define PASS SPLIT
-    #define PASS MERGE
+    #define PASS SPLIT
+    // #define PASS MERGE
 #endif
+
+#include "../../General/math.glsl"
 
 #define SPLIT 0
 #define MERGE 1
@@ -24,7 +26,11 @@ layout(std430, binding = 0) restrict buffer cbtSSBO
 #include "HighLevel.glsl"
 #include "Misc.glsl"
 
-layout (location = 0) uniform vec2 target;
+layout (location = 0) uniform mat4 projectionViewMatrix;
+layout (binding = 0) uniform sampler2D displacementTex;
+
+#define DISPLACEMENT_ALREADY_DEFINED
+#include "transform.glsl"
 
 layout(local_size_x = LOCAL_SIZE_X, local_size_y = 1, local_size_z = 1) in;
 
@@ -37,13 +43,15 @@ void main()
     {
         const Node leafNode = leafIndexToNode(threadID);
 
-        uint globalLevelMinimum = 14;
+        uint globalLevelMinimum = 5;
 
         #if PASS == SPLIT
 
             vec2[3] corners = cornersFromNode(leafNode);
-            centerAndScaleCorners(corners, 500.0);
-            if(leafNode.depth < globalLevelMinimum || pointInTriangle(target, corners))
+            vec4[3] cornersWS = transformFlatCornersToWorldCorners(corners);
+            const vec4[6] frustaPlanes = extractFrustumPlanes(projectionViewMatrix);
+            
+            if(leafNode.depth < globalLevelMinimum || triangleInsideFrustum(cornersWS, frustaPlanes))
             {
                 splitNodeConforming(leafNode);
             }
@@ -55,17 +63,20 @@ void main()
                 otherwise theyll just split again next iteration resulting in a
                 constant back-and-fourth and no actual refinement
             */
+            
+            const vec4[6] frustaPlanes = extractFrustumPlanes(projectionViewMatrix);
+
             const Node parentNode = Node(leafNode.heapIndex / 2, leafNode.depth - 1);
             const uint diamondParentIndex = calculateSameDepthNeighbourhood(parentNode).edge;
             const Node diamondParentNode = Node(
                 diamondParentIndex == 0u ? parentNode.heapIndex : diamondParentIndex, parentNode.depth);
 
             vec2[3] parentCorners = cornersFromNode(parentNode);
-            centerAndScaleCorners(parentCorners, 500.0);
+            vec4[3] parentCornersWS = transformFlatCornersToWorldCorners(parentCorners);
             vec2[3] diamondParentCorners = cornersFromNode(diamondParentNode);
-            centerAndScaleCorners(diamondParentCorners, 500.0);
+            vec4[3] diamondParentCornersWS = transformFlatCornersToWorldCorners(diamondParentCorners);
 
-            if((!pointInTriangle(target, parentCorners) && !pointInTriangle(target, diamondParentCorners))
+            if((!triangleInsideFrustum(parentCornersWS, frustaPlanes) && !triangleInsideFrustum(diamondParentCornersWS, frustaPlanes))
             && (parentNode.depth > globalLevelMinimum-1 && diamondParentNode.depth > globalLevelMinimum-1)
             )
             {

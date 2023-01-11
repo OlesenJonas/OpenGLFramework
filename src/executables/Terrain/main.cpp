@@ -183,11 +183,11 @@ int main()
                 camOriginWorld + cursorDirectionWorld * (camOriginWorld.y / -cursorDirectionWorld.y);
             userPointerStruct.hitPoint = {planeHit.x, planeHit.z};
         }
-        cbt.update(userPointerStruct.hitPoint);
+        glBindTextureUnit(0, testHeightmap.getTextureID());
+        cbt.update(*cam.getProj() * *cam.getView());
         cbt.doSumReduction();
         cbt.writeIndirectCommands();
 
-        glBindTextureUnit(0, testHeightmap.getTextureID());
         glBindTextureUnit(1, testNormal.getTextureID());
         cbt.draw(*cam.getProj() * *cam.getView());
         static bool drawCBTOutline = false;

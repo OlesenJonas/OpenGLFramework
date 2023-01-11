@@ -24,6 +24,9 @@ layout (binding = 0) uniform sampler2D displacementTex;
 layout (location = 0) out vec2 uv;
 layout (location = 1) flat out vec2 cornerPoint;
 
+#define DISPLACEMENT_ALREADY_DEFINED
+#include "transform.glsl"
+
 void main()
 {
     const Node leafNode = leafIndexToNode(gl_InstanceID);
@@ -43,15 +46,9 @@ void main()
           xzPosition.x * (currentCorners[2]-currentCorners[1]) + 
           xzPosition.y * (currentCorners[0]-currentCorners[1]);
 
-    uv = vec2(1,-1)*flatPosition + 0.5;
-
-    vec3 worldPosition = vec3(flatPosition.x, 0, flatPosition.y);
-    worldPosition *= 500;
-
-    float heightValue = textureLod(displacementTex,uv,0).r;
-    worldPosition.y = heightValue*20;
+    vec4 worldPosition = transformFlatPointToWorldSpace(flatPosition);
 
     cornerPoint = 0.3*(currentCorners[0]+currentCorners[1]+currentCorners[2]);
 
-    gl_Position = projectionViewMatrix * vec4(worldPosition, 1);
+    gl_Position = projectionViewMatrix * worldPosition;
 }

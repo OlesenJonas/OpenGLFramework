@@ -20,7 +20,10 @@ layout (location = 0) in vec2 xzPosition;
 
 layout (location = 0) uniform mat4 projectionViewMatrix;
 
-layout (binding = 0) uniform sampler2D tex;
+layout (binding = 0) uniform sampler2D displacementTex;
+
+#define DISPLACEMENT_ALREADY_DEFINED
+#include "transform.glsl"
 
 void main()
 {
@@ -32,13 +35,7 @@ void main()
           xzPosition.x * (currentCorners[2]-currentCorners[1]) + 
           xzPosition.y * (currentCorners[0]-currentCorners[1]);
 
-    vec2 uv = vec2(1,-1)*flatPosition + 0.5;
-
-    vec3 worldPosition = vec3(flatPosition.x, 0, flatPosition.y);
-    worldPosition *= 500;
-
-    float heightValue = textureLod(tex,uv,0.0).r;
-    worldPosition.y = heightValue*20;
+    vec4 worldPosition = transformFlatPointToWorldSpace(flatPosition);
     
-    gl_Position = projectionViewMatrix * vec4(worldPosition, 1);
+    gl_Position = projectionViewMatrix * worldPosition;
 }

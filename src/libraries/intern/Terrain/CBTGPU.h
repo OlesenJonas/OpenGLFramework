@@ -23,7 +23,7 @@ class CBTGPU
     explicit CBTGPU(uint32_t maxDepth);
     ~CBTGPU();
 
-    void update(glm::vec2 point);
+    void update(const glm::mat4& projView);
     /* specific update function for tests replicating the CPU version */
     void refineAroundPoint(glm::vec2 point);
 
