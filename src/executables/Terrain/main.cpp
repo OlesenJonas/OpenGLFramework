@@ -184,7 +184,7 @@ int main()
             userPointerStruct.hitPoint = {planeHit.x, planeHit.z};
         }
         glBindTextureUnit(0, testHeightmap.getTextureID());
-        cbt.update(*cam.getProj() * *cam.getView());
+        cbt.update(*cam.getProj() * *cam.getView(), {WIDTH, HEIGHT});
         cbt.doSumReduction();
         cbt.writeIndirectCommands();
 

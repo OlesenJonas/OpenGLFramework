@@ -4,8 +4,8 @@
     // otherwise glslangValidator complains about #include
     //for OpenGL they will be replaced when shader is loaded
     #extension GL_GOOGLE_include_directive : require
-    #define PASS SPLIT
-    // #define PASS MERGE
+    // #define PASS SPLIT
+    #define PASS MERGE
 #endif
 
 #include "../../General/math.glsl"
@@ -27,6 +27,7 @@ layout(std430, binding = 0) restrict buffer cbtSSBO
 #include "Misc.glsl"
 
 layout (location = 0) uniform mat4 projectionViewMatrix;
+layout (location = 1) uniform vec2 screenRes;
 layout (binding = 0) uniform sampler2D displacementTex;
 
 #define DISPLACEMENT_ALREADY_DEFINED
@@ -43,15 +44,24 @@ void main()
     {
         const Node leafNode = leafIndexToNode(threadID);
 
-        uint globalLevelMinimum = 5;
+        const uint globalLevelMinimum = 3;
+        const float targetLength = 20;
 
         #if PASS == SPLIT
 
             vec2[3] corners = cornersFromNode(leafNode);
             vec4[3] cornersWS = transformFlatCornersToWorldCorners(corners);
             const vec4[6] frustaPlanes = extractFrustumPlanes(projectionViewMatrix);
-            
-            if(leafNode.depth < globalLevelMinimum || triangleInsideFrustum(cornersWS, frustaPlanes))
+
+            float maxLength = getTriangleMaxEdgeLengthInPixels(cornersWS, projectionViewMatrix, screenRes);
+
+            // only split if tri in frustum
+            bool doSplit = triangleInsideFrustum(cornersWS, frustaPlanes);
+            // if in frustum split if length is greater than target length
+            doSplit = doSplit && maxLength > targetLength;
+            //always split if depth less the minimum
+            doSplit = doSplit || (leafNode.depth < globalLevelMinimum);
+            if(doSplit)
             {
                 splitNodeConforming(leafNode);
             }
@@ -76,9 +86,21 @@ void main()
             vec2[3] diamondParentCorners = cornersFromNode(diamondParentNode);
             vec4[3] diamondParentCornersWS = transformFlatCornersToWorldCorners(diamondParentCorners);
 
-            if((!triangleInsideFrustum(parentCornersWS, frustaPlanes) && !triangleInsideFrustum(diamondParentCornersWS, frustaPlanes))
-            && (parentNode.depth > globalLevelMinimum-1 && diamondParentNode.depth > globalLevelMinimum-1)
-            )
+            float maxLengthParent = getTriangleMaxEdgeLengthInPixels(parentCornersWS, projectionViewMatrix, screenRes);
+            bool canMergeParent = maxLengthParent < targetLength;
+            //always merge if triangle not in frustum
+            canMergeParent = canMergeParent || !triangleInsideFrustum(parentCornersWS, frustaPlanes);
+            // can only merge if parent is still at greater depth than minimum
+            canMergeParent = canMergeParent && parentNode.depth > globalLevelMinimum - 1;
+            //
+            float maxLengthDiamondParent = getTriangleMaxEdgeLengthInPixels(diamondParentCornersWS, projectionViewMatrix, screenRes);
+            bool canMergeDiamondParent = maxLengthDiamondParent < targetLength;
+            //always merge if triangle not in frustum
+            canMergeDiamondParent = canMergeDiamondParent || !triangleInsideFrustum(diamondParentCornersWS, frustaPlanes);
+            // can only merge if parent is still at greater depth than minimum
+            canMergeDiamondParent = canMergeDiamondParent && diamondParentNode.depth > globalLevelMinimum - 1;
+
+            if(canMergeParent && canMergeDiamondParent)
             {
                 mergeNodeConforming(leafNode);
             }

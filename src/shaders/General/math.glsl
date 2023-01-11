@@ -68,3 +68,26 @@ bool triangleInsideFrustum(inout vec4[3] triangleCorners, const vec4[6] frustaPl
     }
     return true;
 }
+
+float getTriangleMaxEdgeLengthInPixels(vec4[3] triangleCorners, const mat4 projectionMatrix, const vec2 screenRes)
+{
+    //transform to screen space
+    triangleCorners[0] = projectionMatrix * triangleCorners[0];
+    triangleCorners[1] = projectionMatrix * triangleCorners[1];
+    triangleCorners[2] = projectionMatrix * triangleCorners[2];
+    triangleCorners[0] /= triangleCorners[0].w;
+    triangleCorners[1] /= triangleCorners[1].w;
+    triangleCorners[2] /= triangleCorners[2].w;
+    triangleCorners[0].xy = 0.5*triangleCorners[0].xy+0.5;
+    triangleCorners[1].xy = 0.5*triangleCorners[1].xy+0.5;
+    triangleCorners[2].xy = 0.5*triangleCorners[2].xy+0.5;
+    triangleCorners[0].xy *= screenRes;
+    triangleCorners[1].xy *= screenRes;
+    triangleCorners[2].xy *= screenRes;
+
+    float edge0 = distance(triangleCorners[0].xy, triangleCorners[1].xy);
+    float edge1 = distance(triangleCorners[1].xy, triangleCorners[2].xy);
+    float edge2 = distance(triangleCorners[2].xy, triangleCorners[0].xy);
+
+    return max(edge0,max(edge1,edge2));
+}

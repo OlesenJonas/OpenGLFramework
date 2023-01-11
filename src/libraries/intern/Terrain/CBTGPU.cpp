@@ -100,7 +100,7 @@ CBTGPU::~CBTGPU()
     glDeleteBuffers(1, &indirectDrawCommandBuffer);
 }
 
-void CBTGPU::update(const glm::mat4& projView)
+void CBTGPU::update(const glm::mat4& projView, const glm::vec2 screenRes)
 {
     static bool splitPass = true;
     if(splitPass)
@@ -108,6 +108,7 @@ void CBTGPU::update(const glm::mat4& projView)
         splitTimer.start();
         updateSplitShader.useProgram();
         glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projView));
+        glUniform2fv(1, 1, glm::value_ptr(screenRes));
         glDispatchComputeIndirect(0);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
         splitTimer.end();
@@ -118,6 +119,7 @@ void CBTGPU::update(const glm::mat4& projView)
         mergeTimer.start();
         updateMergeShader.useProgram();
         glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projView));
+        glUniform2fv(1, 1, glm::value_ptr(screenRes));
         glDispatchComputeIndirect(0);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
         mergeTimer.end();

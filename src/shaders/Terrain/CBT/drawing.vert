@@ -46,6 +46,8 @@ void main()
           xzPosition.x * (currentCorners[2]-currentCorners[1]) + 
           xzPosition.y * (currentCorners[0]-currentCorners[1]);
 
+    uv = vec2(1,-1) * flatPosition + 0.5;
+
     vec4 worldPosition = transformFlatPointToWorldSpace(flatPosition);
 
     cornerPoint = 0.3*(currentCorners[0]+currentCorners[1]+currentCorners[2]);
