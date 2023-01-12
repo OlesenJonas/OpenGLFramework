@@ -20,56 +20,6 @@
 #include <intern/Texture/Texture.h>
 #include <intern/Window/Window.h>
 
-struct UserPointerStruct
-{
-    CBTGPU* cbt;
-    glm::vec2 hitPoint;
-};
-
-void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
-{
-    Context& ctx = *static_cast<Context*>(glfwGetWindowUserPointer(window));
-    if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-    {
-        glfwSetWindowShouldClose(window, true);
-    }
-    auto& userPointerStruct = *static_cast<UserPointerStruct*>(ctx.getUserPointer());
-    CBTGPU& cbt = *userPointerStruct.cbt;
-    if(key == GLFW_KEY_K && action == GLFW_PRESS)
-    {
-        cbt.setTemplateLevel(cbt.getTemplateLevel() - 1);
-    }
-    if(key == GLFW_KEY_L && action == GLFW_PRESS)
-    {
-        cbt.setTemplateLevel(cbt.getTemplateLevel() + 1);
-    }
-}
-
-void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
-{
-    // IsWindowHovered enough? or ImGui::getIO().WantCapture[Mouse/Key]
-    if(ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow | ImGuiHoveredFlags_AllowWhenBlockedByPopup))
-    {
-        return;
-    }
-
-    Context& ctx = *static_cast<Context*>(glfwGetWindowUserPointer(window));
-    // if((button == GLFW_MOUSE_BUTTON_MIDDLE || button == GLFW_MOUSE_BUTTON_RIGHT) && action == GLFW_PRESS)
-    // {
-    //     glfwGetCursorPos(window, &cbStruct->mousePos->x, &cbStruct->mousePos->y);
-    // }
-    if(button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
-    {
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        ctx.getCamera()->setMode(Camera::Mode::FLY);
-    }
-    if(button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE)
-    {
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-        ctx.getCamera()->setMode(Camera::Mode::ORBIT);
-    }
-}
-
 int main()
 {
     Context ctx{};
@@ -127,9 +77,6 @@ int main()
     ctx.setCamera(&cam);
 
     CBTGPU cbt(25);
-    UserPointerStruct userPointerStruct{};
-    userPointerStruct.cbt = &cbt;
-    ctx.setUserPointer(&userPointerStruct);
     const Texture testHeightmap{MISC_PATH "/CBT/testHeight.png", false, false};
     const Texture testNormal{MISC_PATH "/CBT/testNrm.png", false, false};
 
@@ -162,27 +109,6 @@ int main()
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        const glm::mat4 invView = glm::inverse(*ctx.getCamera()->getView());
-        const glm::vec4 camOriginWorld = invView * glm::vec4(0, 0, 0, 1);
-        const glm::vec4 camDirection = invView * glm::vec4(0, 0, -1, 0);
-        if(camOriginWorld.y > 0 && camDirection.y < 0)
-        {
-            const glm::mat4 invProjection = glm::inverse(*ctx.getCamera()->getProj());
-            int width = 0;
-            int height = 0;
-            glfwGetWindowSize(window, &width, &height);
-            const glm::vec2 mousePos = ctx.getInputManager()->getMousePos();
-            const glm::vec4 cursorPosNDC = glm::vec4(
-                2.0f * (mousePos.x / width) - 1.0, 2.0f * (1.0 - (mousePos.y / height)) - 1.0, -1, 1);
-            glm::vec4 cursorPosView = invProjection * cursorPosNDC;
-            cursorPosView /= cursorPosView.w;
-            const glm::vec4 cursorPosWorld = invView * cursorPosView;
-            const glm::vec4 cursorDirectionWorld = cursorPosWorld - camOriginWorld;
-
-            const glm::vec4 planeHit =
-                camOriginWorld + cursorDirectionWorld * (camOriginWorld.y / -cursorDirectionWorld.y);
-            userPointerStruct.hitPoint = {planeHit.x, planeHit.z};
-        }
         glBindTextureUnit(0, testHeightmap.getTextureID());
         static bool freezeCBTUpdate = false;
         if(!freezeCBTUpdate)
