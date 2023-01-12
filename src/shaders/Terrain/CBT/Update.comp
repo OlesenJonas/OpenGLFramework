@@ -26,6 +26,8 @@ layout(std430, binding = 0) restrict buffer cbtSSBO
 #include "HighLevel.glsl"
 #include "Misc.glsl"
 
+#define EDGE_LENGTH_CRITERIA 2 //1 or 2
+
 layout (location = 0) uniform mat4 projectionViewMatrix;
 layout (location = 1) uniform vec2 screenRes;
 layout (location = 2) uniform float targetLength;
@@ -57,8 +59,14 @@ void main()
 
             // only split if tri in frustum
             bool doSplit = triangleInsideFrustum(cornersWS, frustaPlanes);
-            // if in frustum split if length is greater than target length
-            doSplit = doSplit && maxLength > targetLength;
+            #if EDGE_LENGTH_CRITERIA == 1
+                // if in frustum split if length is greater than target length
+                doSplit = doSplit && maxLength > targetLength;
+            #else
+                // if in frustum split if half length is closer to target
+                doSplit = doSplit && ( abs(0.5*maxLength-targetLength) < abs(maxLength-targetLength) );
+            #endif
+
             //always split if depth less the minimum
             doSplit = doSplit || (leafNode.depth < globalLevelMinimum);
             if(doSplit)
@@ -87,14 +95,22 @@ void main()
             vec4[3] diamondParentCornersWS = transformFlatCornersToWorldCorners(diamondParentCorners);
 
             float maxLengthParent = getTriangleMaxEdgeLengthInPixels(parentCornersWS, projectionViewMatrix, screenRes);
-            bool canMergeParent = maxLengthParent < targetLength;
+            #if EDGE_LENGTH_CRITERIA == 1
+                bool canMergeParent = maxLengthParent < targetLength;
+            #else
+                bool canMergeParent = abs(maxLengthParent-targetLength) < abs(0.5*maxLengthParent-targetLength);
+            #endif
             //always merge if triangle not in frustum
             canMergeParent = canMergeParent || !triangleInsideFrustum(parentCornersWS, frustaPlanes);
             // can only merge if parent is still at greater depth than minimum
             canMergeParent = canMergeParent && parentNode.depth > globalLevelMinimum - 1;
             //
             float maxLengthDiamondParent = getTriangleMaxEdgeLengthInPixels(diamondParentCornersWS, projectionViewMatrix, screenRes);
-            bool canMergeDiamondParent = maxLengthDiamondParent < targetLength;
+            #if EDGE_LENGTH_CRITERIA == 1
+                bool canMergeDiamondParent = maxLengthDiamondParent < targetLength;
+            #else
+                bool canMergeDiamondParent = abs(maxLengthDiamondParent-targetLength) < abs(0.5*maxLengthDiamondParent-targetLength);
+            #endif
             //always merge if triangle not in frustum
             canMergeDiamondParent = canMergeDiamondParent || !triangleInsideFrustum(diamondParentCornersWS, frustaPlanes);
             // can only merge if parent is still at greater depth than minimum
