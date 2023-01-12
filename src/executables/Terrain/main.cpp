@@ -109,7 +109,7 @@ int main()
 
     InputManager input(ctx);
     ctx.setInputManager(&input);
-    input.setupCallbacks(keyCallback, mouseButtonCallback);
+    input.setupCallbacks();
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -214,6 +214,17 @@ int main()
         {
             ImGui::Begin("Settings", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
             ImGui::Checkbox("Draw outline", &drawCBTOutline);
+            ImGui::Separator();
+            static float targetEdgeLength = 10.0f;
+            if(ImGui::SliderFloat("Target edge length", &targetEdgeLength, 1.0f, 100.0f))
+            {
+                cbt.setTargetEdgeLength(targetEdgeLength);
+            }
+            static int globalSubdivLevel = 0;
+            if(ImGui::SliderInt("Global subdiv level", &globalSubdivLevel, 0, cbt.getMaxTemplateLevel()))
+            {
+                cbt.setTemplateLevel(globalSubdivLevel);
+            }
             ImGui::Checkbox("Freeze update", &freezeCBTUpdate);
             ImGui::End();
         }

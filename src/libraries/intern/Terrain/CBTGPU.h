@@ -24,6 +24,7 @@ class CBTGPU
     ~CBTGPU();
 
     void update(const glm::mat4& projView, const glm::vec2 screenRes);
+    void setTargetEdgeLength(float newLength);
     /* specific update function for tests replicating the CPU version */
     void refineAroundPoint(glm::vec2 point);
 
@@ -36,6 +37,10 @@ class CBTGPU
 
     void setTemplateLevel(int newLevel);
     [[nodiscard]] int getTemplateLevel() const;
+    [[nodiscard]] constexpr int getMaxTemplateLevel() const
+    {
+        return triangleTemplates.size() - 1;
+    }
 
     // helpers for tests
     void replaceHeap(const std::vector<uint32_t>& heapData);

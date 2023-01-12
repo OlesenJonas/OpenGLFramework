@@ -89,6 +89,7 @@ CBTGPU::CBTGPU(uint32_t maxDepth)
         glUniform1ui(0, triangleTemplates[selectedLevel].getIndexCount());
     }
 
+    setTargetEdgeLength(20);
     doSumReduction();
     writeIndirectCommands();
 }
@@ -126,6 +127,14 @@ void CBTGPU::update(const glm::mat4& projView, const glm::vec2 screenRes)
         mergeTimer.evaluate();
     }
     splitPass = !splitPass;
+}
+
+void CBTGPU::setTargetEdgeLength(float newLength)
+{
+    updateMergeShader.useProgram();
+    glUniform1f(2, newLength);
+    updateSplitShader.useProgram();
+    glUniform1f(2, newLength);
 }
 
 void CBTGPU::refineAroundPoint(glm::vec2 point)
