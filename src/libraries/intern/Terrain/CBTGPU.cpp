@@ -50,9 +50,41 @@ CBTGPU::CBTGPU(uint32_t maxDepth)
 
         // store max depth in first D+3 bits
         heap[0] = 1u << maxDepth;
-        // set bitheap[2^D] (converted to index in packed uint array) to 1, creating a single leaf node
-        heap[(3 * (1u << maxDepth)) / 32] = 1u;
         assert(glm::findLSB(heap[0]) == maxDepth);
+
+        uint32_t levelToInit = 2;
+        {
+            // from LowLevel.glsl
+            auto setNodeBitInBitfield = [&maxDepth, &heap](uint32_t nodeHeapIndex, uint32_t nodeDepth)
+            {
+                const int depthOffsetToBitfieldPart = maxDepth - int(nodeDepth);
+                uint32_t nodeAtBitfieldDepthHeapIndex = nodeHeapIndex << depthOffsetToBitfieldPart;
+                nodeDepth = maxDepth;
+
+                const uint32_t bitIndex =
+                    (1u << (maxDepth + 1u)) +
+                    nodeAtBitfieldDepthHeapIndex; // * nodeAtBitfieldDepth.depth (which is == 1 here);
+
+                const uint32_t arrIndex = bitIndex / 32u;
+                const uint32_t localBitIndex = bitIndex % 32u;
+
+                const uint32_t mask = ~(1u << localBitIndex);
+                // atomicAnd(heap[arrIndex], mask);
+                heap[arrIndex] &= mask;
+                // atomicOr(heap[arrIndex], value << localBitIndex);
+                heap[arrIndex] |= (1u << localBitIndex);
+            };
+
+            const uint32_t levelStartIndex = 1u << levelToInit;
+            const uint32_t amountAtLevel = 1u << levelToInit;
+            for(uint32_t i = 0; i < amountAtLevel; i++)
+            {
+                const uint32_t realIndex = levelStartIndex + i;
+                setNodeBitInBitfield(realIndex, levelToInit);
+            }
+        }
+        // set bitheap[2^D] (converted to index in packed uint array) to 1, creating a single leaf node
+        // heap[(3 * (1u << maxDepth)) / 32] = 1u;
 
         glCreateBuffers(1, &cbtBuffer);
         glNamedBufferStorage(cbtBuffer, heap.size() * sizeof(heap[0]), heap.data(), 0);
@@ -71,7 +103,6 @@ CBTGPU::CBTGPU(uint32_t maxDepth)
     }
 
     {
-        // TODO: need to read amount of triangles in current selcted templateMesh
         const DrawElementsIndirectCommand temp{
             .count = triangleTemplates[selectedLevel].getIndexCount(),
             .primCount = 1, // number of instances
@@ -89,9 +120,9 @@ CBTGPU::CBTGPU(uint32_t maxDepth)
         glUniform1ui(0, triangleTemplates[selectedLevel].getIndexCount());
     }
 
-    setTargetEdgeLength(20);
     doSumReduction();
     writeIndirectCommands();
+    setTargetEdgeLength(20);
 }
 
 CBTGPU::~CBTGPU()

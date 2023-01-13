@@ -31,13 +31,12 @@ void main()
 {
     const Node leafNode = leafIndexToNode(gl_InstanceID);
 
-    //testing culling to square in vertex shader, not really needed atm
-    // const uint nodeIndexAtDepth2 = leafNode.heapIndex >> (leafNode.depth - 2);
-    // if(nodeIndexAtDepth2 == 4 || nodeIndexAtDepth2 == 7)
-    // {
-    //     gl_Position.x = 0.0/0.0;
-    //     return;
-    // }
+    //dont render "outer" triangles
+    if(!isNodeInCenterSquare(leafNode))
+    {
+        gl_Position = vec4(0,0,0,0);
+        return;
+    }
 
     vec2[3] currentCorners = cornersFromNode(leafNode);
 

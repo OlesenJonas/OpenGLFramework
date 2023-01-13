@@ -4,8 +4,8 @@
     // otherwise glslangValidator complains about #include
     //for OpenGL they will be replaced when shader is loaded
     #extension GL_GOOGLE_include_directive : require
-    // #define PASS SPLIT
-    #define PASS MERGE
+    #define PASS SPLIT
+    // #define PASS MERGE
 #endif
 
 #include "../../General/math.glsl"
@@ -47,9 +47,12 @@ void main()
     {
         const Node leafNode = leafIndexToNode(threadID);
 
-        const uint globalLevelMinimum = 3;
+        const uint globalLevelMinimum = 2;
 
         #if PASS == SPLIT
+
+            if(!isNodeInCenterSquare(leafNode))
+                return;
 
             vec2[3] corners = cornersFromNode(leafNode);
             vec4[3] cornersWS = transformFlatCornersToWorldCorners(corners);
@@ -71,7 +74,8 @@ void main()
             doSplit = doSplit || (leafNode.depth < globalLevelMinimum);
             if(doSplit)
             {
-                splitNodeConforming(leafNode);
+                // splitNodeConforming(leafNode);
+                splitNodeConforming_CenterSquare(leafNode);
             }
 
         #elif PASS == MERGE

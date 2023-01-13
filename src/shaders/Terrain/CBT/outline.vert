@@ -28,6 +28,13 @@ layout (binding = 0) uniform sampler2D displacementTex;
 void main()
 {
     const Node leafNode = leafIndexToNode(gl_InstanceID);
+    //dont render "outer" triangles
+    if(!isNodeInCenterSquare(leafNode))
+    {
+        gl_Position = vec4(0,0,0,0);
+        return;
+    }
+
     vec2[3] currentCorners = cornersFromNode(leafNode);
 
     // vec3 worldPosition = vec3(xzPosition.x, 0, xzPosition.y);

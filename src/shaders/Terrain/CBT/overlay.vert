@@ -25,6 +25,14 @@ layout (location = 0) out vec2 center;
 void main()
 {
     const Node leafNode = leafIndexToNode(gl_InstanceID);
+
+    //dont render "outer" triangles
+    if(!isNodeInCenterSquare(leafNode))
+    {
+        gl_Position = vec4(0,0,0,0);
+        return;
+    }
+
     vec2[3] currentCorners = cornersFromNode(leafNode);
 
     vec2 worldPosition =                    currentCorners[1] + 

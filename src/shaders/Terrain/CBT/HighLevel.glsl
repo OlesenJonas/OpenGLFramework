@@ -98,6 +98,19 @@ bool isParentOfTwoLeafNodes(const Node node)
     return getNodeValue(node) <= 2;
 }
 
+//assumes node depth is >= 2
+Node getNodeAtDepth2(const Node node)
+{
+    return Node(node.heapIndex >> (node.depth - 2),2);
+}
+
+bool isNodeInCenterSquare(const Node node)
+{
+    const uint indexAtDepth2 = getNodeAtDepth2(node).heapIndex;
+    //nodes in center square have parent (5,2) or (6,2) -> 5+1=6, 6+1=7 => both /2 == 3
+    return (indexAtDepth2+1)/2 == 3;
+}
+
 #ifndef HEAP_READ_ONLY
 
     void splitNode(const Node node)
@@ -115,6 +128,33 @@ bool isParentOfTwoLeafNodes(const Node node)
 
             // until we reach the root node, or theres no edge neighbour left
             while(currentNode.heapIndex > 1)
+            {
+                // split current node
+                splitNode(currentNode);
+                // factor out into getParent() ?
+                currentNode.heapIndex = currentNode.heapIndex / 2;
+                currentNode.depth -= 1;
+                // split its parent
+                splitNode(currentNode);
+                const uint edgeNeighbourID = calculateSameDepthNeighbourhood(currentNode).edge;
+                // continue with parents edge neighbour
+                // currentNode = Node(edgeNeighbourID, edgeNeighbourID == 0 ? 0 : currentNode.depth);
+                currentNode.heapIndex = edgeNeighbourID;
+                currentNode.depth = edgeNeighbourID == 0 ? 0 : currentNode.depth;
+            }
+        }
+    }
+
+    void splitNodeConforming_CenterSquare(const Node node)
+    {
+        if(node.depth < getMaxDepth())
+        {
+            splitNode(node);
+            const uint edgeNeighbourID = calculateSameDepthNeighbourhood(node).edge;
+            Node currentNode = Node(edgeNeighbourID, edgeNeighbourID == 0 ? 0 : node.depth);
+
+            // until we reach the root node, or theres no edge neighbour left
+            while(currentNode.heapIndex > 1 && isNodeInCenterSquare(currentNode))
             {
                 // split current node
                 splitNode(currentNode);
