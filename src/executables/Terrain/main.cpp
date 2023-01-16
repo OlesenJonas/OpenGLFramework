@@ -77,8 +77,11 @@ int main()
     ctx.setCamera(&cam);
 
     CBTGPU cbt(25);
-    const Texture testHeightmap{MISC_PATH "/CBT/testHeight.png", false, false};
-    const Texture testNormal{MISC_PATH "/CBT/testNrm.png", false, false};
+    const Texture terrainHeightmap{MISC_PATH "/CBT/TerrainHeight.png", false, false};
+    glTextureParameteri(terrainHeightmap.getTextureID(), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(terrainHeightmap.getTextureID(), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    const Texture terrainNormal{MISC_PATH "/CBT/TerrainNormal.png", false, true};
+    const Texture terrainMacroColor{MISC_PATH "/CBT/TerrainMacroColor.png", true, true};
 
     const Cube cube{1.0f};
     const Mesh referenceHuman{MISC_PATH "/HumanScaleReference.obj"};
@@ -109,7 +112,7 @@ int main()
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glBindTextureUnit(0, testHeightmap.getTextureID());
+        glBindTextureUnit(0, terrainHeightmap.getTextureID());
         static bool freezeCBTUpdate = false;
         if(!freezeCBTUpdate)
         {
@@ -118,7 +121,8 @@ int main()
         cbt.doSumReduction();
         cbt.writeIndirectCommands();
 
-        glBindTextureUnit(1, testNormal.getTextureID());
+        glBindTextureUnit(1, terrainNormal.getTextureID());
+        glBindTextureUnit(2, terrainMacroColor.getTextureID());
         cbt.draw(*cam.getProj() * *cam.getView());
         static bool drawCBTOutline = false;
         if(drawCBTOutline)
@@ -129,11 +133,14 @@ int main()
 
         simpleShader.useProgram();
         glBindTextureUnit(0, gridTexture.getTextureID());
-        glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(glm::translate(glm::vec3{0.0f, 0.5f, 0.0f})));
+        constexpr float groundOffset = 38.0f;
+        glUniformMatrix4fv(
+            0, 1, GL_FALSE, glm::value_ptr(glm::translate(glm::vec3{0.0f, 0.5f + groundOffset, 0.0f})));
         glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(*cam.getView()));
         glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(*cam.getProj()));
         cube.draw();
-        glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(glm::translate(glm::vec3{1.0f, 0.0f, 0.0f})));
+        glUniformMatrix4fv(
+            0, 1, GL_FALSE, glm::value_ptr(glm::translate(glm::vec3{1.0f, 0.0f + groundOffset, 0.0f})));
         referenceHuman.draw();
 
         // UI

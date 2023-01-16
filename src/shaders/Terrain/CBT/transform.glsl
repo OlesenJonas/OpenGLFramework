@@ -5,7 +5,7 @@
 #endif
 
 #define TERRAIN_SIZE 500
-#define TERRAIN_HEIGHT 20
+#define TERRAIN_HEIGHT 100
 
 vec4 transformFlatPointToWorldSpace(inout vec2 flatPosition)
 {

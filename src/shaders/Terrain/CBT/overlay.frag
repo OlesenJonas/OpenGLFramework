@@ -11,7 +11,7 @@ layout(location = 1) in vec2 center;
 float edgeFactor()
 {
     vec3 d = fwidth(weight);
-    vec3 f = smoothstep(weight,vec3(0.0),vec3(d * 0.25));
+    vec3 f = smoothstep(weight,vec3(0.0),vec3(d * 0.2));
     return min(min(f.x, f.y), f.z);
 }
 
