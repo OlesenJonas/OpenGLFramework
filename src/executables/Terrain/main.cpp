@@ -77,11 +77,14 @@ int main()
     ctx.setCamera(&cam);
 
     CBTGPU cbt(25);
+    cbt.setTargetEdgeLength(7.0f);
     const Texture terrainHeightmap{MISC_PATH "/CBT/TerrainHeight.png", false, false};
     glTextureParameteri(terrainHeightmap.getTextureID(), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTextureParameteri(terrainHeightmap.getTextureID(), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     const Texture terrainNormal{MISC_PATH "/CBT/TerrainNormal.png", false, true};
     const Texture terrainMacroColor{MISC_PATH "/CBT/TerrainMacroColor.png", true, true};
+    constexpr float groundOffsetAt00 = 38.0f;
+    cam.move({0.f, groundOffsetAt00, 0.f});
 
     const Cube cube{1.0f};
     const Mesh referenceHuman{MISC_PATH "/HumanScaleReference.obj"};
@@ -133,14 +136,13 @@ int main()
 
         simpleShader.useProgram();
         glBindTextureUnit(0, gridTexture.getTextureID());
-        constexpr float groundOffset = 38.0f;
         glUniformMatrix4fv(
-            0, 1, GL_FALSE, glm::value_ptr(glm::translate(glm::vec3{0.0f, 0.5f + groundOffset, 0.0f})));
+            0, 1, GL_FALSE, glm::value_ptr(glm::translate(glm::vec3{0.0f, 0.5f + groundOffsetAt00, 0.0f})));
         glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(*cam.getView()));
         glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(*cam.getProj()));
         cube.draw();
         glUniformMatrix4fv(
-            0, 1, GL_FALSE, glm::value_ptr(glm::translate(glm::vec3{1.0f, 0.0f + groundOffset, 0.0f})));
+            0, 1, GL_FALSE, glm::value_ptr(glm::translate(glm::vec3{1.0f, 0.0f + groundOffsetAt00, 0.0f})));
         referenceHuman.draw();
 
         // UI
