@@ -22,8 +22,9 @@ void main()
 {
     float gs = 0.2+0.6*fast(cornerPoint);
     gs = pow(gs,2.2);
-    vec3 normal = texture(normalMap, uv).xyz;
+    vec3 normal = normalize(2*texture(normalMap, uv).xzy-1);
     vec3 color = texture(macroColor, uv).rgb;
-    color *= max(dot(normalize(normal), normalize(vec3(0.5,1,0.5))), 0.0);
+    // vec3 color = vec3(1.0);
+    color *= max(dot(normal, normalize(vec3(0.2,1,0.2))), 0.0);
     fragmentColor = vec4(color,1.0);
 }

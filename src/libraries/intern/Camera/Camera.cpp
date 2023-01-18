@@ -81,6 +81,7 @@ void Camera::setPosition(glm::vec3 newPosition)
         position = newPosition;
         radius = glm::distance(newPosition, center);
         viewVec = glm::normalize(newPosition - center);
+        assert(false && "Also set angles!");
     }
 }
 
