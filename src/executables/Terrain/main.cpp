@@ -10,6 +10,7 @@
 
 #include <intern/Camera/Camera.h>
 #include <intern/Context/Context.h>
+#include <intern/Framebuffer/Framebuffer.h>
 #include <intern/InputManager/InputManager.h>
 #include <intern/Mesh/Cube.h>
 #include <intern/Mesh/FullscreenTri.h>
@@ -53,7 +54,7 @@ int main()
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
-    glEnable(GL_FRAMEBUFFER_SRGB);
+    // glEnable(GL_FRAMEBUFFER_SRGB);
 
     //----------------------- INIT IMGUI & Input
 
@@ -73,9 +74,6 @@ int main()
 
     //----------------------- INIT REST
 
-    Camera cam{ctx, static_cast<float>(WIDTH) / static_cast<float>(HEIGHT), 0.01f, 1000.0f};
-    ctx.setCamera(&cam);
-
     CBTGPU cbt(25);
     cbt.setTargetEdgeLength(7.0f);
     const Texture terrainHeightmap{MISC_PATH "/CBT/TerrainHeight.png", false, false};
@@ -84,7 +82,16 @@ int main()
     const Texture terrainNormal{MISC_PATH "/CBT/TerrainNormal.png", false, true};
     const Texture terrainMacroColor{MISC_PATH "/CBT/TerrainMacroColor.png", true, true};
     constexpr float groundOffsetAt00 = 38.0f;
+
+    Camera cam{ctx, static_cast<float>(WIDTH) / static_cast<float>(HEIGHT), 0.01f, 1000.0f};
+    ctx.setCamera(&cam);
     cam.move({0.f, groundOffsetAt00, 0.f});
+
+    FullscreenTri fullScreenTri;
+    ShaderProgram postProcessShader{
+        VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
+        {SHADERS_PATH "/General/screenQuad.vert", SHADERS_PATH "/General/postProcess.frag"}};
+    Framebuffer internalFBO{WIDTH, HEIGHT, {GL_RGBA16F}, true};
 
     const Cube cube{1.0f};
     const Mesh referenceHuman{MISC_PATH "/HumanScaleReference.obj"};
@@ -113,7 +120,9 @@ int main()
 
         auto currentTime = static_cast<float>(input.getSimulationTime());
 
+        internalFBO.bind();
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glEnable(GL_DEPTH_TEST);
 
         glBindTextureUnit(0, terrainHeightmap.getTextureID());
         static bool freezeCBTUpdate = false;
@@ -132,7 +141,6 @@ int main()
         {
             cbt.drawOutline(*cam.getProj() * *cam.getView());
         }
-        cbt.drawOverlay(cam.getAspect());
 
         simpleShader.useProgram();
         glBindTextureUnit(0, gridTexture.getTextureID());
@@ -145,22 +153,47 @@ int main()
             0, 1, GL_FALSE, glm::value_ptr(glm::translate(glm::vec3{1.0f, 0.0f + groundOffsetAt00, 0.0f})));
         referenceHuman.draw();
 
+        glDisable(GL_DEPTH_TEST);
+        // Post Processing
+        {
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            // overwriting full screen anyways, dont need to clear
+            glBindTextureUnit(0, internalFBO.getColorTextures()[0].getTextureID());
+            postProcessShader.useProgram();
+            fullScreenTri.draw();
+        }
+
+        // draw CBT overlay as part of UI
+        cbt.drawOverlay(cam.getAspect());
+
         // UI
         {
             ImGui::Begin("Settings", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
             ImGui::Checkbox("Draw outline", &drawCBTOutline);
             ImGui::Separator();
-            static float targetEdgeLength = 7.0f;
-            if(ImGui::SliderFloat("Target edge length", &targetEdgeLength, 1.0f, 100.0f))
+            if(ImGui::CollapsingHeader("CBT##settings", ImGuiTreeNodeFlags_DefaultOpen))
             {
-                cbt.setTargetEdgeLength(targetEdgeLength);
+                static float targetEdgeLength = 7.0f;
+                if(ImGui::SliderFloat("Target edge length", &targetEdgeLength, 1.0f, 100.0f))
+                {
+                    cbt.setTargetEdgeLength(targetEdgeLength);
+                }
+                static int globalSubdivLevel = 0;
+                if(ImGui::SliderInt("Global subdiv level", &globalSubdivLevel, 0, cbt.getMaxTemplateLevel()))
+                {
+                    cbt.setTemplateLevel(globalSubdivLevel);
+                }
+                ImGui::Checkbox("Freeze update", &freezeCBTUpdate);
             }
-            static int globalSubdivLevel = 0;
-            if(ImGui::SliderInt("Global subdiv level", &globalSubdivLevel, 0, cbt.getMaxTemplateLevel()))
+            if(ImGui::CollapsingHeader("Camera##settings", ImGuiTreeNodeFlags_DefaultOpen))
             {
-                cbt.setTemplateLevel(globalSubdivLevel);
+                static float exposure = 1.0f;
+                if(ImGui::SliderFloat("Simple exposure", &exposure, 0.1f, 2.0f))
+                {
+                    postProcessShader.useProgram();
+                    glUniform1f(0, exposure);
+                }
             }
-            ImGui::Checkbox("Freeze update", &freezeCBTUpdate);
             ImGui::End();
         }
         {
@@ -187,9 +220,9 @@ int main()
         }
 
         // sRGB is broken in Dear ImGui
-        glDisable(GL_FRAMEBUFFER_SRGB);
+        // glDisable(GL_FRAMEBUFFER_SRGB);
         ImGui::Extensions::FrameEnd();
-        glEnable(GL_FRAMEBUFFER_SRGB);
+        // glEnable(GL_FRAMEBUFFER_SRGB);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
