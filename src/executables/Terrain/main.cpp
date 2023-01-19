@@ -150,7 +150,7 @@ int main()
             ImGui::Begin("Settings", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
             ImGui::Checkbox("Draw outline", &drawCBTOutline);
             ImGui::Separator();
-            static float targetEdgeLength = 10.0f;
+            static float targetEdgeLength = 7.0f;
             if(ImGui::SliderFloat("Target edge length", &targetEdgeLength, 1.0f, 100.0f))
             {
                 cbt.setTargetEdgeLength(targetEdgeLength);
