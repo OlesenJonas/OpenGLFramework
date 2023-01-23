@@ -165,12 +165,12 @@ void Camera::setFlySpeed(float speed)
     flySpeed = speed;
 }
 
-glm::mat4* Camera::getView()
+const glm::mat4* Camera::getView() const
 {
     return &matrices[0];
 }
 
-glm::mat4* Camera::getProj()
+const glm::mat4* Camera::getProj() const
 {
     return &matrices[1];
 }
@@ -187,7 +187,7 @@ glm::mat4 Camera::getSkyProj()
     return glm::inverse(*getProj() * view);
 }
 
-glm::vec3 Camera::getPosition()
+glm::vec3 Camera::getPosition() const
 {
     return position;
 }

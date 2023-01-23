@@ -10,9 +10,21 @@
 class Framebuffer
 {
   public:
+    struct ColorAttachmentDescriptor
+    {
+        GLsizei levels = 1;
+        GLsizei width = -1;
+        GLsizei height = -1;
+        GLenum internalFormat = 0xFFFFFFFF;
+        GLint minFilter = GL_LINEAR;
+        GLint magFilter = GL_LINEAR;
+        GLint wrapS = GL_REPEAT;
+        GLint wrapT = GL_REPEAT;
+    };
+
     Framebuffer(
-        GLsizei width, GLsizei height, std::initializer_list<GLenum> colorTextureFormats,
-        bool useDepthStencil);
+        GLsizei width, GLsizei height,
+        std::initializer_list<ColorAttachmentDescriptor> colorAttachmentDescriptors, bool useDepthStencil);
     ~Framebuffer();
 
     void bind() const;

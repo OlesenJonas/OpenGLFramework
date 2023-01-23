@@ -9,6 +9,8 @@
 class Context
 {
   public:
+    static Context* globalContext;
+
     Context() = default;
 
     GLFWwindow* getWindow();

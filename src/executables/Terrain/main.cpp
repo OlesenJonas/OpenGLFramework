@@ -16,6 +16,7 @@
 #include <intern/Mesh/FullscreenTri.h>
 #include <intern/Misc/ImGuiExtensions.h>
 #include <intern/Misc/OpenGLErrorHandler.h>
+#include <intern/PostProcessEffects/Fog/BasicFog.h>
 #include <intern/ShaderProgram/ShaderProgram.h>
 #include <intern/Terrain/CBTGPU.h>
 #include <intern/Texture/Texture.h>
@@ -24,6 +25,7 @@
 int main()
 {
     Context ctx{};
+    Context::globalContext = &ctx;
 
     //----------------------- INIT WINDOW
 
@@ -83,7 +85,7 @@ int main()
     const Texture terrainMacroColor{MISC_PATH "/CBT/TerrainMacroColor.png", true, true};
     constexpr float groundOffsetAt00 = 38.0f;
 
-    Camera cam{ctx, static_cast<float>(WIDTH) / static_cast<float>(HEIGHT), 0.01f, 1000.0f};
+    Camera cam{ctx, static_cast<float>(WIDTH) / static_cast<float>(HEIGHT), 0.1f, 1000.0f};
     ctx.setCamera(&cam);
     cam.move({0.f, groundOffsetAt00, 0.f});
 
@@ -91,7 +93,7 @@ int main()
     ShaderProgram postProcessShader{
         VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
         {SHADERS_PATH "/General/screenQuad.vert", SHADERS_PATH "/General/postProcess.frag"}};
-    Framebuffer internalFBO{WIDTH, HEIGHT, {GL_RGBA16F}, true};
+    Framebuffer internalFBO{WIDTH, HEIGHT, {{.internalFormat = GL_RGBA16F}}, true};
 
     const Cube cube{1.0f};
     const Mesh referenceHuman{MISC_PATH "/HumanScaleReference.obj"};
@@ -99,6 +101,8 @@ int main()
     ShaderProgram simpleShader{
         VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
         {SHADERS_PATH "/General/simpleTexture.vert", SHADERS_PATH "/General/simpleTexture.frag"}};
+
+    BasicFogEffect basicFogEffect(WIDTH, HEIGHT);
 
     //----------------------- RENDERLOOP
 
@@ -156,9 +160,15 @@ int main()
         glDisable(GL_DEPTH_TEST);
         // Post Processing
         {
+            // fog
+            const auto& hdrColorWithFogTex =
+                basicFogEffect.execute(internalFBO.getColorTextures()[0], *internalFBO.getDepthTexture());
+
+            // color management
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            // glViewport()?
             // overwriting full screen anyways, dont need to clear
-            glBindTextureUnit(0, internalFBO.getColorTextures()[0].getTextureID());
+            glBindTextureUnit(0, hdrColorWithFogTex.getTextureID());
             postProcessShader.useProgram();
             fullScreenTri.draw();
         }

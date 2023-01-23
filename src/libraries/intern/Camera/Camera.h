@@ -40,9 +40,9 @@ class Camera
 
     void updateView();
 
-    glm::vec3 getPosition();
-    glm::mat4* getView();
-    glm::mat4* getProj();
+    glm::vec3 getPosition() const;
+    [[nodiscard]] const glm::mat4* getView() const;
+    [[nodiscard]] const glm::mat4* getProj() const;
     glm::mat4* getMatricesPointer();
     float getAspect() const;
     glm::mat4 getSkyProj();
