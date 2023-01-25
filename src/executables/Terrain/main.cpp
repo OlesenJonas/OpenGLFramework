@@ -195,6 +195,15 @@ int main()
                 }
                 ImGui::Checkbox("Freeze update", &freezeCBTUpdate);
             }
+            if(ImGui::CollapsingHeader("Fog##settings"))
+            {
+                ImGui::Indent(5.0f);
+                if(ImGui::CollapsingHeader("BasicFog##settings"))
+                {
+                    basicFogEffect.drawUI();
+                }
+                ImGui::Indent(-5.0f);
+            }
             if(ImGui::CollapsingHeader("Camera##settings", ImGuiTreeNodeFlags_DefaultOpen))
             {
                 static float exposure = 1.0f;
