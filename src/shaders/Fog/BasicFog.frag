@@ -8,6 +8,7 @@ layout (location = 1) uniform mat4 invProjView;
 
 layout (location = 2) uniform vec4 absorptionCoefficient;
 layout (location = 3) uniform vec4 scatteringCoefficient;
+layout (location = 8) uniform vec4 extinctionCoefficient;
 // assume inscattered light is equal everywhere! this is the reason this is called "BasicFog"
 layout (location = 4) uniform vec4 inscatteredLight;
 layout (location = 5) uniform float falloff;
@@ -31,6 +32,10 @@ void main() {
 
     const vec3 sigmaA = absorptionCoefficient.rgb*absorptionCoefficient.w;
     const vec3 sigmaS = scatteringCoefficient.rgb*scatteringCoefficient.w;
+    //for mode == 0 extinction uniform is used, otherwise sigmaT = sigmaA+sigmaS
+    const vec3 sigmaT = extinctionCoefficient.rgb*extinctionCoefficient.w;
+
+    vec3 pixelColor = texelFetch(sceneColor, ivec2(gl_FragCoord.xy),0).rgb;
 
     // Exponential height fog formula based on
     // Real-time Atmospheric Effects in Games Revisited, Carsten Wenzel, Crytek
@@ -39,30 +44,42 @@ void main() {
     float D = length(d);
     d = d/D;
     const float origin = cameraPosWS.y + heightOffset;
-    
-    vec3 pixelColor = texelFetch(sceneColor, ivec2(gl_FragCoord.xy),0).rgb;
-
-    // Light camera receives from shaded pixel
-    const float fogFactorAtCamera = exp(-falloff * origin);
-    vec3 fogIntegral = (sigmaA+sigmaS) * fogFactorAtCamera;
-    //todo: needed? just to prevent NaNs?
-    const float verticalLookThreshold = 0.01;
-    // if(abs(d.y) > verticalLookThreshold)
-    {
-        const float t = falloff * d.y;
-        fogIntegral *= ( 1.0 - exp(-D*t) ) / t;
-    }
-    // vec3 transmittance = exp(-fogIntegral);
-    vec3 transmittance = max(vec3(0), exp(-fogIntegral));
-    pixelColor *= transmittance;
 
     if(mode == 0)
     {
+        // Light camera receives from shaded pixel
+        const float fogFactorAtCamera = exp(-falloff * origin);
+        vec3 fogIntegral = sigmaT * fogFactorAtCamera;
+        //todo: needed? just to prevent NaNs?
+        const float verticalLookThreshold = 0.01;
+        // if(abs(d.y) > verticalLookThreshold)
+        {
+            const float t = falloff * d.y;
+            fogIntegral *= ( 1.0 - exp(-D*t) ) / t;
+        }
+        // vec3 transmittance = exp(-fogIntegral);
+        vec3 transmittance = max(vec3(0), exp(-fogIntegral));
+        pixelColor *= transmittance;
+
         //simple 1-transmittance
         pixelColor += inscatteredLight.rgb*inscatteredLight.w * (1-transmittance);
     }
     else
     {
+        // Light camera receives from shaded pixel
+        const float fogFactorAtCamera = exp(-falloff * origin);
+        vec3 fogIntegral = (sigmaA+sigmaS) * fogFactorAtCamera;
+        //todo: needed? just to prevent NaNs?
+        const float verticalLookThreshold = 0.01;
+        // if(abs(d.y) > verticalLookThreshold)
+        {
+            const float t = falloff * d.y;
+            fogIntegral *= ( 1.0 - exp(-D*t) ) / t;
+        }
+        // vec3 transmittance = exp(-fogIntegral);
+        vec3 transmittance = max(vec3(0), exp(-fogIntegral));
+        pixelColor *= transmittance;
+
         // Light the camera receives from all the points between pixel and camera
         vec3 inScatterIntegral = inscatteredLight.rgb*inscatteredLight.w * sigmaS / (sigmaS+sigmaA);
         vec3 exponent = (sigmaA + sigmaS) * (exp(falloff*origin) - exp(falloff*(D*d.y+origin))) * exp(-falloff*(D*d.y+2*origin));
