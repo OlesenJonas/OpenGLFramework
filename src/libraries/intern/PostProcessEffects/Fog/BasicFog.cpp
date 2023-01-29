@@ -46,7 +46,7 @@ void BasicFogEffect::updateSettings()
     glUniform4fv(3, 1, glm::value_ptr(settings.scatteringCoefficient));
     glUniform4fv(8, 1, glm::value_ptr(settings.extinctionCoefficient));
     glUniform4fv(4, 1, glm::value_ptr(settings.inscatteredLight));
-    glUniform1f(5, 1.0f / settings.falloff);
+    glUniform1f(5, settings.falloff);
     glUniform1f(6, settings.heightOffset);
     glUniform1i(7, settings.mode);
 }

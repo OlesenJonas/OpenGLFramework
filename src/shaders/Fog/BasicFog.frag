@@ -32,13 +32,8 @@ void main() {
 
     const vec3 sigmaA = absorptionCoefficient.rgb*absorptionCoefficient.w;
     const vec3 sigmaS = scatteringCoefficient.rgb*scatteringCoefficient.w;
-    //for mode == 0 extinction uniform is used, otherwise sigmaT = sigmaA+sigmaS
-    const vec3 sigmaT = extinctionCoefficient.rgb*extinctionCoefficient.w;
 
     vec3 pixelColor = texelFetch(sceneColor, ivec2(gl_FragCoord.xy),0).rgb;
-
-    // Exponential height fog formula based on
-    // Real-time Atmospheric Effects in Games Revisited, Carsten Wenzel, Crytek
 
     vec3 d = pixelPosWorldSpace - cameraPosWS;
     float D = length(d);
@@ -47,23 +42,28 @@ void main() {
 
     if(mode == 0)
     {
+        const vec3 sigmaT = extinctionCoefficient.rgb*extinctionCoefficient.w;
+
         // Light camera receives from shaded pixel
-        const float fogFactorAtCamera = exp(-falloff * origin);
-        vec3 fogIntegral = sigmaT * fogFactorAtCamera;
-        //todo: needed? just to prevent NaNs?
-        const float verticalLookThreshold = 0.01;
-        // if(abs(d.y) > verticalLookThreshold)
+        vec3 fogIntegral = sigmaT * exp(-origin/falloff);
+        if(d.y == 0) //very unlikely that its exactly 0
         {
-            const float t = falloff * d.y;
-            fogIntegral *= ( 1.0 - exp(-D*t) ) / t;
+            fogIntegral *= D;
         }
-        // vec3 transmittance = exp(-fogIntegral);
-        vec3 transmittance = max(vec3(0), exp(-fogIntegral));
+        else
+        {
+            const float exponent = -D*d.y/falloff;
+            const float inner = 1.0 - exp(exponent);
+            fogIntegral *= falloff*inner/d.y;
+        }
+        vec3 transmittance = exp(-fogIntegral);
+        // vec3 transmittance = max(vec3(0), exp(-fogIntegral));
         pixelColor *= transmittance;
 
         //simple 1-transmittance
         pixelColor += inscatteredLight.rgb*inscatteredLight.w * (1-transmittance);
     }
+    //TODO: apply change in formula!
     else
     {
         // Light camera receives from shaded pixel
