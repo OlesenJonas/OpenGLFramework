@@ -1,15 +1,24 @@
 #include <algorithm>
 #include <array>
+#include <cstring>
 #include <filesystem>
 #include <string>
 #include <unordered_set>
 
 #include "ShaderProgram.h"
+#include "ShaderProgram/ShaderProgram.h"
+
+const char* ShaderProgram::vendor = nullptr;
 
 ShaderProgram::ShaderProgram(
     GLuint shaderMask, const std::initializer_list<std::string> shaderFiles,
     const std::initializer_list<DefinePair> defines)
 {
+    if(vendor == nullptr)
+    {
+        vendor = (char*)glGetString(GL_VENDOR);
+    }
+
     shaderName = std::data(shaderFiles)[shaderFiles.size() - 1];
     size_t pos = shaderName.find_last_of('/') + 1;
     shaderName = shaderName.substr(pos, shaderName.find_last_of('.') - pos);
@@ -91,6 +100,16 @@ void ShaderProgram::useProgram()
     glUseProgram(programID);
 }
 
+std::string ShaderProgram::getLineDirective(uint16_t lineNumber, const std::string& path)
+{
+    // only NVIDIA supports strings as file names in glsl shaders
+    if(std::strcmp(vendor, "NVIDIA Corporation") == 0)
+    {
+        return "#line " + std::to_string(lineNumber) + " " + "\"" + path + "\"" + "\n";
+    }
+    return "#line " + std::to_string(lineNumber) + "\n";
+}
+
 std::string
 ShaderProgram::loadShaderSource(std::string_view pathString, const std::initializer_list<DefinePair> defines)
 {
@@ -139,7 +158,7 @@ ShaderProgram::loadShaderSource(std::string_view pathString, const std::initiali
         fileContent += definePair.second;
         fileContent += "\n";
     }
-    fileContent += "#line " + std::to_string(lineNumber) + " " + "\"" + pathForwardSlash + "\"" + "\n";
+    fileContent += getLineDirective(lineNumber, pathForwardSlash);
 
     // keep tracks of which files have already been included to avoid duplicates
     std::unordered_set<std::filesystem::path> includedSet = {};
@@ -160,8 +179,7 @@ ShaderProgram::loadShaderSource(std::string_view pathString, const std::initiali
             else
             {
                 fileContent += includedCode;
-                fileContent +=
-                    "#line " + std::to_string(lineNumber) + " " + "\"" + pathForwardSlash + "\"" + "\n";
+                fileContent += getLineDirective(lineNumber, pathForwardSlash);
             }
         }
         else
@@ -201,7 +219,8 @@ std::string ShaderProgram::loadShaderSourceForInclude(
     {
         return "ERROR: COULDNT OPEN FILE: " + includePath.string();
     }
-    std::string fileContent = "#line 1 \"" + pathForwardSlash + "\"\n";
+
+    std::string fileContent = getLineDirective(1, pathForwardSlash);
     std::string line;
     uint16_t lineNumber = 1;
     while(!file.eof())
@@ -219,8 +238,7 @@ std::string ShaderProgram::loadShaderSourceForInclude(
             else
             {
                 fileContent += includedCode;
-                fileContent +=
-                    "#line " + std::to_string(lineNumber) + " " + "\"" + pathForwardSlash + "\"" + "\n";
+                fileContent += getLineDirective(lineNumber, pathForwardSlash);
             }
         }
         else

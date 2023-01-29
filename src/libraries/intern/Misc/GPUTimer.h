@@ -3,6 +3,8 @@
 #include <glad/glad/glad.h>
 
 #include <cstdint>
+#include <string>
+#include <string_view>
 
 #include "RollingAverage.h"
 
@@ -13,11 +15,11 @@ template <uint8_t S>
 class GPUTimer
 {
   public:
-    GPUTimer()
+    explicit GPUTimer(std::string_view name = "") : name(name)
     {
         // generate queries
-        glGenQueries(2, queries[0]);
-        glGenQueries(2, queries[1]);
+        glGenQueries(2, &queries[0][0]);
+        glGenQueries(2, &queries[1][0]);
         // dummy calls, otherwise first frame cant retrieve results
         glQueryCounter(queries[frontBufferIndex][0], GL_TIMESTAMP);
         glQueryCounter(queries[frontBufferIndex][1], GL_TIMESTAMP);
@@ -66,8 +68,14 @@ class GPUTimer
         return S;
     }
 
+    [[nodiscard]] std::string_view getName() const
+    {
+        return name;
+    }
+
   private:
-    GLuint queries[2][2]; // NOLINT
+    std::string name;
+    GLuint queries[2][2] = {{0xFFFFFFFF, 0xFFFFFFFF}, {0xFFFFFFFF, 0xFFFFFFFF}}; // NOLINT
     RollingAverage<GLuint64, S> average;
     uint8_t backBufferIndex = 0;
     uint8_t frontBufferIndex = 1;
