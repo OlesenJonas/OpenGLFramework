@@ -2,5 +2,6 @@ build/*
 .cache/*
 
 .vs/*
+out/*
 
 *.rdc
