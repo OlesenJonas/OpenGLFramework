@@ -24,8 +24,8 @@ vec3 worldPositionFromDepth(vec2 texCoord, float depthBufferDepth)
 
 out vec4 fragmentColor;
 
-void main() {
-    
+void main()
+{    
     float pixelDepth = texelFetch(sceneDepth, ivec2(gl_FragCoord.xy),0).r;
     vec2 screenUV = gl_FragCoord.xy/vec2(textureSize(sceneColor,0));
     vec3 pixelPosWorldSpace = worldPositionFromDepth(screenUV, pixelDepth);
@@ -42,22 +42,25 @@ void main() {
 
     if(mode == 0)
     {
-        const vec3 sigmaT = extinctionCoefficient.rgb*extinctionCoefficient.w;
-
         // Light camera receives from shaded pixel
-        vec3 fogIntegral = sigmaT * exp(-origin/falloff);
+
+        const vec3 sigmaT = extinctionCoefficient.rgb*extinctionCoefficient.w;
+        vec3 fogIntegral;
         if(d.y == 0) //very unlikely that its exactly 0
         {
-            fogIntegral *= D;
+            fogIntegral = D * sigmaT * exp(-origin/falloff);
         }
         else
-        {
-            const float exponent = -D*d.y/falloff;
-            const float inner = 1.0 - exp(exponent);
-            fogIntegral *= falloff*inner/d.y;
+        {          
+            const vec3 cas = -falloff*sigmaT;
+            const vec3 left = cas*exp((-D*d.y-origin)/falloff)/d.y;
+            const vec3 right = cas*exp((-origin)/falloff)/d.y;
+            fogIntegral = left - right;
         }
         vec3 transmittance = exp(-fogIntegral);
-        // vec3 transmittance = max(vec3(0), exp(-fogIntegral));
+        //in my testing the only cases where this results in a NaN is when isinf(fogIntegral), so just set e^-x to 0 in those cases
+        //(mix with a bvec doesnt interpolate, it just selects like b?x:y)
+        transmittance = mix(transmittance, vec3(0), isnan(transmittance));
         pixelColor *= transmittance;
 
         //simple 1-transmittance
