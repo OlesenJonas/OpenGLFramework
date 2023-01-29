@@ -30,9 +30,6 @@ void main()
     vec2 screenUV = gl_FragCoord.xy/vec2(textureSize(sceneColor,0));
     vec3 pixelPosWorldSpace = worldPositionFromDepth(screenUV, pixelDepth);
 
-    const vec3 sigmaA = absorptionCoefficient.rgb*absorptionCoefficient.w;
-    const vec3 sigmaS = scatteringCoefficient.rgb*scatteringCoefficient.w;
-
     vec3 pixelColor = texelFetch(sceneColor, ivec2(gl_FragCoord.xy),0).rgb;
 
     vec3 d = pixelPosWorldSpace - cameraPosWS;
@@ -40,6 +37,7 @@ void main()
     d = d/D;
     const float origin = cameraPosWS.y + heightOffset;
 
+    //todo: could add mode branch just around the parts that need it, would shorten file a bit
     if(mode == 0)
     {
         // Light camera receives from shaded pixel
@@ -66,28 +64,35 @@ void main()
         //simple 1-transmittance
         pixelColor += inscatteredLight.rgb*inscatteredLight.w * (1-transmittance);
     }
-    //TODO: apply change in formula!
     else
     {
         // Light camera receives from shaded pixel
-        const float fogFactorAtCamera = exp(-falloff * origin);
-        vec3 fogIntegral = (sigmaA+sigmaS) * fogFactorAtCamera;
-        //todo: needed? just to prevent NaNs?
-        const float verticalLookThreshold = 0.01;
-        // if(abs(d.y) > verticalLookThreshold)
+
+        const vec3 sigmaA = absorptionCoefficient.rgb*absorptionCoefficient.w;
+        const vec3 sigmaS = scatteringCoefficient.rgb*scatteringCoefficient.w;
+        const vec3 sigmaT = sigmaA+sigmaS;
+        
+        vec3 fogIntegral;
+        if(d.y == 0) //very unlikely that its exactly 0
         {
-            const float t = falloff * d.y;
-            fogIntegral *= ( 1.0 - exp(-D*t) ) / t;
+            fogIntegral = D * sigmaT * exp(-origin/falloff);
         }
-        // vec3 transmittance = exp(-fogIntegral);
-        vec3 transmittance = max(vec3(0), exp(-fogIntegral));
+        else
+        {          
+            const vec3 cas = -falloff*sigmaT;
+            const vec3 left = cas*exp((-D*d.y-origin)/falloff)/d.y;
+            const vec3 right = cas*exp((-origin)/falloff)/d.y;
+            fogIntegral = left - right;
+        }
+        vec3 transmittance = exp(-fogIntegral);
+        transmittance = mix(transmittance, vec3(0), isnan(transmittance));
         pixelColor *= transmittance;
 
-        // Light the camera receives from all the points between pixel and camera
-        vec3 inScatterIntegral = inscatteredLight.rgb*inscatteredLight.w * sigmaS / (sigmaS+sigmaA);
-        vec3 exponent = (sigmaA + sigmaS) * (exp(falloff*origin) - exp(falloff*(D*d.y+origin))) * exp(-falloff*(D*d.y+2*origin));
-        // inScatterIntegral *= 1-exp(exponent/(falloff*d.y));
-        inScatterIntegral *= max(vec3(0),1-exp(exponent/(falloff*d.y)));
+        // Light the camera receives from all the points between pixel and camera (with uniform inscattering)
+        const vec3 l_i = inscatteredLight.rgb*inscatteredLight.w;
+        const vec3 albedo = sigmaS/sigmaT;
+        vec3 inScatterIntegral = l_i*albedo - transmittance*l_i*albedo;
+
         //add integral
         pixelColor += inScatterIntegral;
     }
