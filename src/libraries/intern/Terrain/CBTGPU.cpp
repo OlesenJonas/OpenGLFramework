@@ -11,12 +11,26 @@ CBTGPU::CBTGPU(uint32_t maxDepth)
           COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/refineAroundPoint.comp"}, {{"PASS", "SPLIT"}}),
       refineAroundPointMergeShader(
           COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/refineAroundPoint.comp"}, {{"PASS", "MERGE"}}),
+      updateSplitShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/update.comp"}, {{"PASS", "SPLIT"}}),
+      updateMergeShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/update.comp"}, {{"PASS", "MERGE"}}),
       sumReductionPassShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/sumReduction.comp"}),
+      sumReductionLastDepthsShader(
+          COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/sumReductionLastDepths.comp"}),
       writeIndirectCommandsShader(
           COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/writeIndirectCommands.comp"}),
       drawShader(
           VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
-          {SHADERS_PATH "/Terrain/CBT/drawing.vert", SHADERS_PATH "/Terrain/CBT/drawing.frag"})
+          {SHADERS_PATH "/Terrain/CBT/drawing.vert", SHADERS_PATH "/Terrain/CBT/drawing.frag"}),
+      outlineShader(
+          VERTEX_SHADER_BIT | GEOMETRY_SHADER_BIT | FRAGMENT_SHADER_BIT,
+          {SHADERS_PATH "/Terrain/CBT/outline.vert",
+           SHADERS_PATH "/Terrain/CBT/outline.geom",
+           SHADERS_PATH "/Terrain/CBT/outline.frag"}),
+      overlayShader(
+          VERTEX_SHADER_BIT | GEOMETRY_SHADER_BIT | FRAGMENT_SHADER_BIT,
+          {SHADERS_PATH "/Terrain/CBT/overlay.vert",
+           SHADERS_PATH "/Terrain/CBT/overlay.geom",
+           SHADERS_PATH "/Terrain/CBT/overlay.frag"})
 {
     // im not actually sure what the max possible depth is when using uint32_ts for the bitheap
     // would need to check code, but I think 30 should be fine. That way 1 << (30+1) can still be represented
@@ -36,9 +50,41 @@ CBTGPU::CBTGPU(uint32_t maxDepth)
 
         // store max depth in first D+3 bits
         heap[0] = 1u << maxDepth;
-        // set bitheap[2^D] (converted to index in packed uint array) to 1, creating a single leaf node
-        heap[(3 * (1u << maxDepth)) / 32] = 1u;
         assert(glm::findLSB(heap[0]) == maxDepth);
+
+        uint32_t levelToInit = 2;
+        {
+            // from LowLevel.glsl
+            auto setNodeBitInBitfield = [&maxDepth, &heap](uint32_t nodeHeapIndex, uint32_t nodeDepth)
+            {
+                const int depthOffsetToBitfieldPart = maxDepth - int(nodeDepth);
+                uint32_t nodeAtBitfieldDepthHeapIndex = nodeHeapIndex << depthOffsetToBitfieldPart;
+                nodeDepth = maxDepth;
+
+                const uint32_t bitIndex =
+                    (1u << (maxDepth + 1u)) +
+                    nodeAtBitfieldDepthHeapIndex; // * nodeAtBitfieldDepth.depth (which is == 1 here);
+
+                const uint32_t arrIndex = bitIndex / 32u;
+                const uint32_t localBitIndex = bitIndex % 32u;
+
+                const uint32_t mask = ~(1u << localBitIndex);
+                // atomicAnd(heap[arrIndex], mask);
+                heap[arrIndex] &= mask;
+                // atomicOr(heap[arrIndex], value << localBitIndex);
+                heap[arrIndex] |= (1u << localBitIndex);
+            };
+
+            const uint32_t levelStartIndex = 1u << levelToInit;
+            const uint32_t amountAtLevel = 1u << levelToInit;
+            for(uint32_t i = 0; i < amountAtLevel; i++)
+            {
+                const uint32_t realIndex = levelStartIndex + i;
+                setNodeBitInBitfield(realIndex, levelToInit);
+            }
+        }
+        // set bitheap[2^D] (converted to index in packed uint array) to 1, creating a single leaf node
+        // heap[(3 * (1u << maxDepth)) / 32] = 1u;
 
         glCreateBuffers(1, &cbtBuffer);
         glNamedBufferStorage(cbtBuffer, heap.size() * sizeof(heap[0]), heap.data(), 0);
@@ -57,7 +103,6 @@ CBTGPU::CBTGPU(uint32_t maxDepth)
     }
 
     {
-        // TODO: need to read amount of triangles in current selcted templateMesh
         const DrawElementsIndirectCommand temp{
             .count = triangleTemplates[selectedLevel].getIndexCount(),
             .primCount = 1, // number of instances
@@ -77,6 +122,7 @@ CBTGPU::CBTGPU(uint32_t maxDepth)
 
     doSumReduction();
     writeIndirectCommands();
+    setTargetEdgeLength(20);
 }
 
 CBTGPU::~CBTGPU()
@@ -86,8 +132,40 @@ CBTGPU::~CBTGPU()
     glDeleteBuffers(1, &indirectDrawCommandBuffer);
 }
 
-void CBTGPU::update(glm::vec2 point)
+void CBTGPU::update(const glm::mat4& projView, const glm::vec2 screenRes)
 {
+    static bool splitPass = true;
+    if(splitPass)
+    {
+        splitTimer.start();
+        updateSplitShader.useProgram();
+        glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projView));
+        glUniform2fv(1, 1, glm::value_ptr(screenRes));
+        glDispatchComputeIndirect(0);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        splitTimer.end();
+        splitTimer.evaluate();
+    }
+    else
+    {
+        mergeTimer.start();
+        updateMergeShader.useProgram();
+        glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projView));
+        glUniform2fv(1, 1, glm::value_ptr(screenRes));
+        glDispatchComputeIndirect(0);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        mergeTimer.end();
+        mergeTimer.evaluate();
+    }
+    splitPass = !splitPass;
+}
+
+void CBTGPU::setTargetEdgeLength(float newLength)
+{
+    updateMergeShader.useProgram();
+    glUniform1f(2, newLength);
+    updateSplitShader.useProgram();
+    glUniform1f(2, newLength);
 }
 
 void CBTGPU::refineAroundPoint(glm::vec2 point)
@@ -118,18 +196,36 @@ void CBTGPU::refineAroundPoint(glm::vec2 point)
 
 void CBTGPU::doSumReduction()
 {
+#define USE_OPTIMIZED
+
     sumReductionTimer.start();
+
+#ifdef USE_OPTIMIZED
+    sumReductionLastDepthsShader.useProgram();
+    // todo: really only need to set this uniform once in ctor!
+    glUniform1ui(0, maxDepth - 5);
+    const uint32_t nodesAtDepth = 1u << (maxDepth - 5);
+    glDispatchCompute(UintDivAndCeil(nodesAtDepth, 256), 1, 1);
+    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+#endif
+
     sumReductionPassShader.useProgram();
     // looping until >=0 doesnt work here since level is a uint, so its always >=0
+#ifdef USE_OPTIMIZED
+    for(uint32_t level = maxDepth - 6; level < maxDepth; level--)
+#else
     for(uint32_t level = maxDepth - 1; level < maxDepth; level--)
+#endif
     {
         glUniform1ui(0, level);
         const uint32_t nodesAtDepth = 1u << level;
         glDispatchCompute(UintDivAndCeil(nodesAtDepth, 256), 1, 1);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     }
+
     sumReductionTimer.end();
     sumReductionTimer.evaluate();
+#undef USE_OPTIMIZED
 }
 
 void CBTGPU::writeIndirectCommands()
@@ -151,12 +247,8 @@ void CBTGPU::draw(const glm::mat4& projViewMatrix)
     glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
     glBindVertexArray(triangleTemplates[selectedLevel].getVAO());
 
-    // const uint32_t leafNodeAmnt = getNodeValue({1, 0});
-    const uint32_t leafNodeAmnt = 4;
-
-    glUniform1i(1, 0);
     // glDrawElementsInstancedBaseVertexBaseInstance(
-    // GL_TRIANGLES, triangleMesh.getIndexCount(), GL_UNSIGNED_INT, nullptr, 2, 0, 0);
+    // GL_TRIANGLES, triangleMesh.getIndexCount(), GL_UNSIGNED_INT, nullptr, leafNodeAmnt, 0, 0);
     glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
     drawTimer.end();
     drawTimer.evaluate();
@@ -164,25 +256,33 @@ void CBTGPU::draw(const glm::mat4& projViewMatrix)
 
 void CBTGPU::drawOutline(const glm::mat4& projViewMatrix)
 {
-    drawShader.useProgram();
+    // with the current depth range (0.01 to 1000) using just a depth offset
+    // doesnt work anymore. Either its too small or too large
+    // so just render without depth test and do masking in fragment shader
+    // glDisable(GL_DEPTH_TEST);
+    glDepthFunc(GL_EQUAL);
+    glEnable(GL_BLEND);
+    outlineShader.useProgram();
     glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
     glBindVertexArray(triangleTemplates[selectedLevel].getVAO());
 
-    // const uint32_t leafNodeAmnt = getNodeValue({1, 0});
-    const uint32_t leafNodeAmnt = 4;
-
-    // render triangle outlines with hidden line removal
-    glEnable(GL_POLYGON_OFFSET_LINE);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    glUniform1i(1, 1);
-    glPolygonOffset(-1.0, 1.0);
-    glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
     // glDrawElementsInstancedBaseVertexBaseInstance(
-    // GL_TRIANGLES, triangleMesh.getIndexCount(), GL_UNSIGNED_INT, nullptr, 2, 0, 0);
-    glDisable(GL_POLYGON_OFFSET_LINE);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    // GL_TRIANGLES, triangleMesh.getIndexCount(), GL_UNSIGNED_INT, nullptr, leafNodeAmnt, 0, 0);
+    glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
+    glDisable(GL_BLEND);
+    glDepthFunc(GL_LESS);
+    // glEnable(GL_DEPTH_TEST);
+}
 
-    glBindVertexArray(0);
+void CBTGPU::drawOverlay(float aspect)
+{
+    overlayShader.useProgram();
+    glUniform1f(0, aspect);
+    glBindVertexArray(triangleTemplates[selectedLevel].getVAO());
+
+    // glDrawElementsInstancedBaseVertexBaseInstance(
+    // GL_TRIANGLES, triangleMesh.getIndexCount(), GL_UNSIGNED_INT, nullptr, leafNodeAmnt, 0, 0);
+    glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
 }
 
 void CBTGPU::setTemplateLevel(int newLevel)

@@ -1,0 +1,83 @@
+#version 460
+
+#ifdef GLSLANGVALIDATOR
+    // otherwise glslangValidator complains about #include
+    #extension GL_GOOGLE_include_directive : require
+    //for OpenGL those will be parsed when shader is loaded
+#endif
+
+#ifndef LOCAL_SIZE_X
+    #define LOCAL_SIZE_X 256
+#endif
+
+layout(std430, binding = 0) restrict buffer cbtSSBO
+{
+    uint heap[];
+};
+
+#define HEAP_ALREADY_DEFINED
+#include "LowLevel.glsl"
+
+layout(location = 0) uniform uint depth;
+
+layout(local_size_x = LOCAL_SIZE_X, local_size_y = 1, local_size_z = 1) in;
+
+void main() 
+{
+    const uint nodeAmountsAtDepth = (1u << depth);
+    const uint threadID = gl_GlobalInvocationID.x;
+    const uint startIndexAtDepth = nodeAmountsAtDepth;
+
+    if (threadID < nodeAmountsAtDepth)
+    {
+        uint nodeHeapIndex = threadID + startIndexAtDepth;
+
+        const uint bitStart1 = getNodeBitIndex(Node(nodeHeapIndex * 32u, depth + 5u));
+        uint bitfield = heap[bitStart1 / 32u];
+        uint compactedData = 0u;
+
+        // combine 32 single bits into 16 two bit numbers
+        bitfield = (bitfield & 0x55555555u) + ((bitfield >> 1u) & 0x55555555u);
+        compactedData = bitfield;
+        const uint bitStart2 = getNodeBitIndex(Node(nodeHeapIndex * 16u, depth + 4u));
+        heap[bitStart2 / 32] = compactedData;
+        // bitheapWriteBits contains a bug when data endpoints align perfectly with uint32
+        // borders
+        // bitheapWriteBits(bitStart2, 32, compactedData);
+
+        // combine 16 two bit numbers into 8 three bit numbers
+        bitfield = (bitfield & 0x33333333u) + ((bitfield >> 2u) & 0x33333333u);
+        compactedData = ((bitfield & 0x7u) >> 0u) |       //
+                        ((bitfield & 0x70u) >> 1u) |      //
+                        ((bitfield & 0x700u) >> 2u) |     //
+                        ((bitfield & 0x7000u) >> 3u) |    //
+                        ((bitfield & 0x70000u) >> 4u) |   //
+                        ((bitfield & 0x700000u) >> 5u) |  //
+                        ((bitfield & 0x7000000u) >> 6u) | //
+                        ((bitfield & 0x70000000u) >> 7u);
+        const uint bitStart3 = getNodeBitIndex(Node(nodeHeapIndex * 8u, depth + 3u));
+        bitheapWriteBits(bitStart3, 24, compactedData);
+
+        // combine 8 three bit numbers into 4 four bit numbers
+        bitfield = (bitfield & 0x0F0F0F0Fu) + ((bitfield >> 4u) & 0x0F0F0F0Fu);
+        compactedData = ((bitfield & 0xFu) >> 0u) |     //
+                        ((bitfield & 0xF00u) >> 4u) |   //
+                        ((bitfield & 0xF0000u) >> 8u) | //
+                        ((bitfield & 0xF000000u) >> 12u);
+        const uint bitStart4 = getNodeBitIndex(Node(nodeHeapIndex * 4u, depth + 2u));
+        bitheapWriteBits(bitStart4, 16, compactedData);
+
+        // combine 4 four bit numbers into 2 five bit numbers
+        bitfield = (bitfield & 0x000F000Fu) + ((bitfield >> 8u) & 0x000F000Fu);
+        compactedData = ((bitfield & 0x1Fu) >> 0u) | //
+                        ((bitfield & 0x1F0000u) >> 11u);
+        const uint bitStart5 = getNodeBitIndex(Node(nodeHeapIndex * 2u, depth + 1u));
+        bitheapWriteBits(bitStart5, 10, compactedData);
+
+        // combine 2 five bit numbers into 1 six bit number
+        bitfield = (bitfield & 0x0000001Fu) + ((bitfield >> 16u) & 0x0000001Fu);
+        compactedData = ((bitfield & 0x3Fu) >> 0u);
+        const uint bitStart6 = getNodeBitIndex(Node(nodeHeapIndex * 1u, depth));
+        bitheapWriteBits(bitStart6, 6, compactedData);
+    }
+}

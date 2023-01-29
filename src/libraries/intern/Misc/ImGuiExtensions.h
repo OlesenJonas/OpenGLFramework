@@ -25,4 +25,6 @@ namespace ImGui::Extensions
         const char* overlay_text, ImVec2 xRange, ImVec2 yRange, ImVec2 graphSize, ImU32* colors = nullptr);
 
     float GetTextScrollFactor(double time);
+
+    void HelpMarker(const char* desc);
 }; // namespace ImGui::Extensions

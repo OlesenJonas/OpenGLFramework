@@ -1,5 +1,7 @@
 #include "Context.h"
 
+Context* Context::globalContext = nullptr;
+
 GLFWwindow* Context::getWindow()
 {
     return window;

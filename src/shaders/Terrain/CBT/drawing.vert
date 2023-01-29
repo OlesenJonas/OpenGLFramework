@@ -19,28 +19,37 @@ layout(std430, binding = 0) readonly restrict buffer cbtSSBO
 layout (location = 0) in vec2 xzPosition;
 
 layout (location = 0) uniform mat4 projectionViewMatrix;
+layout (binding = 0) uniform sampler2D displacementTex;
 
-flat out vec2 cornerPoint;
+layout (location = 0) out vec2 uv;
+layout (location = 1) flat out vec2 cornerPoint;
+
+#define DISPLACEMENT_ALREADY_DEFINED
+#include "transform.glsl"
 
 void main()
 {
     const Node leafNode = leafIndexToNode(gl_InstanceID);
-    vec2[3] currentCorners = cornersFromNode(leafNode);
 
-    // corners change winding order every 2nd depth
-    if((leafNode.depth & 1u) != 0u)
+    //dont render "outer" triangles
+    if(!isNodeInCenterSquare(leafNode))
     {
-        // tri subdivision used in paper has the disadvantege of flipping the winding order every level
-        currentCorners = vec2[3](currentCorners[2], currentCorners[1], currentCorners[0]);
+        gl_Position = vec4(0,0,0,0);
+        return;
     }
 
-    // vec3 worldPosition = vec3(xzPosition.x, 0, xzPosition.y);
-    vec3 worldPosition = vec3(                  currentCorners[1],0) + 
-          xzPosition.x * vec3(currentCorners[2]-currentCorners[1],0) + 
-          xzPosition.y * vec3(currentCorners[0]-currentCorners[1],0);
+    vec2[3] currentCorners = cornersFromNode(leafNode);
 
-    worldPosition = worldPosition.xzy;
+    // vec3 worldPosition = vec3(xzPosition.x, 0, xzPosition.y);
+    vec2 flatPosition =                     currentCorners[1] + 
+          xzPosition.x * (currentCorners[2]-currentCorners[1]) + 
+          xzPosition.y * (currentCorners[0]-currentCorners[1]);
+
+    uv = vec2(1,-1) * flatPosition + 0.5;
+
+    vec4 worldPosition = transformFlatPointToWorldSpace(flatPosition);
 
     cornerPoint = 0.3*(currentCorners[0]+currentCorners[1]+currentCorners[2]);
-    gl_Position = projectionViewMatrix * vec4(worldPosition, 1);
+
+    gl_Position = projectionViewMatrix * worldPosition;
 }

@@ -9,9 +9,9 @@
 #include <intern/Context/Context.h>
 #include <intern/Misc/Misc.h>
 
-Camera::Camera(Context& ctx, float aspect) : ctx(ctx)
+Camera::Camera(Context& ctx, float aspect, float near, float far)
+    : ctx(ctx), cam_near(near), cam_far(far), aspect(aspect)
 {
-    this->aspect = aspect;
     init();
 }
 
@@ -81,6 +81,7 @@ void Camera::setPosition(glm::vec3 newPosition)
         position = newPosition;
         radius = glm::distance(newPosition, center);
         viewVec = glm::normalize(newPosition - center);
+        assert(false && "Also set angles!");
     }
 }
 
@@ -164,12 +165,12 @@ void Camera::setFlySpeed(float speed)
     flySpeed = speed;
 }
 
-glm::mat4* Camera::getView()
+const glm::mat4* Camera::getView() const
 {
     return &matrices[0];
 }
 
-glm::mat4* Camera::getProj()
+const glm::mat4* Camera::getProj() const
 {
     return &matrices[1];
 }
@@ -186,9 +187,14 @@ glm::mat4 Camera::getSkyProj()
     return glm::inverse(*getProj() * view);
 }
 
-glm::vec3 Camera::getPosition()
+glm::vec3 Camera::getPosition() const
 {
     return position;
+}
+
+float Camera::getAspect() const
+{
+    return aspect;
 }
 
 float Camera::getNear() const

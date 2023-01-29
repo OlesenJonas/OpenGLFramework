@@ -20,3 +20,10 @@ add_executable(CBT_GPU_test CBT_GPU.cpp)
 target_link_libraries(CBT_GPU_test intern testing)
 # Define the test
 add_test(NAME "run_CBT_GPU_test" COMMAND $<TARGET_FILE:CBT_GPU_test>)
+
+# Define the executable
+add_executable(TexFormat_test TextureFormats.cpp)
+# link needed libraries
+target_link_libraries(TexFormat_test intern testing)
+# Define the test
+add_test(NAME "run_texFormat_test" COMMAND $<TARGET_FILE:TexFormat_test>)

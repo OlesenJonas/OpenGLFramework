@@ -6,6 +6,7 @@
 #include <glm/glm.hpp>
 
 #include <span>
+#include <string>
 #include <vector>
 
 struct VertexStruct
@@ -21,6 +22,7 @@ class Mesh
   public:
     Mesh() = default;
     ~Mesh();
+    explicit Mesh(const std::string& path);
 
     Mesh(Mesh&&) = delete;
     Mesh(const Mesh&&) = delete;

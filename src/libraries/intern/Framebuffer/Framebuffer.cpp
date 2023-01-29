@@ -1,32 +1,43 @@
 #include "Framebuffer.h"
 
+#include <Misc/OpenGLErrorHandler.h>
+
 #include <cassert>
 
 Framebuffer::Framebuffer(
-    GLsizei width, GLsizei height, std::initializer_list<GLenum> colorTextureFormats, bool useDepthStencil)
+    GLsizei width, GLsizei height,
+    std::initializer_list<ColorAttachmentDescriptor> colorAttachmentDescriptors, bool useDepthStencil)
     : width(width), height(height), hasDepthStencilAttachment(useDepthStencil)
 {
-    textures.reserve(colorTextureFormats.size() + (int)useDepthStencil);
+    textures.reserve(colorAttachmentDescriptors.size() + (int)useDepthStencil);
 
     glCreateFramebuffers(1, &handle);
 
     int index = 0;
-    for(const auto& format : colorTextureFormats)
+    for(const auto& descriptor : colorAttachmentDescriptors)
     {
-        Texture& newTex =
-            textures.emplace_back(TextureDesc{.width = width, .height = height, .internalFormat = format});
+        const Texture& newTex = textures.emplace_back(TextureDesc{
+            .levels = descriptor.levels,
+            .width = width,
+            .height = height,
+            .internalFormat = descriptor.internalFormat,
+            .minFilter = descriptor.minFilter,
+            .magFilter = descriptor.magFilter,
+            .wrapS = descriptor.wrapS,
+            .wrapT = descriptor.wrapT});
         glNamedFramebufferTexture(handle, GL_COLOR_ATTACHMENT0 + index, newTex.getTextureID(), 0);
         index++;
     }
     if(useDepthStencil)
     {
         Texture& newTex = textures.emplace_back(
-            TextureDesc{.width = width, .height = height, .internalFormat = GL_DEPTH24_STENCIL8});
-        glNamedFramebufferTexture(handle, GL_DEPTH_STENCIL_ATTACHMENT, newTex.getTextureID(), 0);
+            TextureDesc{.width = width, .height = height, .internalFormat = GL_DEPTH_COMPONENT32F});
+        // glNamedFramebufferTexture(handle, GL_DEPTH_STENCIL_ATTACHMENT, newTex.getTextureID(), 0);
+        glNamedFramebufferTexture(handle, GL_DEPTH_ATTACHMENT, newTex.getTextureID(), 0);
     }
 
-    std::vector<GLenum> attachments(colorTextureFormats.size());
-    assert(colorTextureFormats.size() == attachments.size());
+    std::vector<GLenum> attachments(colorAttachmentDescriptors.size());
+    assert(colorAttachmentDescriptors.size() == attachments.size());
     for(int i = 0; i < attachments.size(); i++)
     {
         attachments[i] = GL_COLOR_ATTACHMENT0 + i;
@@ -35,6 +46,7 @@ Framebuffer::Framebuffer(
 
     if(glCheckNamedFramebufferStatus(handle, GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
     {
+        printOpenGLErrors();
         assert(false && "Framebuffer incomplete!");
         // todo: also do something in non-debug builds!
     }

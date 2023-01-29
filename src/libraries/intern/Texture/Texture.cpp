@@ -1,82 +1,134 @@
 #include "Texture.h"
+#include "IO/png.h"
+#include "ImageData.h"
+#include "Texture/IO/png.h"
+#include "Texture/Texture.h"
 
 #include <glad/glad/glad.h>
 
 #include <cassert>
 
+#include <memory>
 #include <stb/stb_image.h>
 
-Texture::Texture(const std::string& file, bool mipMap)
+Texture::Texture(const std::string& file, bool imageIsInSRGB, bool mipMap)
 {
     // todo: load image data first, then use descriptor based constructor
 
-    //  load texture data from file
-    int channels = 0;
-    stbi_set_flip_vertically_on_load(true);
+    ImageData imageData;
+    auto extensionStart = file.find_last_of('.');
+    const std::string extension = file.substr(extensionStart, file.size());
 
-    std::string texName = file;
-    size_t pos = texName.find_last_of('/') + 1;
-    texName = texName.substr(pos, texName.find_last_of('.') - pos);
-
-    bool isHdr = stbi_is_hdr(file.c_str()) != 0;
-
-    unsigned char* image = nullptr;
-    if(!isHdr)
+    if(extension == ".png")
     {
-        image = stbi_load(file.c_str(), &width, &height, &channels, 0);
+        imageData = png::read(file, imageIsInSRGB, true);
+        assert(imageData.data.get() != nullptr);
     }
     else
     {
-        stbi_ldr_to_hdr_gamma(1.0f);
-        image = (unsigned char*)stbi_loadf(file.c_str(), &width, &height, &channels, 0);
+        //  load texture data from file
+        int width = 0;
+        int height = 0;
+        int channels = 0;
+        stbi_set_flip_vertically_on_load(true);
+
+        bool isHdr = stbi_is_hdr(file.c_str()) != 0;
+
+        unsigned char* image = nullptr;
+        if(!isHdr)
+        {
+            image = stbi_load(file.c_str(), &width, &height, &channels, 0);
+            // default to treating nonHDR textures as sRGB for now
+            imageData.pixelType = Texture::PixelType::UCHAR_SRGB;
+        }
+        else
+        {
+            stbi_ldr_to_hdr_gamma(1.0f);
+            image = (unsigned char*)stbi_loadf(file.c_str(), &width, &height, &channels, 0);
+            imageData.pixelType = Texture::PixelType::FLOAT;
+        }
+
+        imageData.width = width;
+        imageData.height = height;
+        switch(channels)
+        {
+        case 1:
+            imageData.channels = Texture::Channels::R;
+            break;
+        case 2:
+            imageData.channels = Texture::Channels::RG;
+            break;
+        case 3:
+            imageData.channels = Texture::Channels::RGB;
+            break;
+        case 4:
+            imageData.channels = Texture::Channels::RGBA;
+            break;
+        default:
+            assert(false);
+        }
+
+        if(channels == 0 || width == 0 || height == 0)
+        {
+            std::cout << "Could not load texture " << file << std::endl;
+            return;
+        }
+        const int bpp = isHdr ? 4 : 1;
+
+        // kind of ugly but so are the stbi interfaces :shrug:
+        imageData.data = std::make_unique<unsigned char[]>(width * height * channels * bpp);
+        memcpy(imageData.data.get(), image, width * height * channels * bpp);
+        stbi_image_free(image);
     }
 
-    if(channels == 0 || width == 0 || height == 0)
-    {
-        std::cout << "Could not load texture " << file << std::endl;
-    }
+    const auto separatorPos = file.find_last_of('/') + 1;
+    const std::string texName = file.substr(separatorPos, file.find_last_of('.') - separatorPos);
 
-    int levels = static_cast<int>(log2(std::max(width, height))) + 1;
+    this->width = imageData.width;
+    this->height = imageData.height;
+
+    const int levels = static_cast<int>(log2(std::max(width, height))) + 1;
 
     // create openGL texture object
     glCreateTextures(GL_TEXTURE_2D, 1, &textureID);
     glObjectLabel(GL_TEXTURE, textureID, static_cast<GLsizei>(texName.size()), texName.data());
-    glTextureParameterf(textureID, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTextureParameterf(textureID, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTextureParameterf(textureID, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTextureParameterf(textureID, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    // todo: calculate if changing alignment is needed (or worst case set alignment to 1 by default)
-    if(channels == 1)
+
+    glTextureParameteri(textureID, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTextureParameteri(textureID, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTextureParameteri(textureID, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    if(mipMap)
     {
-        glTextureStorage2D(textureID, levels, GL_R32F, width, height);
-        glTextureSubImage2D(textureID, 0, 0, 0, width, height, GL_RED, isHdr ? GL_FLOAT : GL_UNSIGNED_BYTE, image);
-    }
-    else if(channels == 3)
-    {
-        glTextureStorage2D(textureID, levels, GL_RGB8, width, height);
-        glTextureSubImage2D(textureID, 0, 0, 0, width, height, GL_RGB, isHdr ? GL_FLOAT : GL_UNSIGNED_BYTE, image);
-    }
-    else if(channels == 4)
-    {
-        glTextureStorage2D(textureID, levels, GL_RGBA8, width, height);
-        glTextureSubImage2D(textureID, 0, 0, 0, width, height, GL_RGBA, isHdr ? GL_FLOAT : GL_UNSIGNED_BYTE, image);
+        glTextureParameteri(textureID, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        GLfloat maxAniso = 0;
+        glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &maxAniso);
+        glTextureParameterf(textureID, GL_TEXTURE_MAX_ANISOTROPY, maxAniso);
     }
     else
     {
-        assert(false && "Unknown / unsupported image format");
+        glTextureParameteri(textureID, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     }
+
+    glTextureStorage2D(
+        textureID, levels, getGLFormat(imageData.channels, imageData.pixelType), width, height);
+    glTextureSubImage2D(
+        textureID,
+        0,
+        0,
+        0,
+        width,
+        height,
+        getGLChannel(imageData.channels),
+        getGLPixelType(imageData.pixelType),
+        imageData.data.get());
+
+    const auto test = GL_FLOAT;
+
     if(mipMap)
     {
-        glTextureParameterf(textureID, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glGenerateTextureMipmap(textureID);
     }
 
-    // GLfloat maxAniso = 0;
-    // glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &maxAniso);
-    // glTextureParameterf(textureID, GL_TEXTURE_MAX_ANISOTROPY, maxAniso);
-
     initialized = true;
-    stbi_image_free(image);
 }
 
 Texture::Texture(const TextureDesc descriptor) : width(descriptor.width), height(descriptor.height)

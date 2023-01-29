@@ -23,7 +23,8 @@ class CBTGPU
     explicit CBTGPU(uint32_t maxDepth);
     ~CBTGPU();
 
-    void update(glm::vec2 point);
+    void update(const glm::mat4& projView, const glm::vec2 screenRes);
+    void setTargetEdgeLength(float newLength);
     /* specific update function for tests replicating the CPU version */
     void refineAroundPoint(glm::vec2 point);
 
@@ -32,9 +33,14 @@ class CBTGPU
 
     void draw(const glm::mat4& projViewMatrix);
     void drawOutline(const glm::mat4& projViewMatrix);
+    void drawOverlay(float aspect);
 
     void setTemplateLevel(int newLevel);
     [[nodiscard]] int getTemplateLevel() const;
+    [[nodiscard]] constexpr int getMaxTemplateLevel() const
+    {
+        return triangleTemplates.size() - 1;
+    }
 
     // helpers for tests
     void replaceHeap(const std::vector<uint32_t>& heapData);
@@ -48,16 +54,20 @@ class CBTGPU
     GLuint indirectDispatchCommandBuffer = 0xFFFFFFFF;
     GLuint indirectDrawCommandBuffer = 0xFFFFFFFF;
 
-    // ShaderProgram cbtUpdateShader;
+    ShaderProgram updateSplitShader;
+    ShaderProgram updateMergeShader;
     ShaderProgram refineAroundPointSplitShader;
     ShaderProgram refineAroundPointMergeShader;
     ShaderProgram sumReductionPassShader;
+    ShaderProgram sumReductionLastDepthsShader;
     ShaderProgram writeIndirectCommandsShader;
 
     std::array<TriangleTemplate, 4> triangleTemplates = {
         TriangleTemplate{0}, TriangleTemplate{1}, TriangleTemplate{2}, TriangleTemplate{3}};
     int selectedLevel = 0;
     ShaderProgram drawShader;
+    ShaderProgram outlineShader;
+    ShaderProgram overlayShader;
 
     GPUTimer<128> mergeTimer{"Merge"};
     GPUTimer<128> splitTimer{"Split"};

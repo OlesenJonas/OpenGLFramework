@@ -24,7 +24,7 @@ class Camera
         FLY
     };
 
-    explicit Camera(Context& ctx, float aspect);
+    explicit Camera(Context& ctx, float aspect, float near = 0.1f, float far = 100.0f);
 
     void update();
     void move(glm::vec3 offset);
@@ -40,10 +40,11 @@ class Camera
 
     void updateView();
 
-    glm::vec3 getPosition();
-    glm::mat4* getView();
-    glm::mat4* getProj();
+    glm::vec3 getPosition() const;
+    [[nodiscard]] const glm::mat4* getView() const;
+    [[nodiscard]] const glm::mat4* getProj() const;
     glm::mat4* getMatricesPointer();
+    float getAspect() const;
     glm::mat4 getSkyProj();
     float getNear() const;
     float getFar() const;

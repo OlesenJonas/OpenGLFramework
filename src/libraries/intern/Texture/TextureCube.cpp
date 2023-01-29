@@ -7,6 +7,7 @@
 #include <cmath>
 #include <glm/ext.hpp>
 #include <glm/glm.hpp>
+#include <stb/stb_image.h>
 
 TextureCube::TextureCube(const std::vector<std::string>& files)
 {
