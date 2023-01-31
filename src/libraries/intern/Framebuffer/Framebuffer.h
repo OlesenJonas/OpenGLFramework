@@ -18,13 +18,28 @@ class Framebuffer
         GLenum internalFormat = 0xFFFFFFFF;
         GLint minFilter = GL_LINEAR;
         GLint magFilter = GL_LINEAR;
-        GLint wrapS = GL_REPEAT;
-        GLint wrapT = GL_REPEAT;
+        GLint wrapS = GL_CLAMP_TO_EDGE;
+        GLint wrapT = GL_CLAMP_TO_EDGE;
     };
 
+    /*
+      Construct a framebuffer that owns its rendertargets
+    */
     Framebuffer(
         GLsizei width, GLsizei height,
         std::initializer_list<ColorAttachmentDescriptor> colorAttachmentDescriptors, bool useDepthStencil);
+    /*
+      Construct a framebuffer that uses existing textures as rendertargets
+      Does not do any lifetime checks!
+    */
+    Framebuffer(
+        GLsizei width, GLsizei height,
+        const std::initializer_list<std::pair<const GLTexture&, int>> texturesWithLevels,
+        bool useDepthStencil);
+    Framebuffer(Framebuffer&& other) noexcept;            // Move constructor
+    Framebuffer& operator=(Framebuffer&& other) noexcept; // Move assignment
+    Framebuffer(const Framebuffer&) = delete;             // copy constr
+    Framebuffer& operator=(const Framebuffer&) = delete;  // copy assign
     ~Framebuffer();
 
     void bind() const;
