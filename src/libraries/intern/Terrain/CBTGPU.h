@@ -34,6 +34,7 @@ class CBTGPU
     void draw(const glm::mat4& projViewMatrix);
     void drawOutline(const glm::mat4& projViewMatrix);
     void drawOverlay(float aspect);
+    void drawUI();
 
     void setTemplateLevel(int newLevel);
     [[nodiscard]] int getTemplateLevel() const;
@@ -41,6 +42,11 @@ class CBTGPU
     {
         return triangleTemplates.size() - 1;
     }
+    struct Settings; // forward declare
+    [[nodiscard]] inline const Settings getSettings() const
+    {
+        return settings;
+    };
 
     // helpers for tests
     void replaceHeap(const std::vector<uint32_t>& heapData);
@@ -64,7 +70,6 @@ class CBTGPU
 
     std::array<TriangleTemplate, 4> triangleTemplates = {
         TriangleTemplate{0}, TriangleTemplate{1}, TriangleTemplate{2}, TriangleTemplate{3}};
-    int selectedLevel = 0;
     ShaderProgram drawShader;
     ShaderProgram outlineShader;
     ShaderProgram overlayShader;
@@ -85,7 +90,13 @@ class CBTGPU
     TIMER_RETURN getDrawTimer() const {return drawTimer;}
     /* clang-format on */
 
-  public:
+    struct Settings
+    {
+        bool drawOutline = false;
+        bool freezeUpdates = false;
+        int selectedSubdivLevel = 0;
+    } settings;
+
     struct DrawElementsIndirectCommand
     {
         uint32_t count;

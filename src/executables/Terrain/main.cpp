@@ -125,8 +125,7 @@ int main()
         glEnable(GL_DEPTH_TEST);
 
         glBindTextureUnit(0, terrainHeightmap.getTextureID());
-        static bool freezeCBTUpdate = false;
-        if(!freezeCBTUpdate)
+        if(!cbt.getSettings().freezeUpdates)
         {
             cbt.update(*cam.getProj() * *cam.getView(), {WIDTH, HEIGHT});
         }
@@ -136,8 +135,7 @@ int main()
         glBindTextureUnit(1, terrainNormal.getTextureID());
         glBindTextureUnit(2, terrainMacroColor.getTextureID());
         cbt.draw(*cam.getProj() * *cam.getView());
-        static bool drawCBTOutline = false;
-        if(drawCBTOutline)
+        if(cbt.getSettings().drawOutline)
         {
             cbt.drawOutline(*cam.getProj() * *cam.getView());
         }
@@ -169,21 +167,10 @@ int main()
         // UI
         {
             ImGui::Begin("Settings", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-            ImGui::Checkbox("Draw outline", &drawCBTOutline);
             ImGui::Separator();
             if(ImGui::CollapsingHeader("CBT##settings", ImGuiTreeNodeFlags_DefaultOpen))
             {
-                static float targetEdgeLength = 7.0f;
-                if(ImGui::SliderFloat("Target edge length", &targetEdgeLength, 1.0f, 100.0f))
-                {
-                    cbt.setTargetEdgeLength(targetEdgeLength);
-                }
-                static int globalSubdivLevel = 0;
-                if(ImGui::SliderInt("Global subdiv level", &globalSubdivLevel, 0, cbt.getMaxTemplateLevel()))
-                {
-                    cbt.setTemplateLevel(globalSubdivLevel);
-                }
-                ImGui::Checkbox("Freeze update", &freezeCBTUpdate);
+                cbt.drawUI();
             }
             if(ImGui::CollapsingHeader("Camera##settings", ImGuiTreeNodeFlags_DefaultOpen))
             {
