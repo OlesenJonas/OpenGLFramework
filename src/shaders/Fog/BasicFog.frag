@@ -6,14 +6,14 @@ layout (binding = 1) uniform sampler2D sceneDepth;
 layout (location = 0) uniform vec3 cameraPosWS;
 layout (location = 1) uniform mat4 invProjView;
 
-layout (location = 2) uniform vec4 absorptionCoefficient;
-layout (location = 3) uniform vec4 scatteringCoefficient;
-layout (location = 8) uniform vec4 extinctionCoefficient;
-// assume inscattered light is equal everywhere! this is the reason this is called "BasicFog"
-layout (location = 4) uniform vec4 inscatteredLight;
-layout (location = 5) uniform float falloff;
-layout (location = 6) uniform float heightOffset;
-layout (location = 7) uniform int mode;
+uniform vec4 absorptionCoefficient;
+uniform vec4 scatteringCoefficient;
+uniform vec4 extinctionCoefficient;
+// assume inscattered light is equal, one of the reasons this is just basicFog
+uniform vec4 inscatteredLight;
+uniform float falloff;
+uniform float heightOffset;
+uniform int mode;
 
 vec3 worldPositionFromDepth(vec2 texCoord, float depthBufferDepth)
 {
@@ -64,7 +64,7 @@ void main()
         //simple 1-transmittance
         pixelColor += inscatteredLight.rgb*inscatteredLight.w * (1-transmittance);
     }
-    else
+    else if(mode == 1)
     {
         // Light camera receives from shaded pixel
 

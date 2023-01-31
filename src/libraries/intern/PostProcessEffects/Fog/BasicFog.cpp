@@ -42,13 +42,25 @@ BasicFogEffect::Settings& BasicFogEffect::getSettings()
 void BasicFogEffect::updateSettings()
 {
     shader.useProgram();
-    glUniform4fv(2, 1, glm::value_ptr(settings.absorptionCoefficient));
-    glUniform4fv(3, 1, glm::value_ptr(settings.scatteringCoefficient));
-    glUniform4fv(8, 1, glm::value_ptr(settings.extinctionCoefficient));
-    glUniform4fv(4, 1, glm::value_ptr(settings.inscatteredLight));
-    glUniform1f(5, settings.falloff);
-    glUniform1f(6, settings.heightOffset);
-    glUniform1i(7, settings.mode);
+    glUniform4fv(
+        glGetUniformLocation(shader.getProgramID(), "absorptionCoefficient"),
+        1,
+        glm::value_ptr(settings.absorptionCoefficient));
+    glUniform4fv(
+        glGetUniformLocation(shader.getProgramID(), "scatteringCoefficient"),
+        1,
+        glm::value_ptr(settings.scatteringCoefficient));
+    glUniform4fv(
+        glGetUniformLocation(shader.getProgramID(), "extinctionCoefficient"),
+        1,
+        glm::value_ptr(settings.extinctionCoefficient));
+    glUniform4fv(
+        glGetUniformLocation(shader.getProgramID(), "inscatteredLight"),
+        1,
+        glm::value_ptr(settings.inscatteredLight));
+    glUniform1f(glGetUniformLocation(shader.getProgramID(), "falloff"), settings.falloff);
+    glUniform1f(glGetUniformLocation(shader.getProgramID(), "heightOffset"), settings.heightOffset);
+    glUniform1i(glGetUniformLocation(shader.getProgramID(), "mode"), settings.mode);
 }
 
 void BasicFogEffect::drawUI()
@@ -66,7 +78,7 @@ void BasicFogEffect::drawUI()
         updateSettings();
     }
     ImGui::SameLine();
-    ImGui::Extensions::HelpMarker("0 = 1-transmittance, 1 = inscatter integral");
+    ImGui::Extensions::HelpMarker("0 = 1-transmittance, 1 = constant inscattering");
     ImGui::Separator();
     if(settings.mode == 0)
     {

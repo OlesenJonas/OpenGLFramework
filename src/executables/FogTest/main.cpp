@@ -177,8 +177,6 @@ int main()
         {SHADERS_PATH "/General/screenQuad.vert", SHADERS_PATH "/General/postProcess.frag"}};
 
     BasicFogEffect basicFogEffect(WIDTH, HEIGHT);
-    basicFogEffect.getSettings().extinctionCoefficient.w = 0.0f;
-    basicFogEffect.updateSettings();
 
     //----------------------- RENDERLOOP
 
@@ -205,6 +203,7 @@ int main()
         glEnable(GL_DEPTH_TEST);
 
         // draw scene
+        glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Scene Rendering");
         {
             prototypeGridShader.useProgram();
             glBindTextureUnit(0, borderTexture.getTextureID());
@@ -236,6 +235,7 @@ int main()
                 geosphere.draw();
             }
         }
+        glPopDebugGroup();
 
         glDisable(GL_DEPTH_TEST);
         // Post Processing
