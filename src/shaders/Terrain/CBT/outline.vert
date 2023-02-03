@@ -22,6 +22,11 @@ layout (location = 0) uniform mat4 projectionViewMatrix;
 
 layout (binding = 0) uniform sampler2D displacementTex;
 
+// I have absolutely no clue why it would be the case, but unless this shader has the same
+// vec3 output of worldPosition that the main shader has, the depths that the vertices generate
+// arent exactly 1:1 so the EQUAL depth test fails ........
+layout (location = 0) out vec3 dummyOut;
+
 #define DISPLACEMENT_ALREADY_DEFINED
 #include "transform.glsl"
 
@@ -42,7 +47,8 @@ void main()
           xzPosition.x * (currentCorners[2]-currentCorners[1]) + 
           xzPosition.y * (currentCorners[0]-currentCorners[1]);
 
-    vec4 worldPosition = transformFlatPointToWorldSpace(flatPosition);
+    const vec4 worldPosition = transformFlatPointToWorldSpace(flatPosition);
+    dummyOut = worldPosition.xyz;
     
     gl_Position = projectionViewMatrix * worldPosition;
 }

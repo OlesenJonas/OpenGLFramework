@@ -301,6 +301,22 @@ void CBTGPU::drawUI()
     }
     ImGui::Checkbox("Draw outline", &settings.drawOutline);
     ImGui::Checkbox("Freeze update", &settings.freezeUpdates);
+    if(ImGui::SliderFloat("Material normal intensity", &settings.materialNormalIntensity, 0.0f, 1.0f))
+    {
+        drawShader.useProgram();
+        glUniform1f(3, settings.materialNormalIntensity);
+    }
+    if(ImGui::SliderFloat(
+           "Material displacement intensity", &settings.materialDisplacementIntensity, 0.0f, 1.0f))
+    {
+        drawShader.useProgram();
+        glUniform1f(1, settings.materialDisplacementIntensity);
+    }
+    if(ImGui::SliderInt("Material displacement lod offset", &settings.materialDisplacementLodOffset, 0, 7))
+    {
+        drawShader.useProgram();
+        glUniform1i(2, settings.materialDisplacementLodOffset);
+    }
 }
 
 void CBTGPU::setTemplateLevel(int newLevel)

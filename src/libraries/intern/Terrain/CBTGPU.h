@@ -68,8 +68,15 @@ class CBTGPU
     ShaderProgram sumReductionLastDepthsShader;
     ShaderProgram writeIndirectCommandsShader;
 
-    std::array<TriangleTemplate, 4> triangleTemplates = {
-        TriangleTemplate{0}, TriangleTemplate{1}, TriangleTemplate{2}, TriangleTemplate{3}};
+    std::array<TriangleTemplate, 8> triangleTemplates = {
+        TriangleTemplate{0},
+        TriangleTemplate{1},
+        TriangleTemplate{2},
+        TriangleTemplate{3},
+        TriangleTemplate{4},
+        TriangleTemplate{5},
+        TriangleTemplate{6},
+        TriangleTemplate{7}};
     ShaderProgram drawShader;
     ShaderProgram outlineShader;
     ShaderProgram overlayShader;
@@ -95,6 +102,9 @@ class CBTGPU
         bool drawOutline = false;
         bool freezeUpdates = false;
         int selectedSubdivLevel = 0;
+        float materialNormalIntensity = 0.3f;
+        float materialDisplacementIntensity = 0.0f;
+        int materialDisplacementLodOffset = 0;
     } settings;
 
     struct DrawElementsIndirectCommand
