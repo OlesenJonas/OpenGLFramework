@@ -182,9 +182,9 @@ glm::mat4* Camera::getMatricesPointer()
 
 glm::mat4 Camera::getSkyProj()
 {
-    glm::mat4 view = *getView();
+    glm::mat4 view = matrices[0];
     view[3] = glm::vec4(0, 0, 0, 1);
-    return glm::inverse(*getProj() * view);
+    return glm::inverse(matrices[1] * view);
 }
 
 glm::vec3 Camera::getPosition() const

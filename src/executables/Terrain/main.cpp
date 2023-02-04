@@ -19,8 +19,11 @@
 #include <intern/PostProcessEffects/Fog/BasicFog.h>
 #include <intern/ShaderProgram/ShaderProgram.h>
 #include <intern/Terrain/CBTGPU.h>
+#include <intern/Scene/Scene.h>
 #include <intern/Texture/Texture.h>
+#include <intern/Texture/TextureCube.h>
 #include <intern/Window/Window.h>
+#include <intern/Scene/Material.h>
 
 int main()
 {
@@ -102,7 +105,30 @@ int main()
         VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
         {SHADERS_PATH "/General/simpleTexture.vert", SHADERS_PATH "/General/simpleTexture.frag"}};
 
+    ShaderProgram pbsShader{
+        VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
+        {SHADERS_PATH "/General/pbs.vert", SHADERS_PATH "/General/pbs.frag"}};
+
     BasicFogEffect basicFogEffect(WIDTH, HEIGHT);
+
+    ShaderProgram skyShader{
+        VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
+        {SHADERS_PATH "/General/sky.vert", SHADERS_PATH "/General/sky.frag"}};
+    FullscreenTri tri = FullscreenTri();
+
+    Texture tAlbedo(MISC_PATH "/YellowBrick_basecolor.tga", false, true);
+    Texture tNormal(MISC_PATH "/YellowBrick_normal.tga", false, true);
+    Texture tAttributes(MISC_PATH "/YellowBrick_attributes.tga", false, true);
+
+    //Texture tAlbedo(MISC_PATH "/Prop_Signlight_basecolor.tga", false, true);
+    //Texture tNormal(MISC_PATH "/Prop_Signlight_normal.tga", false, true);
+    //Texture tAttributes(MISC_PATH "/Prop_Signlight_attributes.tga", false, true);
+
+    //----------------------- INIT SCENE
+
+    Scene MainScene;
+    MainScene.init();
+    
 
     //----------------------- RENDERLOOP
 
@@ -124,8 +150,11 @@ int main()
 
         auto currentTime = static_cast<float>(input.getSimulationTime());
 
+        MainScene.bind();
+
         internalFBO.bind();
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glDepthFunc(GL_LESS);
         glEnable(GL_DEPTH_TEST);
 
         glBindTextureUnit(0, terrainHeightmap.getTextureID());
@@ -146,16 +175,31 @@ int main()
             cbt.drawOutline(*cam.getProj() * *cam.getView());
         }
 
-        simpleShader.useProgram();
-        glBindTextureUnit(0, gridTexture.getTextureID());
+        glBindTextureUnit(1, tAlbedo.getTextureID());
+        glBindTextureUnit(2, tNormal.getTextureID());
+        glBindTextureUnit(3, tAttributes.getTextureID());
+
+        pbsShader.useProgram();
         glUniformMatrix4fv(
             0, 1, GL_FALSE, glm::value_ptr(glm::translate(glm::vec3{0.0f, 0.5f + groundOffsetAt00, 0.0f})));
         glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(*cam.getView()));
         glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(*cam.getProj()));
         cube.draw();
+
+        simpleShader.useProgram();
         glUniformMatrix4fv(
             0, 1, GL_FALSE, glm::value_ptr(glm::translate(glm::vec3{1.0f, 0.0f + groundOffsetAt00, 0.0f})));
         referenceHuman.draw();
+
+        //----------------------- Sky
+        {
+            skyShader.useProgram();
+            glViewport(0, 0, WIDTH, HEIGHT);
+            //glBindTextureUnit(4, tSky.getTextureID());
+            glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(cam.getSkyProj()));
+            glDepthFunc(GL_EQUAL);
+            fullScreenTri.draw();
+        }
 
         glDisable(GL_DEPTH_TEST);
         // Post Processing

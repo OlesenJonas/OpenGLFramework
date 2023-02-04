@@ -23,12 +23,13 @@ void main()
     Output.ViewPos  = viewMatrix * modelMatrix * position;
     gl_Position     = projectionMatrix * Output.ViewPos;
     Output.TexCoord = textureCoord;
-    Output.Normal   = (modelMatrix * vec4(normal, 0)).xyz;
-    
-    vec3 bitangent = cross(normal, tangent.xyz);
+    Output.Normal   = (viewMatrix * modelMatrix * vec4(normal, 0)).xyz;
+
+	const vec3 bitangent = cross(tangent.xyz, normal);
     vec3 T = normalize(vec3((modelMatrix * vec4(tangent.xyz, 0)).xyz));
     vec3 B = normalize(vec3((modelMatrix * vec4(bitangent, 0)).xyz));
     vec3 N = normalize(vec3((modelMatrix * vec4(normal, 0)).xyz));
+
     Output.TangentFrame = mat3(T, B, N);
 
 }

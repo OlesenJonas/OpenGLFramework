@@ -5,9 +5,22 @@ const float Pi = 3.14159265358979323846;
 uniform layout (binding = 1) sampler2D albedoMap;
 uniform layout (binding = 2) sampler2D normalMap;
 uniform layout (binding = 3) sampler2D attributesMap;
-uniform layout (binding = 4) samplerCube environmentMap;
+uniform layout (binding = 10) samplerCube irradianceMap;
+uniform layout (binding = 11) samplerCube environmentMap;
+uniform layout (binding = 12) sampler2D brdf;
 
 layout (location = 1) uniform mat4 viewMatrix;
+
+layout (binding = 21) uniform Lightbuffer
+{
+    vec4 LightDirection;
+    vec4 LightColor;
+};  
+
+layout (binding = 22) uniform Materialbuffer
+{
+    vec4 MaterialColor;
+};  
 
 out vec4 fragmentColor;
 
@@ -77,8 +90,8 @@ vec3 diffuseBRDF(vec3 N, vec3 L, vec3 V, float NdotL, float NdotV, float LdotV, 
 //--------------------------------------------------------------------------------------------------------------------------------------------
 void directIllumination(in vec3 V, in vec3 P, in vec3 N, in vec2 uv, inout vec3 diffuse, inout vec3 specular)
 {
-	const vec3 lightColor = vec3(1,1,1);
-    const vec3 L = normalize(vec3(0.35,-0.8,-0.64));
+	const vec3 lightColor = LightColor.xyz;
+    const vec3 L = normalize(viewMatrix * LightDirection).xyz;
 
 	const vec3 H = normalize(L + V);
 	const float NdotL = saturate(dot(N, L));
@@ -87,7 +100,6 @@ void directIllumination(in vec3 V, in vec3 P, in vec3 N, in vec2 uv, inout vec3 
 	const float LdotH = saturate(dot(L, H));
 	const float LdotV = saturate(dot(L, V));
 	const vec3 c = lightColor * NdotL;
-
 	const vec3 baseColor = texture(albedoMap, uv).xyz * vec3(1.0, 0.75, 0.45);
 	const vec3 F0 = vec3(0.1,0.1,0.1);
 	const float r = texture(attributesMap, uv).x;
@@ -98,17 +110,19 @@ void directIllumination(in vec3 V, in vec3 P, in vec3 N, in vec2 uv, inout vec3 
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------------------
-void imageBasedLighting(in vec3 V, in vec3 N, in float reflectance, inout vec3 specular)
+void imageBasedLighting(in vec3 V, in vec3 N, in float reflectance, inout vec3 specular, in float roughness)
 {
-	// WIP
-
 	const float  NdotV	= saturate(dot(N, V));
 
 	const vec3 R = reflect(-V, N);
 
 	vec4 viewR = inverse(viewMatrix) * vec4(R,0);
 
-    specular = texture(environmentMap, viewR.xyz).xyz * reflectance * 0.5f;
+    const vec3 preFilteredEnvironment = textureLod(environmentMap, viewR.xyz, roughness * 8.0f).xyz * reflectance * 0.5f;
+	const vec2 brdfIntegral	= texture(brdf, vec2(roughness, NdotV)).xy;
+	const vec3 specularIB = preFilteredEnvironment * (reflectance * brdfIntegral.x + brdfIntegral.y);
+    
+	specular += specularIB;
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------------------
@@ -121,16 +135,23 @@ void main()
 	vec3 specular = vec3(0,0,0);
 	
 	vec3 normal = texture(normalMap, Input.TexCoord).xyz;
+	//normal = pow(normal.xyz, vec3(1.0/2.2));
+	//normal.y = 1 - normal.y;
+	//normal = vec3(0.5, 0.5, 1.0);
     normal = normalize(normal * 2.0 - 1.0);  
-    normal *= Input.TangentFrame;
-
+    normal = Input.TangentFrame * normal;
+	normal = (viewMatrix * vec4(normal, 0)).xyz;
+	//normal = Input.Normal;
 	vec4 attributes = texture(attributesMap, Input.TexCoord);
+	
+	//TEST
+	//attributes.x = 0.0f;
+
 	const float reflectance = 1 - attributes.x;
 
 	directIllumination(V, P, normal, Input.TexCoord, diffuse, specular);
-	imageBasedLighting(V, normal, reflectance, specular);
+	imageBasedLighting(V, normal, reflectance, specular, attributes.x);
 
 	const vec3 color = diffuse + specular;
     fragmentColor = vec4(color.xyz, 1);
-
 }
