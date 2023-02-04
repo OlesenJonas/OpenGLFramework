@@ -39,7 +39,7 @@ Texture::Texture(const std::string& file, bool imageIsInSRGB, bool mipMap)
         {
             image = stbi_load(file.c_str(), &width, &height, &channels, 0);
             // default to treating nonHDR textures as sRGB for now
-            imageData.pixelType = Texture::PixelType::UCHAR_SRGB;
+            imageData.pixelType = imageIsInSRGB ? Texture::PixelType::UCHAR_SRGB : Texture::PixelType::UCHAR;
         }
         else
         {

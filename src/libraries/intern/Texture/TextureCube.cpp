@@ -9,6 +9,23 @@
 #include <glm/glm.hpp>
 #include <stb/stb_image.h>
 
+TextureCube::TextureCube(uint32_t size)
+{
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+    for(size_t i = 0; i < 6; ++i)
+    {
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, size, size, 0, GL_RGB, GL_FLOAT, nullptr);
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glGenerateTextureMipmap(textureID);
+}
+
 TextureCube::TextureCube(const std::vector<std::string>& files)
 {
     glGenTextures(1, &textureID);
@@ -53,7 +70,7 @@ TextureCube::TextureCube(const std::string& file)
     glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
 
     int channels;
-    Color* data = reinterpret_cast<Color*>(stbi_load(file.c_str(), &width, &height, &channels, 0));
+    Color* data = reinterpret_cast<Color*>(stbi_loadf(file.c_str(), &width, &height, &channels, STBI_rgb_alpha));
 
     const bool isCubemapFormat = (width * 4 == height * 3) || (width * 3 == height * 4);
 
@@ -160,7 +177,7 @@ TextureCube::TextureCube(const std::string& file)
 
         for(int i = 0; i < 6; ++i)
         {
-            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, faceSize, faceSize, 0, GL_RGB, GL_UNSIGNED_BYTE, faces[i]);
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGBA, faceSize, faceSize, 0, GL_RGBA, GL_FLOAT, faces[i]);
         }
 
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
