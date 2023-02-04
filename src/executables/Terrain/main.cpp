@@ -20,6 +20,7 @@
 #include <intern/ShaderProgram/ShaderProgram.h>
 #include <intern/Terrain/CBTGPU.h>
 #include <intern/Scene/Scene.h>
+#include <intern/Texture/IO/png.h>
 #include <intern/Texture/Texture.h>
 #include <intern/Texture/TextureCube.h>
 #include <intern/Window/Window.h>
@@ -85,8 +86,178 @@ int main()
     glTextureParameteri(terrainHeightmap.getTextureID(), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTextureParameteri(terrainHeightmap.getTextureID(), GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     const Texture terrainNormal{MISC_PATH "/CBT/TerrainNormal.png", false, true};
-    const Texture terrainMacroColor{MISC_PATH "/CBT/TerrainMacroColor.png", true, true};
-    constexpr float groundOffsetAt00 = 38.0f;
+    // const Texture terrainMaterialIDs{MISC_PATH "/CBT/TerrainMaterialIDs.png", false, false};
+    // Need to load as UI8 texture, which is not currently supported by the default texture load functionality
+    auto imageData = png::read(MISC_PATH "/CBT/TerrainMaterialIDs.png", false, true);
+    const Texture terrainMaterialIDs{TextureDesc{
+        .name = "Terrain Material IDs",
+        .levels = 1,
+        .width = static_cast<GLsizei>(imageData.width),
+        .height = static_cast<GLsizei>(imageData.height),
+        .internalFormat = GL_R8UI,
+        .minFilter = GL_NEAREST,
+        .magFilter = GL_NEAREST,
+        .wrapS = GL_CLAMP_TO_EDGE,
+        .wrapT = GL_CLAMP_TO_EDGE,
+        .data = imageData.data.get(),
+        .dataFormat = GL_RED_INTEGER,
+        .dataType = GL_UNSIGNED_BYTE,
+        .generateMips = false}};
+    imageData.data.release();
+    constexpr float groundOffsetAt00 = 12.0f;
+
+    // Load material textures into Texture Array
+    const std::vector<std::pair<std::string, float>> foldersAndSizes = {
+        {"RockCliffs", 1.8}, //
+        {"RockFlat", 1.5},   //
+        {"Rubble", 2},       //
+        {"Gravel", 1},       // //Scaling factor unknown, may be wrong
+        {"RockyTrail", 2},   //
+    };
+    GLfloat maxAniso = 0;
+    glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &maxAniso);
+    GLuint diffuseTextureArray;
+    GLuint normalTextureArray;
+    GLuint heightTextureArray;
+    GLuint ordTextureArray;
+    GLuint textureArrayInfoSSBO;
+    {
+        glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &diffuseTextureArray);
+        glObjectLabel(GL_TEXTURE, diffuseTextureArray, -1, "Diffuse Texture Array");
+        glTextureStorage3D(diffuseTextureArray, 8, GL_SRGB8, 1024, 1024, foldersAndSizes.size());
+        glTextureParameteri(diffuseTextureArray, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTextureParameteri(diffuseTextureArray, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTextureParameteri(diffuseTextureArray, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTextureParameteri(diffuseTextureArray, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTextureParameteri(diffuseTextureArray, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTextureParameterf(diffuseTextureArray, GL_TEXTURE_MAX_ANISOTROPY, maxAniso);
+        for(int i = 0; i < foldersAndSizes.size(); i++)
+        {
+            const auto& entry = foldersAndSizes[i];
+            auto tempDiffuseData =
+                png::read(MISC_PATH "/CBT/Textures/" + entry.first + "/Diffuse.png", true, true);
+            assert(tempDiffuseData.channels == Texture::Channels::RGB);
+            assert(tempDiffuseData.pixelType == Texture::PixelType::UCHAR_SRGB);
+            glTextureSubImage3D(
+                diffuseTextureArray,
+                0,
+                0,
+                0,
+                i,
+                1024,
+                1024,
+                1,
+                GL_RGB,
+                GL_UNSIGNED_BYTE,
+                tempDiffuseData.data.get());
+        }
+        glGenerateTextureMipmap(diffuseTextureArray);
+
+        glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &normalTextureArray);
+        glObjectLabel(GL_TEXTURE, normalTextureArray, -1, "Normal Texture Array");
+        glTextureStorage3D(normalTextureArray, 8, GL_RGB8, 1024, 1024, foldersAndSizes.size());
+        glTextureParameteri(normalTextureArray, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTextureParameteri(normalTextureArray, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTextureParameteri(normalTextureArray, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTextureParameteri(normalTextureArray, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTextureParameteri(normalTextureArray, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTextureParameterf(normalTextureArray, GL_TEXTURE_MAX_ANISOTROPY, maxAniso);
+        for(int i = 0; i < foldersAndSizes.size(); i++)
+        {
+            const auto& entry = foldersAndSizes[i];
+            auto tempDiffuseData =
+                png::read(MISC_PATH "/CBT/Textures/" + entry.first + "/Normal.png", false, true);
+            assert(tempDiffuseData.channels == Texture::Channels::RGB);
+            assert(tempDiffuseData.pixelType == Texture::PixelType::UCHAR);
+            glTextureSubImage3D(
+                normalTextureArray,
+                0,
+                0,
+                0,
+                i,
+                1024,
+                1024,
+                1,
+                GL_RGB,
+                GL_UNSIGNED_BYTE,
+                tempDiffuseData.data.get());
+        }
+        glGenerateTextureMipmap(normalTextureArray);
+
+        glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &heightTextureArray);
+        glObjectLabel(GL_TEXTURE, heightTextureArray, -1, "Height Texture Array");
+        glTextureStorage3D(heightTextureArray, 8, GL_R8, 1024, 1024, foldersAndSizes.size());
+        glTextureParameteri(heightTextureArray, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTextureParameteri(heightTextureArray, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTextureParameteri(heightTextureArray, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTextureParameteri(heightTextureArray, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTextureParameteri(heightTextureArray, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTextureParameterf(heightTextureArray, GL_TEXTURE_MAX_ANISOTROPY, maxAniso);
+        for(int i = 0; i < foldersAndSizes.size(); i++)
+        {
+            const auto& entry = foldersAndSizes[i];
+            auto tempDiffuseData =
+                png::read(MISC_PATH "/CBT/Textures/" + entry.first + "/Height.png", false, true);
+            assert(tempDiffuseData.channels == Texture::Channels::R);
+            assert(tempDiffuseData.pixelType == Texture::PixelType::UCHAR);
+            glTextureSubImage3D(
+                heightTextureArray,
+                0,
+                0,
+                0,
+                i,
+                1024,
+                1024,
+                1,
+                GL_RED,
+                GL_UNSIGNED_BYTE,
+                tempDiffuseData.data.get());
+        }
+        glGenerateTextureMipmap(heightTextureArray);
+
+        glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &ordTextureArray);
+        glObjectLabel(GL_TEXTURE, ordTextureArray, -1, "ORD Texture Array");
+        glTextureStorage3D(ordTextureArray, 8, GL_RGB8, 1024, 1024, foldersAndSizes.size());
+        glTextureParameteri(ordTextureArray, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTextureParameteri(ordTextureArray, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTextureParameteri(ordTextureArray, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTextureParameteri(ordTextureArray, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTextureParameteri(ordTextureArray, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTextureParameterf(ordTextureArray, GL_TEXTURE_MAX_ANISOTROPY, maxAniso);
+        for(int i = 0; i < foldersAndSizes.size(); i++)
+        {
+            const auto& entry = foldersAndSizes[i];
+            auto tempDiffuseData =
+                png::read(MISC_PATH "/CBT/Textures/" + entry.first + "/ORD.png", false, true);
+            assert(tempDiffuseData.channels == Texture::Channels::RGB);
+            assert(tempDiffuseData.pixelType == Texture::PixelType::UCHAR);
+            glTextureSubImage3D(
+                ordTextureArray,
+                0,
+                0,
+                0,
+                i,
+                1024,
+                1024,
+                1,
+                GL_RED,
+                GL_UNSIGNED_BYTE,
+                tempDiffuseData.data.get());
+        }
+        glGenerateTextureMipmap(ordTextureArray);
+
+        // Store texture info in ssbo (no UBO because I dont want the wasted space of a scalar array with
+        // std140)
+        std::vector<float> data;
+        for(const auto& entry : foldersAndSizes)
+        {
+            data.push_back(entry.second);
+        }
+        glCreateBuffers(1, &textureArrayInfoSSBO);
+        glNamedBufferStorage(textureArrayInfoSSBO, data.size() * sizeof(data[0]), data.data(), 0);
+        glObjectLabel(GL_BUFFER, textureArrayInfoSSBO, -1, "Texture Array Info Buffer");
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, textureArrayInfoSSBO);
+    }
 
     Camera cam{ctx, static_cast<float>(WIDTH) / static_cast<float>(HEIGHT), 0.1f, 1000.0f};
     ctx.setCamera(&cam);
@@ -158,8 +329,7 @@ int main()
         glEnable(GL_DEPTH_TEST);
 
         glBindTextureUnit(0, terrainHeightmap.getTextureID());
-        static bool freezeCBTUpdate = false;
-        if(!freezeCBTUpdate)
+        if(!cbt.getSettings().freezeUpdates)
         {
             cbt.update(*cam.getProj() * *cam.getView(), {WIDTH, HEIGHT});
         }
@@ -167,10 +337,13 @@ int main()
         cbt.writeIndirectCommands();
 
         glBindTextureUnit(1, terrainNormal.getTextureID());
-        glBindTextureUnit(2, terrainMacroColor.getTextureID());
+        glBindTextureUnit(2, terrainMaterialIDs.getTextureID());
+        glBindTextureUnit(3, heightTextureArray);
+        glBindTextureUnit(4, diffuseTextureArray);
+        glBindTextureUnit(5, normalTextureArray);
+        glBindTextureUnit(6, ordTextureArray);
         cbt.draw(*cam.getProj() * *cam.getView());
-        static bool drawCBTOutline = false;
-        if(drawCBTOutline)
+        if(cbt.getSettings().drawOutline)
         {
             cbt.drawOutline(*cam.getProj() * *cam.getView());
         }
@@ -223,21 +396,10 @@ int main()
         // UI
         {
             ImGui::Begin("Settings", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-            ImGui::Checkbox("Draw outline", &drawCBTOutline);
             ImGui::Separator();
             if(ImGui::CollapsingHeader("CBT##settings", ImGuiTreeNodeFlags_DefaultOpen))
             {
-                static float targetEdgeLength = 7.0f;
-                if(ImGui::SliderFloat("Target edge length", &targetEdgeLength, 1.0f, 100.0f))
-                {
-                    cbt.setTargetEdgeLength(targetEdgeLength);
-                }
-                static int globalSubdivLevel = 0;
-                if(ImGui::SliderInt("Global subdiv level", &globalSubdivLevel, 0, cbt.getMaxTemplateLevel()))
-                {
-                    cbt.setTemplateLevel(globalSubdivLevel);
-                }
-                ImGui::Checkbox("Freeze update", &freezeCBTUpdate);
+                cbt.drawUI();
             }
             if(ImGui::CollapsingHeader("Fog##settings"))
             {

@@ -1,7 +1,9 @@
-#include "Terrain/CBTGPU.h"
+#include "CBTGPU.h"
 #include "Misc/Misc.h"
 #include "ShaderProgram/ShaderProgram.h"
 #include "TriangleTemplate.h"
+
+#include <ImGui/imgui.h>
 
 #include <array>
 
@@ -104,7 +106,7 @@ CBTGPU::CBTGPU(uint32_t maxDepth)
 
     {
         const DrawElementsIndirectCommand temp{
-            .count = triangleTemplates[selectedLevel].getIndexCount(),
+            .count = triangleTemplates[settings.selectedSubdivLevel].getIndexCount(),
             .primCount = 1, // number of instances
             .firstIndex = 0,
             .baseVertex = 0,
@@ -117,7 +119,7 @@ CBTGPU::CBTGPU(uint32_t maxDepth)
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, indirectDrawCommandBuffer);
 
         writeIndirectCommandsShader.useProgram();
-        glUniform1ui(0, triangleTemplates[selectedLevel].getIndexCount());
+        glUniform1ui(0, triangleTemplates[settings.selectedSubdivLevel].getIndexCount());
     }
 
     doSumReduction();
@@ -245,7 +247,7 @@ void CBTGPU::draw(const glm::mat4& projViewMatrix)
     drawTimer.start();
     drawShader.useProgram();
     glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
-    glBindVertexArray(triangleTemplates[selectedLevel].getVAO());
+    glBindVertexArray(triangleTemplates[settings.selectedSubdivLevel].getVAO());
 
     // glDrawElementsInstancedBaseVertexBaseInstance(
     // GL_TRIANGLES, triangleMesh.getIndexCount(), GL_UNSIGNED_INT, nullptr, leafNodeAmnt, 0, 0);
@@ -264,7 +266,7 @@ void CBTGPU::drawOutline(const glm::mat4& projViewMatrix)
     glEnable(GL_BLEND);
     outlineShader.useProgram();
     glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
-    glBindVertexArray(triangleTemplates[selectedLevel].getVAO());
+    glBindVertexArray(triangleTemplates[settings.selectedSubdivLevel].getVAO());
 
     // glDrawElementsInstancedBaseVertexBaseInstance(
     // GL_TRIANGLES, triangleMesh.getIndexCount(), GL_UNSIGNED_INT, nullptr, leafNodeAmnt, 0, 0);
@@ -278,25 +280,57 @@ void CBTGPU::drawOverlay(float aspect)
 {
     overlayShader.useProgram();
     glUniform1f(0, aspect);
-    glBindVertexArray(triangleTemplates[selectedLevel].getVAO());
+    glBindVertexArray(triangleTemplates[settings.selectedSubdivLevel].getVAO());
 
     // glDrawElementsInstancedBaseVertexBaseInstance(
     // GL_TRIANGLES, triangleMesh.getIndexCount(), GL_UNSIGNED_INT, nullptr, leafNodeAmnt, 0, 0);
     glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
 }
 
+void CBTGPU::drawUI()
+{
+    static float targetEdgeLength = 7.0f;
+    if(ImGui::SliderFloat("Target edge length", &targetEdgeLength, 1.0f, 100.0f))
+    {
+        setTargetEdgeLength(targetEdgeLength);
+    }
+    static int globalSubdivLevel = 0;
+    if(ImGui::SliderInt("Global subdiv level", &globalSubdivLevel, 0, getMaxTemplateLevel()))
+    {
+        setTemplateLevel(globalSubdivLevel);
+    }
+    ImGui::Checkbox("Draw outline", &settings.drawOutline);
+    ImGui::Checkbox("Freeze update", &settings.freezeUpdates);
+    if(ImGui::SliderFloat("Material normal intensity", &settings.materialNormalIntensity, 0.0f, 1.0f))
+    {
+        drawShader.useProgram();
+        glUniform1f(3, settings.materialNormalIntensity);
+    }
+    if(ImGui::SliderFloat(
+           "Material displacement intensity", &settings.materialDisplacementIntensity, 0.0f, 1.0f))
+    {
+        drawShader.useProgram();
+        glUniform1f(1, settings.materialDisplacementIntensity);
+    }
+    if(ImGui::SliderInt("Material displacement lod offset", &settings.materialDisplacementLodOffset, 0, 7))
+    {
+        drawShader.useProgram();
+        glUniform1i(2, settings.materialDisplacementLodOffset);
+    }
+}
+
 void CBTGPU::setTemplateLevel(int newLevel)
 {
     if(newLevel < 0 || newLevel >= triangleTemplates.size())
         return;
-    selectedLevel = newLevel;
+    settings.selectedSubdivLevel = newLevel;
     writeIndirectCommandsShader.useProgram();
-    glUniform1ui(0, triangleTemplates[selectedLevel].getIndexCount());
+    glUniform1ui(0, triangleTemplates[settings.selectedSubdivLevel].getIndexCount());
 }
 
 [[nodiscard]] int CBTGPU::getTemplateLevel() const
 {
-    return selectedLevel;
+    return settings.selectedSubdivLevel;
 }
 
 void CBTGPU::replaceHeap(const std::vector<uint32_t>& heapData)
