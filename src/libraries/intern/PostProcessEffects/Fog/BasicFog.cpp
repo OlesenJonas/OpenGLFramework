@@ -51,92 +51,59 @@ void BasicFogEffect::updateSettings()
         1,
         glm::value_ptr(settings.scatteringCoefficient));
     glUniform4fv(
-        glGetUniformLocation(shader.getProgramID(), "extinctionCoefficient"),
-        1,
-        glm::value_ptr(settings.extinctionCoefficient));
-    glUniform4fv(
         glGetUniformLocation(shader.getProgramID(), "inscatteredLight"),
         1,
         glm::value_ptr(settings.inscatteredLight));
     glUniform1f(glGetUniformLocation(shader.getProgramID(), "falloff"), settings.falloff);
     glUniform1f(glGetUniformLocation(shader.getProgramID(), "heightOffset"), settings.heightOffset);
-    glUniform1i(glGetUniformLocation(shader.getProgramID(), "mode"), settings.mode);
+    glUniform1i(glGetUniformLocation(shader.getProgramID(), "doFade"), settings.doFade);
+    glUniform1f(glGetUniformLocation(shader.getProgramID(), "fadeStart"), settings.fadeStart);
+    glUniform1f(glGetUniformLocation(shader.getProgramID(), "fadeLength"), settings.fadeLength);
 }
 
 void BasicFogEffect::drawUI()
 {
-    if(ImGui::DragFloat("Falloff", &settings.falloff, 0.01f, .01f, FLT_MAX))
-    {
-        updateSettings();
-    }
-    if(ImGui::DragFloat("Height offset", &settings.heightOffset, 0.05f))
-    {
-        updateSettings();
-    }
-    if(ImGui::SliderInt("Fog color mode", &settings.mode, 0, 1))
-    {
-        updateSettings();
-    }
-    ImGui::SameLine();
-    ImGui::Extensions::HelpMarker("0 = 1-transmittance, 1 = constant inscattering");
+    bool changed = false;
+    changed |= ImGui::DragFloat("Falloff", &settings.falloff, 0.01f, .01f, FLT_MAX);
+    changed |= ImGui::DragFloat("Height offset", &settings.heightOffset, 0.05f);
+    changed |= ImGui::Checkbox("Near exclusion", &settings.doFade);
+    ImGui::BeginDisabled(!settings.doFade);
+    changed |= ImGui::DragFloat("Fade start", &settings.fadeStart, 0.1f, 0.0f, FLT_MAX);
+    changed |= ImGui::DragFloat("Fade length", &settings.fadeLength, 0.1f, 0.1f, FLT_MAX);
+    ImGui::EndDisabled();
+
     ImGui::Separator();
-    if(settings.mode == 0)
+
+    const float absorptionCoeffLimit =
+        length(settings.scatteringCoefficient * settings.scatteringCoefficient.w) == 0.0f ? .01f : 0.0f;
+    const float scatteringCoeffLimit =
+        length(settings.absorptionCoefficient * settings.absorptionCoefficient.w) == 0.0f ? .01f : 0.0f;
+    if(ImGui::ColorEdit3(
+           "Absorption coefficient", &settings.absorptionCoefficient.x, ImGuiColorEditFlags_Float))
     {
-        if(ImGui::ColorEdit3(
-               "Extinction coefficient", &settings.extinctionCoefficient.x, ImGuiColorEditFlags_Float))
-        {
-            updateSettings();
-        }
-        if(ImGui::DragFloat(
-               "Multiplier##extinction", &settings.extinctionCoefficient.w, 0.05f, 0.0f, FLT_MAX))
-        {
-            updateSettings();
-        }
+        settings.absorptionCoefficient = glm::max(settings.absorptionCoefficient, absorptionCoeffLimit);
+        changed = true;
     }
-    else if(settings.mode == 1)
-    {
-        const float absorptionCoeffLimit =
-            length(settings.scatteringCoefficient * settings.scatteringCoefficient.w) == 0.0f ? .01f : 0.0f;
-        const float scatteringCoeffLimit =
-            length(settings.absorptionCoefficient * settings.absorptionCoefficient.w) == 0.0f ? .01f : 0.0f;
-        if(ImGui::ColorEdit3(
-               "Absorption coefficient", &settings.absorptionCoefficient.x, ImGuiColorEditFlags_Float))
-        {
-            settings.absorptionCoefficient = glm::max(settings.absorptionCoefficient, absorptionCoeffLimit);
-            updateSettings();
-        }
-        if(ImGui::DragFloat(
-               "Multiplier##absorption",
-               &settings.absorptionCoefficient.w,
-               0.05f,
-               absorptionCoeffLimit,
-               FLT_MAX))
-        {
-            updateSettings();
-        }
-        ImGui::Separator();
-        if(ImGui::ColorEdit3(
-               "Scattering coefficient", &settings.scatteringCoefficient.x, ImGuiColorEditFlags_Float))
-        {
-            settings.scatteringCoefficient = glm::max(settings.scatteringCoefficient, scatteringCoeffLimit);
-            updateSettings();
-        }
-        if(ImGui::DragFloat(
-               "Multiplier##scattering",
-               &settings.scatteringCoefficient.w,
-               0.05f,
-               scatteringCoeffLimit,
-               FLT_MAX))
-        {
-            updateSettings();
-        }
-    }
+    changed |= ImGui::DragFloat(
+        "Multiplier##absorption", &settings.absorptionCoefficient.w, 0.05f, absorptionCoeffLimit, FLT_MAX);
+
     ImGui::Separator();
-    if(ImGui::ColorEdit3("Inscattered Light", &settings.inscatteredLight.x, ImGuiColorEditFlags_Float))
+    if(ImGui::ColorEdit3(
+           "Scattering coefficient", &settings.scatteringCoefficient.x, ImGuiColorEditFlags_Float))
     {
-        updateSettings();
+        settings.scatteringCoefficient = glm::max(settings.scatteringCoefficient, scatteringCoeffLimit);
+        changed = true;
     }
-    if(ImGui::DragFloat("Multiplier##inscattering", &settings.inscatteredLight.w, 0.05f, .0f, FLT_MAX))
+    changed |= ImGui::DragFloat(
+        "Multiplier##scattering", &settings.scatteringCoefficient.w, 0.05f, scatteringCoeffLimit, FLT_MAX);
+
+    ImGui::Separator();
+    changed |= ImGui::ColorEdit3(
+        "Inscattered Light / Fog Color", &settings.inscatteredLight.x, ImGuiColorEditFlags_Float);
+    changed |=
+        ImGui::DragFloat("Multiplier##inscattering", &settings.inscatteredLight.w, 0.05f, .0f, FLT_MAX);
+
+    if(changed)
     {
         updateSettings();
     }
