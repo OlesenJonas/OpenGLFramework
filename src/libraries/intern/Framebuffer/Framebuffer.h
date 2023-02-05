@@ -23,6 +23,11 @@ class Framebuffer
     };
 
     /*
+      Construct an "empty" Framebuffer object
+    */
+    Framebuffer() = default;
+
+    /*
       Construct a framebuffer that owns its rendertargets
     */
     Framebuffer(

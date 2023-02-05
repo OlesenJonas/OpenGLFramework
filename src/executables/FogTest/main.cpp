@@ -17,11 +17,11 @@
 #include <intern/Misc/ImGuiExtensions.h>
 #include <intern/Misc/OpenGLErrorHandler.h>
 #include <intern/PostProcessEffects/Fog/BasicFog.h>
+#include <intern/PostProcessEffects/Fog/SSMSFog.h>
 #include <intern/ShaderProgram/ShaderProgram.h>
 #include <intern/Terrain/CBTGPU.h>
 #include <intern/Texture/Texture.h>
 #include <intern/Window/Window.h>
-#include <stdlib.h>
 
 int main()
 {
@@ -177,6 +177,8 @@ int main()
         {SHADERS_PATH "/General/screenQuad.vert", SHADERS_PATH "/General/postProcess.frag"}};
 
     BasicFogEffect basicFogEffect(WIDTH, HEIGHT);
+    SSMSFogEffect ssmsFogEffect(WIDTH, HEIGHT);
+    ssmsFogEffect.updateSettings();
 
     //----------------------- RENDERLOOP
 
@@ -242,11 +244,12 @@ int main()
         {
             // fog
             const auto& hdrColorWithFogTex =
-                basicFogEffect.execute(internalFBO.getColorTextures()[0], *internalFBO.getDepthTexture());
+                ssmsFogEffect.execute(internalFBO.getColorTextures()[0], *internalFBO.getDepthTexture());
+            // basicFogEffect.execute(internalFBO.getColorTextures()[0], *internalFBO.getDepthTexture());
+            glViewport(0, 0, WIDTH, HEIGHT);
 
             // color management
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            // glViewport()?
             // overwriting full screen anyways, dont need to clear
             glBindTextureUnit(0, hdrColorWithFogTex.getTextureID());
             postProcessShader.useProgram();
@@ -260,10 +263,8 @@ int main()
             if(ImGui::CollapsingHeader("Fog##settings"))
             {
                 ImGui::Indent(5.0f);
-                if(ImGui::CollapsingHeader("BasicFog##settings"))
-                {
-                    basicFogEffect.drawUI();
-                }
+                ssmsFogEffect.drawUI();
+                // basicFogEffect.drawUI();
                 ImGui::Indent(-5.0f);
             }
             if(ImGui::CollapsingHeader("Camera##settings", ImGuiTreeNodeFlags_DefaultOpen))
