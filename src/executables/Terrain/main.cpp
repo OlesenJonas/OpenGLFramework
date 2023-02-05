@@ -20,6 +20,7 @@
 #include <intern/ShaderProgram/ShaderProgram.h>
 #include <intern/Terrain/CBTGPU.h>
 #include <intern/Scene/Scene.h>
+#include <intern/Scene/Entity.h>
 #include <intern/Texture/IO/png.h>
 #include <intern/Texture/Texture.h>
 #include <intern/Texture/TextureCube.h>
@@ -291,15 +292,16 @@ int main()
     Texture tNormal(MISC_PATH "/YellowBrick_normal.tga", false, true);
     Texture tAttributes(MISC_PATH "/YellowBrick_attributes.tga", false, true);
 
-    //Texture tAlbedo(MISC_PATH "/Prop_Signlight_basecolor.tga", false, true);
-    //Texture tNormal(MISC_PATH "/Prop_Signlight_normal.tga", false, true);
-    //Texture tAttributes(MISC_PATH "/Prop_Signlight_attributes.tga", false, true);
-
     //----------------------- INIT SCENE
 
     Scene MainScene;
     MainScene.init();
-    
+
+	Entity* testObject = MainScene.createEntity();
+    testObject->setMaterial(new Material(MISC_PATH "/YellowBrick_basecolor.tga", MISC_PATH "/YellowBrick_normal.tga", MISC_PATH "/YellowBrick_attributes.tga"));
+	testObject->setMesh(new Mesh(MISC_PATH "/Meshes/testcube.obj"));
+	testObject->setPosition(glm::vec3(0,30,10));
+	testObject->getMaterial()->setBaseColor(Color::Green);
 
     //----------------------- RENDERLOOP
 
@@ -342,33 +344,27 @@ int main()
         glBindTextureUnit(4, diffuseTextureArray);
         glBindTextureUnit(5, normalTextureArray);
         glBindTextureUnit(6, ordTextureArray);
-        cbt.draw(*cam.getProj() * *cam.getView());
+		MainScene.bind();
+        cbt.draw(*cam.getView(), *cam.getProj() * *cam.getView());
         if(cbt.getSettings().drawOutline)
         {
             cbt.drawOutline(*cam.getProj() * *cam.getView());
         }
 
-        glBindTextureUnit(1, tAlbedo.getTextureID());
-        glBindTextureUnit(2, tNormal.getTextureID());
-        glBindTextureUnit(3, tAttributes.getTextureID());
+		MainScene.draw(cam);
 
-        pbsShader.useProgram();
-        glUniformMatrix4fv(
-            0, 1, GL_FALSE, glm::value_ptr(glm::translate(glm::vec3{0.0f, 0.5f + groundOffsetAt00, 0.0f})));
-        glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(*cam.getView()));
-        glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(*cam.getProj()));
-        cube.draw();
+        //pbsShader.useProgram();
+        //glUniformMatrix4fv(
+        //    0, 1, GL_FALSE, glm::value_ptr(glm::translate(glm::vec3{0.0f, 0.5f + groundOffsetAt00, 0.0f})));
+        //glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(*cam.getView()));
+        //glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(*cam.getProj()));
+        //cube.draw();
 
-        simpleShader.useProgram();
-        glUniformMatrix4fv(
-            0, 1, GL_FALSE, glm::value_ptr(glm::translate(glm::vec3{1.0f, 0.0f + groundOffsetAt00, 0.0f})));
-        referenceHuman.draw();
 
         //----------------------- Sky
         {
             skyShader.useProgram();
             glViewport(0, 0, WIDTH, HEIGHT);
-            //glBindTextureUnit(4, tSky.getTextureID());
             glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(cam.getSkyProj()));
             glDepthFunc(GL_EQUAL);
             fullScreenTri.draw();

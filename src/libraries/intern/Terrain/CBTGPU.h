@@ -31,7 +31,7 @@ class CBTGPU
     void doSumReduction();
     void writeIndirectCommands();
 
-    void draw(const glm::mat4& projViewMatrix);
+    void draw(const glm::mat4& viewMatrix, const glm::mat4& projViewMatrix);
     void drawOutline(const glm::mat4& projViewMatrix);
     void drawOverlay(float aspect);
     void drawUI();

@@ -4,13 +4,25 @@
 #include <intern/ShaderProgram/ShaderProgram.h>
 #include <intern/Mesh/FullscreenTri.h>
 #include <intern/Scene/Light.h>
+#include <intern/Scene/Entity.h>
+#include <intern/Scene/Material.h>
+#include <intern/Camera/Camera.h>
 
-Scene::Scene() : m_sunlight(nullptr), m_skyRotation(0.0f), m_skyExposure(1.0f), m_skyTexture(nullptr), m_irradianceMap(nullptr), m_environmentMap(nullptr), m_BRDFIntegral(nullptr)
+Scene::Scene() : m_sunlight(nullptr), m_skyRotation(0.0f), m_skyExposure(1.0f), m_skyTexture(nullptr), m_irradianceMap(nullptr), m_environmentMap(nullptr), m_BRDFIntegral(nullptr), m_activeShader(nullptr)
 {
+	m_defaultShader = new ShaderProgram{
+        VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
+        {SHADERS_PATH "/General/pbs.vert", SHADERS_PATH "/General/pbs.frag"}};
 }
 
 Scene::~Scene()
 {
+	for (auto& entity : m_entities)
+	{
+		delete entity;
+	}
+	m_entities.clear();
+
 	delete m_sunlight;
 	delete m_skyTexture;
 	delete m_irradianceMap;
@@ -124,6 +136,7 @@ void Scene::init()
 	m_sunlight->init();
 	m_sunlight->setDirection(glm::vec4(0.4, 0.9f, 0.3f, 0.0f));
 	m_sunlight->setColor(Color::White);
+	m_sunlight->setIntensity(2.0f);
 }
 
 void Scene::bind()
@@ -141,4 +154,35 @@ void Scene::bind()
     glBindTextureUnit(11, m_environmentMap->getTextureID());
     glBindTextureUnit(12, m_BRDFIntegral->getTextureID());
     glBindTextureUnit(13, m_skyTexture->getTextureID());
+}
+
+void Scene::draw(const class Camera& camera)
+{
+	for (const auto& entity : m_entities)
+	{
+		// Bind shader
+		if (entity->getMaterial()->getCustomShader())
+		{
+			m_activeShader = entity->getMaterial()->getCustomShader();
+		}
+		else
+		{
+			if (m_activeShader != m_defaultShader)
+			{
+				m_activeShader = m_defaultShader;
+			}
+		}
+		m_activeShader->useProgram();
+		glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(*camera.getView()));
+		glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(*camera.getProj()));
+
+		entity->draw();
+	}
+}
+
+Entity* Scene::createEntity()
+{
+	Entity* entity = new Entity(this);
+	m_entities.emplace_back(entity);
+	return entity;
 }

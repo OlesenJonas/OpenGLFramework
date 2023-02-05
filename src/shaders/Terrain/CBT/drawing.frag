@@ -2,6 +2,8 @@
 
 out vec4 fragmentColor;
 
+layout (location = 0) uniform mat4 projectionViewMatrix;
+
 layout (binding = 1) uniform sampler2D macroNormal;
 layout (binding = 2) uniform usampler2D materialIDTex;
 
@@ -10,15 +12,24 @@ layout (binding = 5) uniform sampler2DArray normalArray;
 layout (binding = 6) uniform sampler2DArray ordArray;
 
 layout (location = 3) uniform float materialNormalIntensity = 1.0f;
+layout (location = 4) uniform mat4 viewMatrix;
 
 layout (location = 0) flat in vec2 cornerPoint;
 layout (location = 1) in vec2 uv;
 layout (location = 2) in vec3 worldPos;
+layout (location = 3) in vec3 viewPos;
+
 
 layout(std430, binding = 3) buffer textureInfoBuffer
 {   
     float textureScales[];
 };
+
+layout (binding = 21) uniform Lightbuffer
+{
+    vec4 LightDirection;
+    vec4 LightColor;
+};  
 
 // UE4's RandFast function
 // https://github.com/EpicGames/UnrealEngine/blob/release/Engine/Shaders/Private/Random.ush
@@ -29,6 +40,8 @@ float fast(vec2 v)
     float state = fract( dot( v * v, vec2(3571)));
     return fract( state * state * (3571. * 2.));
 }
+
+#include "../../General/lighting.glsl"
 
 // Uses reorient normal blending for blending material normal maps and terrain normal:
 // https://blog.selfshadow.com/publications/blending-in-detail/
@@ -108,8 +121,21 @@ void main()
 
     // vec3 color = vec3(0.5);
     // vec3 color = vec3(materialIDVis);
-    vec3 color = diffuse;
-    color *= max(dot(worldNormal, normalize(vec3(1.0,1.0,0.0))), 0.0) + 0.1;
+    //vec3 color = diffuse;
+    //color *= max(dot(worldNormal, normalize(vec3(1.0,1.0,0.0))), 0.0) + 0.1;
+    //fragmentColor = vec4(color,1.0);
 
-    fragmentColor = vec4(color,1.0);
+	// Lighting
+
+	vec3 diff = vec3(0,0,0);
+	vec3 spec = vec3(0,0,0);
+
+	const vec3 P = viewPos.xyz;
+	const vec3 V = normalize(-P);
+	const vec3 viewNormal = normalize(viewMatrix * vec4(worldNormal, 0)).xyz;
+	directIllumination(viewMatrix, V, P, viewNormal, LightColor.xyz, LightDirection, diffuse, roughness, diff, spec);
+	imageBasedLighting(viewMatrix, V, viewNormal, 1.0f - roughness, spec, roughness);
+
+	const vec3 col = diff + spec;
+    fragmentColor = vec4(col, 1);
 }

@@ -1,4 +1,5 @@
 #pragma once
+#include <glm/glm.hpp>
 
 struct Color
 {
@@ -9,6 +10,16 @@ struct Color
 
 	Color(float r, float g, float b, float a = 1.0f) : r(r), g(g), b(b), a(a)
     {}
+
+	operator glm::vec4() const
+	{
+		return glm::vec4(r, g, b, a);
+	}
+
+	operator glm::vec3() const
+	{
+		return glm::vec3(r, g, b);
+	}
 
 	static const Color Black;
 	static const Color White;

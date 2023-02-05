@@ -13,17 +13,17 @@ void Light::init()
 {
 	glGenBuffers(1, &m_bufferIndex);
 	glBindBuffer(GL_UNIFORM_BUFFER, m_bufferIndex);
-	glBufferData(GL_UNIFORM_BUFFER, sizeof(Lightbuffer), NULL, GL_STATIC_DRAW);
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(LightBuffer), NULL, GL_STATIC_DRAW);
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
 
 void Light::bind()
 {
 
-	Lightbuffer buffer { glm::normalize(m_direction), glm::vec4(m_color.r * m_intensity, m_color.g * m_intensity, m_color.b * m_intensity, 1.0f)};
+	LightBuffer buffer { glm::normalize(m_direction), glm::vec4(m_color.r * m_intensity, m_color.g * m_intensity, m_color.b * m_intensity, 1.0f)};
 
 	glBindBuffer(GL_UNIFORM_BUFFER, m_bufferIndex);
-	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(Lightbuffer), &buffer); 
+	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(LightBuffer), &buffer); 
 
 	glBindBufferBase(GL_UNIFORM_BUFFER, 21, m_bufferIndex);
 }

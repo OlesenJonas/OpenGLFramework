@@ -1,10 +1,9 @@
 #pragma once
 #include <intern/Misc/Color.h>
-#include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 
 
-struct Lightbuffer
+struct LightBuffer
 {
 	// TODO: support more than directional light
 
@@ -27,13 +26,10 @@ public:
 	void init();
 	void bind();
 	
-	protected:
+protected:
 
 	glm::vec4 m_direction;
-
 	float m_intensity;
-
 	Color m_color;
-
 	uint32_t m_bufferIndex;
 };

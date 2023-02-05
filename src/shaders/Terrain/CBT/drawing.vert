@@ -26,10 +26,13 @@ layout (binding = 3) uniform sampler2DArray heightArray;
 layout (location = 0) uniform mat4 projectionViewMatrix;
 layout (location = 1) uniform float materialDisplacementIntensity = 0.0;
 layout (location = 2) uniform int materialDisplacementLodOffset = 0;
+layout (location = 4) uniform mat4 viewMatrix;
+
 
 layout (location = 0) flat out vec2 cornerPoint;
 layout (location = 1) out vec2 uv;
 layout (location = 2) out vec3 worldPos;
+layout (location = 3) out vec3 viewPos;
 
 layout(std430, binding = 3) buffer textureInfoBuffer
 {   
@@ -62,6 +65,8 @@ void main()
     vec4 worldPosition = transformFlatPointToWorldSpace(flatPosition);
     //pass the *non-displaced* position for triplanar sampling in fragment shader
     worldPos = worldPosition.xyz;
+
+	viewPos = (viewMatrix * worldPosition).xyz;
 
     //sample and transform directly into world space
     // ts=(2*nrmMap-1), ws=(ts.x,ts.z,-ts.y) => ws=(2*n.x-1, 2*n.z-1, -2*n.y+1))

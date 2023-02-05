@@ -12,7 +12,7 @@ uniform layout (binding = 12) sampler2D brdf;
 uniform layout (binding = 13) samplerCube sky;
 
 void main() {
-    const vec2 coord = (passTextureCoord + vec2(-0.5f, -0.5f)) * vec2(1.0f, 1.0f);
+    const vec2 coord = (passTextureCoord + vec2(-0.5f, -0.5f)) * vec2(2.0f, 2.0f);
 	const vec3 dir = normalize((skyProjection * vec4(coord, 0, 1)).xyz);
     fragmentColor = texture(sky, dir);
 }
