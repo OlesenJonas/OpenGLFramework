@@ -22,6 +22,14 @@ SSMSFogEffect::SSMSFogEffect(int width, int height, uint8_t levels)
            .internalFormat = GL_RGBA16F,
            .wrapS = GL_CLAMP_TO_EDGE,
            .wrapT = GL_CLAMP_TO_EDGE}},
+      blurWeight{
+          {.name = "Blur Weight",
+           .levels = 1,
+           .width = width,
+           .height = height,
+           .internalFormat = GL_RGBA16F,
+           .wrapS = GL_CLAMP_TO_EDGE,
+           .wrapT = GL_CLAMP_TO_EDGE}},
       initialFogShader{
           VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
           {SHADERS_PATH "/General/screenQuad.vert", SHADERS_PATH "/Fog/SSMSinitialFog.frag"}},
@@ -76,7 +84,8 @@ SSMSFogEffect::SSMSFogEffect(int width, int height, uint8_t levels)
         currentWidth /= 2;
         currentHeight /= 2;
     }
-    initialFogFramebuffer = Framebuffer{width, height, {{directLight, 0}, {downsampleTextures[0], 0}}, false};
+    initialFogFramebuffer =
+        Framebuffer{width, height, {{directLight, 0}, {downsampleTextures[0], 0}, {blurWeight, 0}}, false};
     settings.steps = levels - 1;
     updateSettings();
 };
@@ -140,6 +149,7 @@ const Texture& SSMSFogEffect::execute(const Texture& colorInput, const Texture& 
     upsampleAndCombineShader.useProgram();
     glBindTextureUnit(0, directLight.getTextureID());
     glBindTextureUnit(1, upsampleTextures[1].getTextureID());
+    glBindTextureUnit(2, blurWeight.getTextureID());
     fullScreenTri.draw();
 
     glPopDebugGroup();
@@ -184,6 +194,7 @@ void SSMSFogEffect::updateSettings()
     glUniform1f(0, 1.0f + fracSteps);
     glUniform1f(1, settings.steps);
     glUniform1f(2, settings.intensity);
+    glUniform1i(3, settings.approxInscatterTransmittance);
 }
 
 void SSMSFogEffect::drawUI()
@@ -227,6 +238,7 @@ void SSMSFogEffect::drawUI()
     changed |= ImGui::SliderFloat(
         "Blur weight", &settings.blurWeight, 0.0f, 100.0f, "%.3f", ImGuiSliderFlags_Logarithmic);
     changed |= ImGui::SliderFloat("Intensity", &settings.intensity, 0.0f, 1.0f);
+    changed |= ImGui::Checkbox("Approximate transmittance for SSMS", &settings.approxInscatterTransmittance);
 
     if(changed)
     {

@@ -40,6 +40,7 @@ class SSMSFogEffect
         float steps = 2.0f;
         float blurWeight = 1.0f;
         float intensity = 1.0f;
+        bool approxInscatterTransmittance = false;
     } settings;
 
   private:
@@ -49,6 +50,7 @@ class SSMSFogEffect
 
     // a bit overkill with the resources allocated here, but effect is just for comparison anyways
     Texture directLight;
+    Texture blurWeight;
     Framebuffer initialFogFramebuffer;
     std::vector<Texture> downsampleTextures;
     std::vector<Texture> upsampleTextures;

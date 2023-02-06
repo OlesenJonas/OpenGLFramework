@@ -23,6 +23,7 @@ vec3 worldPositionFromDepth(vec2 texCoord, float depthBufferDepth)
 
 layout (location = 0) out vec4 directLight;
 layout (location = 1) out vec4 scatteredLight;
+layout (location = 2) out vec4 blurWeight;
 
 void main()
 {    
@@ -92,4 +93,5 @@ void main()
 
     directLight.rgb = directLightFromPixel + directLightFromInscattering;
     scatteredLight.rgb = scatteredLightFromPixel*blurTint + scatteredLightFromInscattering;
+    blurWeight.rgb = (1.0 - transmittanceAbsorption*transmittanceScattering) * (sigmaS/(sigmaA+sigmaS));
 }
