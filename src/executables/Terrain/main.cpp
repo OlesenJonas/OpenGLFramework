@@ -275,6 +275,7 @@ int main()
 
     bool applyFog = true;
     FogEffect fogEffect(WIDTH, HEIGHT);
+    GPUTimer<128> fogPassTimer{"Fog"};
 
     //----------------------- RENDERLOOP
 
@@ -335,10 +336,13 @@ int main()
         // Post Processing
         {
             // fog
+            fogPassTimer.start();
             const auto& hdrColorTex =
                 applyFog
                     ? fogEffect.execute(internalFBO.getColorTextures()[0], *internalFBO.getDepthTexture())
                     : internalFBO.getColorTextures()[0];
+            fogPassTimer.end();
+            fogPassTimer.evaluate();
 
             // color management
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -400,6 +404,10 @@ int main()
                 ImGui::Text("Indirect write: %.3f ms", cbt.getIndirectWriteTimer().timeMilliseconds());
                 ImGui::Text("Drawing       : %.3f ms", cbt.getDrawTimer().timeMilliseconds());
                 ImGui::Text("Additional subdiv level: %d", cbt.getTemplateLevel());
+            }
+            if(ImGui::CollapsingHeader("Fog", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::Text("Total: %.3f ms", fogPassTimer.timeMilliseconds());
             }
             ImGui::End();
         }
