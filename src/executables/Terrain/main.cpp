@@ -273,6 +273,7 @@ int main()
         VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
         {SHADERS_PATH "/General/simpleTexture.vert", SHADERS_PATH "/General/simpleTexture.frag"}};
 
+    bool applyFog = true;
     FogEffect fogEffect(WIDTH, HEIGHT);
 
     //----------------------- RENDERLOOP
@@ -334,14 +335,16 @@ int main()
         // Post Processing
         {
             // fog
-            const auto& hdrColorWithFogTex =
-                fogEffect.execute(internalFBO.getColorTextures()[0], *internalFBO.getDepthTexture());
+            const auto& hdrColorTex =
+                applyFog
+                    ? fogEffect.execute(internalFBO.getColorTextures()[0], *internalFBO.getDepthTexture())
+                    : internalFBO.getColorTextures()[0];
 
             // color management
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             // glViewport()?
             // overwriting full screen anyways, dont need to clear
-            glBindTextureUnit(0, hdrColorWithFogTex.getTextureID());
+            glBindTextureUnit(0, hdrColorTex.getTextureID());
             postProcessShader.useProgram();
             fullScreenTri.draw();
         }
@@ -360,7 +363,8 @@ int main()
             if(ImGui::CollapsingHeader("Fog##settings"))
             {
                 ImGui::Indent(5.0f);
-                if(ImGui::CollapsingHeader("BasicFog##settings"))
+                ImGui::Checkbox("Apply fog", &applyFog);
+                if(applyFog)
                 {
                     fogEffect.drawUI();
                 }
