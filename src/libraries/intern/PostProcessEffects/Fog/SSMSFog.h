@@ -8,6 +8,10 @@
     Port of:
       https://github.com/OCASM/SSMS
     with adjustments
+      Driving fog with exponential height fog
+      Using just a single mip chain
+      Splitting radiance into scattered and non scattered amount as in
+        https://elek.pub/projects/CGA2013/Elek2013.pdf
 */
 class SSMSFogEffect
 {
@@ -24,7 +28,7 @@ class SSMSFogEffect
 
     [[nodiscard]] inline const Texture& getResultColor() const
     {
-        return upsampleTextures[0];
+        return textures[0];
     }
 
     struct Settings
@@ -52,12 +56,10 @@ class SSMSFogEffect
     Texture directLight;
     Texture blurWeight;
     Framebuffer initialFogFramebuffer;
-    std::vector<Texture> downsampleTextures;
-    std::vector<Texture> upsampleTextures;
+    std::vector<Texture> textures;
     // todo: port to compute, so that switching framebuffers isnt needed?
     //  could then also use shared memory to optimize the convolutions
-    std::vector<Framebuffer> downsampleFramebuffers;
-    std::vector<Framebuffer> upsampleFramebuffers;
+    std::vector<Framebuffer> framebuffers;
 
     ShaderProgram initialFogShader;
     ShaderProgram downsample0to1Shader;

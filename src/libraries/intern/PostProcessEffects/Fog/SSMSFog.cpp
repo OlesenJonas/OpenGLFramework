@@ -46,46 +46,31 @@ SSMSFogEffect::SSMSFogEffect(int width, int height, uint8_t levels)
           VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
           {SHADERS_PATH "/General/screenQuad.vert", SHADERS_PATH "/Fog/SSMSupsampleAndCombine.frag"}}
 {
-    upsampleTextures.reserve(levels);
-    downsampleTextures.reserve(levels);
-    downsampleFramebuffers.reserve(levels);
-    upsampleFramebuffers.reserve(levels);
+    textures.reserve(levels);
+    framebuffers.reserve(levels);
 
     int currentWidth = width;
     int currentHeight = height;
     for(uint8_t i = 0; i < levels; i++)
     {
-        const auto& currentDownsampleTex = downsampleTextures.emplace_back(TextureDesc{
-            .name = ("Downsample tex level " + std::to_string(i)).c_str(),
+        const auto& currentTex = textures.emplace_back(TextureDesc{
+            .name = ("Mip chain level " + std::to_string(i)).c_str(),
             .levels = 1,
             .width = currentWidth,
             .height = currentHeight,
             .internalFormat = GL_RGBA16F,
             .wrapS = GL_CLAMP_TO_EDGE,
             .wrapT = GL_CLAMP_TO_EDGE});
-        const auto& currentUpsampleTex = upsampleTextures.emplace_back(TextureDesc{
-            .name = ("Upsample tex level " + std::to_string(i)).c_str(),
-            .levels = 1,
-            .width = currentWidth,
-            .height = currentHeight,
-            .internalFormat = GL_RGBA16F,
-            .wrapS = GL_CLAMP_TO_EDGE,
-            .wrapT = GL_CLAMP_TO_EDGE});
-        downsampleFramebuffers.emplace_back(
+        framebuffers.emplace_back(
             currentWidth,
             currentHeight,
-            std::initializer_list<std::pair<const GLTexture&, int>>{{currentDownsampleTex, 0}},
-            false);
-        upsampleFramebuffers.emplace_back(
-            currentWidth,
-            currentHeight,
-            std::initializer_list<std::pair<const GLTexture&, int>>{{currentUpsampleTex, 0}},
+            std::initializer_list<std::pair<const GLTexture&, int>>{{currentTex, 0}},
             false);
         currentWidth /= 2;
         currentHeight /= 2;
     }
     initialFogFramebuffer =
-        Framebuffer{width, height, {{directLight, 0}, {downsampleTextures[0], 0}, {blurWeight, 0}}, false};
+        Framebuffer{width, height, {{directLight, 0}, {textures[0], 0}, {blurWeight, 0}}, false};
     settings.steps = levels - 1;
     updateSettings();
 };
@@ -114,48 +99,45 @@ const Texture& SSMSFogEffect::execute(const Texture& colorInput, const Texture& 
 
     // constructing mip pyramid
     glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Downscale mip pyramid");
-    downsampleFramebuffers[1].bind();
-    glBindTextureUnit(0, downsampleTextures[0].getTextureID());
+    framebuffers[1].bind();
+    glBindTextureUnit(0, textures[0].getTextureID());
     downsample0to1Shader.useProgram();
     fullScreenTri.draw();
     for(int level = 2; level <= steps; level++)
     {
-        downsampleFramebuffers[level].bind();
-        glBindTextureUnit(0, downsampleTextures[level - 1].getTextureID());
+        framebuffers[level].bind();
+        glBindTextureUnit(0, textures[level - 1].getTextureID());
         fullScreenTri.draw();
     }
     glPopDebugGroup();
 
     // upscale and recombine
     glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Upscale and recombine mip pyramid");
-    // combining the lowest two levels first (both downsample textures)
-    upsampleShader.useProgram();
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_SRC_ALPHA);
 
-    upsampleFramebuffers[steps - 1].bind();
-    glBindTextureUnit(0, downsampleTextures[steps - 1].getTextureID());
-    glBindTextureUnit(1, downsampleTextures[steps].getTextureID());
+    upsampleShader.useProgram();
+    framebuffers[steps - 1].bind();
+    glBindTextureUnit(0, textures[steps].getTextureID());
     fullScreenTri.draw();
-    // Then merge the downscale texture of each level, with the last combined upscale texture of the level
-    // below
     for(int level = (steps - 1) - 1; level >= 1; level--)
     {
-        upsampleFramebuffers[level].bind();
-        glBindTextureUnit(0, downsampleTextures[level].getTextureID());
-        glBindTextureUnit(1, upsampleTextures[level + 1].getTextureID());
+        framebuffers[level].bind();
+        glBindTextureUnit(0, textures[level + 1].getTextureID());
         fullScreenTri.draw();
     }
+    glDisable(GL_BLEND);
     // last upsample also combines with original image
-    upsampleFramebuffers[0].bind();
+    framebuffers[0].bind();
     upsampleAndCombineShader.useProgram();
     glBindTextureUnit(0, directLight.getTextureID());
-    glBindTextureUnit(1, upsampleTextures[1].getTextureID());
+    glBindTextureUnit(1, textures[1].getTextureID());
     glBindTextureUnit(2, blurWeight.getTextureID());
     fullScreenTri.draw();
-
     glPopDebugGroup();
 
     glPopDebugGroup();
-    return upsampleTextures[0];
+    return textures[0];
 }
 
 SSMSFogEffect::Settings& SSMSFogEffect::getSettings()
