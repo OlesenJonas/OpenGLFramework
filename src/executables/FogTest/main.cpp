@@ -16,8 +16,7 @@
 #include <intern/Mesh/FullscreenTri.h>
 #include <intern/Misc/ImGuiExtensions.h>
 #include <intern/Misc/OpenGLErrorHandler.h>
-#include <intern/PostProcessEffects/Fog/BasicFog.h>
-#include <intern/PostProcessEffects/Fog/SSMSFog.h>
+#include <intern/PostProcessEffects/Fog/Fog.h>
 #include <intern/ShaderProgram/ShaderProgram.h>
 #include <intern/Terrain/CBTGPU.h>
 #include <intern/Texture/Texture.h>
@@ -176,9 +175,7 @@ int main()
         VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
         {SHADERS_PATH "/General/screenQuad.vert", SHADERS_PATH "/General/postProcess.frag"}};
 
-    BasicFogEffect basicFogEffect(WIDTH, HEIGHT);
-    SSMSFogEffect ssmsFogEffect(WIDTH, HEIGHT);
-    ssmsFogEffect.updateSettings();
+    FogEffect fogEffect(WIDTH, HEIGHT);
 
     //----------------------- RENDERLOOP
 
@@ -213,11 +210,23 @@ int main()
             glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(*cam.getProj()));
 
             // ground
-            const glm::mat4 groundTransform =
-                glm::scale(glm::vec3{200.0f, 0.1f, 200.0f}) * glm::translate(glm::vec3(0.f, -0.5f, 0.0f));
+            const float extent = 100.0f;
+            const glm::mat4 groundTransform = glm::scale(glm::vec3{2 * extent, 0.1f, 2 * extent}) *
+                                              glm::translate(glm::vec3(0.f, -0.5f, 0.0f));
             glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(groundTransform));
             glUniform3fv(3, 1, glm::value_ptr(glm::vec3{1.0f}));
             cube.draw();
+            glm::mat4 sideTransform = glm::translate(glm::vec3{-extent, 0.0f, 0.0f}) *
+                                      glm::scale(glm::vec3{0.1f, 10.0f, 2 * extent}) *
+                                      glm::translate(glm::vec3{-0.5f, 0.5f, 0.0f});
+            for(int i = 0; i < 4; i++)
+            {
+                sideTransform =
+                    glm::rotate(glm::radians(i * 90.0f), glm::vec3{0.f, 1.f, 0.f}) * sideTransform;
+                glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(sideTransform));
+                glUniform3fv(3, 1, glm::value_ptr(glm::vec3{1.0f}));
+                cube.draw();
+            }
 
             for(int i = 0; i < cubeTransforms.size(); i++)
             {
@@ -244,8 +253,7 @@ int main()
         {
             // fog
             const auto& hdrColorWithFogTex =
-                ssmsFogEffect.execute(internalFBO.getColorTextures()[0], *internalFBO.getDepthTexture());
-            // basicFogEffect.execute(internalFBO.getColorTextures()[0], *internalFBO.getDepthTexture());
+                fogEffect.execute(internalFBO.getColorTextures()[0], *internalFBO.getDepthTexture());
             glViewport(0, 0, WIDTH, HEIGHT);
 
             // color management
@@ -263,7 +271,7 @@ int main()
             if(ImGui::CollapsingHeader("Fog##settings"))
             {
                 ImGui::Indent(5.0f);
-                ssmsFogEffect.drawUI();
+                fogEffect.drawUI();
                 // basicFogEffect.drawUI();
                 ImGui::Indent(-5.0f);
             }

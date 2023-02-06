@@ -56,9 +56,6 @@ void BasicFogEffect::updateSettings()
         glm::value_ptr(settings.inscatteredLight));
     glUniform1f(glGetUniformLocation(shader.getProgramID(), "falloff"), settings.falloff);
     glUniform1f(glGetUniformLocation(shader.getProgramID(), "heightOffset"), settings.heightOffset);
-    glUniform1i(glGetUniformLocation(shader.getProgramID(), "doFade"), settings.doFade);
-    glUniform1f(glGetUniformLocation(shader.getProgramID(), "fadeStart"), settings.fadeStart);
-    glUniform1f(glGetUniformLocation(shader.getProgramID(), "fadeLength"), settings.fadeLength);
 }
 
 void BasicFogEffect::drawUI()
@@ -66,11 +63,6 @@ void BasicFogEffect::drawUI()
     bool changed = false;
     changed |= ImGui::DragFloat("Falloff", &settings.falloff, 0.01f, .01f, FLT_MAX);
     changed |= ImGui::DragFloat("Height offset", &settings.heightOffset, 0.05f);
-    changed |= ImGui::Checkbox("Near exclusion", &settings.doFade);
-    ImGui::BeginDisabled(!settings.doFade);
-    changed |= ImGui::DragFloat("Fade start", &settings.fadeStart, 0.1f, 0.0f, FLT_MAX);
-    changed |= ImGui::DragFloat("Fade length", &settings.fadeLength, 0.1f, 0.1f, FLT_MAX);
-    ImGui::EndDisabled();
 
     ImGui::Separator();
 

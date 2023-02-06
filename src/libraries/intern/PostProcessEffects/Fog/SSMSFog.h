@@ -5,10 +5,13 @@
 #include <intern/ShaderProgram/ShaderProgram.h>
 
 /*
-
     Port of:
       https://github.com/OCASM/SSMS
-    With different fog factor calculations
+    with adjustments
+      Driving fog with exponential height fog
+      Using just a single mip chain
+      Splitting radiance into scattered and non scattered amount as in
+        https://elek.pub/projects/CGA2013/Elek2013.pdf
 */
 class SSMSFogEffect
 {
@@ -25,47 +28,40 @@ class SSMSFogEffect
 
     [[nodiscard]] inline const Texture& getResultColor() const
     {
-        assert(false);
+        return textures[0];
     }
 
     struct Settings
     {
-        glm::vec4 absorptionCoefficient{0.25f, 0.25f, 0.25f, 0.0f};
+        glm::vec4 absorptionCoefficient{0.25f, 0.25f, 0.25f, 0.1f};
         glm::vec4 scatteringCoefficient{0.25f, 0.5f, 1.0f, 0.5f};
         glm::vec4 inscatteredLight{0.9f, 0.9f, 1.0f, 1.0f};
         float falloff = 0.325f;
         float heightOffset = 0.0f;
 
-        bool doFade = true;
-        float fadeStart = 1.0f;
-        float fadeLength = 1.0f;
-
         // SSMS parameters
         glm::vec3 blurTint{1.0f};
-        float radius = 7.0f;     //[1,7]
-        float blurWeight = 1.0f; //[0,100]
+        float steps = 2.0f;
+        float blurWeight = 1.0f;
         float intensity = 1.0f;
+        bool approxInscatterTransmittance = false;
     } settings;
 
   private:
     int width = 0;
     int height = 0;
     uint8_t levels = 0;
-    float radiusAdjustedLogH = 0.0f;
 
     // a bit overkill with the resources allocated here, but effect is just for comparison anyways
-    Texture initialSceneColorWithFog;
-    Texture invTransmittanceTexture;
+    Texture directLight;
+    Texture blurWeight;
     Framebuffer initialFogFramebuffer;
-    std::vector<Texture> downsampleTextures;
-    std::vector<Texture> upsampleTextures;
+    std::vector<Texture> textures;
     // todo: port to compute, so that switching framebuffers isnt needed?
     //  could then also use shared memory to optimize the convolutions
-    std::vector<Framebuffer> downsampleFramebuffers;
-    std::vector<Framebuffer> upsampleFramebuffers;
+    std::vector<Framebuffer> framebuffers;
 
     ShaderProgram initialFogShader;
-    ShaderProgram prefilterShader;
     ShaderProgram downsample0to1Shader;
     ShaderProgram downsampleShader;
     ShaderProgram upsampleShader;

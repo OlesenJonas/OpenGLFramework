@@ -25,15 +25,11 @@ class BasicFogEffect
 
     struct Settings
     {
-        glm::vec4 absorptionCoefficient{0.25f, 0.25f, 0.25f, 0.0f};
+        glm::vec4 absorptionCoefficient{0.25f, 0.25f, 0.25f, 0.1f};
         glm::vec4 scatteringCoefficient{0.25f, 0.5f, 1.0f, 0.5f};
         glm::vec4 inscatteredLight{0.9f, 0.9f, 1.0f, 1.0f};
         float falloff = 0.325f;
         float heightOffset = 0.0f;
-
-        bool doFade = true;
-        float fadeStart = 1.0f;
-        float fadeLength = 1.0f;
     } settings;
 
   private:
