@@ -242,7 +242,7 @@ int main()
                 1024,
                 1024,
                 1,
-                GL_RED,
+                GL_RGB,
                 GL_UNSIGNED_BYTE,
                 tempDiffuseData.data.get());
         }

@@ -61,7 +61,7 @@ void main() {
 
     float totalWeight = 0;
     vec3 preFilteredColor = vec3(0,0,0);
-    const float exposure = 2.0f;
+    const float exposure = 1.0f;
 
     uint SampleCount = 256;
     for(uint i = 0; i < SampleCount; ++i)

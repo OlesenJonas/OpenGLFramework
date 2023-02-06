@@ -85,7 +85,7 @@ void directIllumination(in mat4 view, in vec3 V, in vec3 P, in vec3 N, in vec3 l
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------------------
-void imageBasedLighting(in mat4 view, in vec3 V, in vec3 N, in vec3 wN, in float reflectance, inout vec3 diffuse, inout vec3 specular, in float roughness)
+void imageBasedLighting(in mat4 view, in vec3 V, in vec3 N, in vec3 wN, in vec3 reflectance, inout vec3 diffuse, inout vec3 specular, in float roughness)
 {
 	const float NdotV = saturate(dot(N, V));
 

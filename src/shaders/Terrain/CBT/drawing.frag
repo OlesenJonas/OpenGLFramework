@@ -127,8 +127,12 @@ void main()
 	const vec3 P = viewPos.xyz;
 	const vec3 V = normalize(-P);
 	const vec3 viewNormal = normalize(viewMatrix * vec4(worldNormal, 0)).xyz;
-	directIllumination(viewMatrix, V, P, viewNormal, LightColor.xyz, LightDirection, diffuse, roughness, diff, spec);
-	imageBasedLighting(viewMatrix, V, viewNormal, materialNormal, 1.0f - roughness, diff, spec, roughness);
+
+	vec3 baseColor = diffuse;
+	const vec3 reflect = mix(vec3(0.04f, 0.04f, 0.04f), baseColor.xyz, 0.0f);
+
+	directIllumination(viewMatrix, V, P, viewNormal, LightColor.xyz, LightDirection, baseColor, roughness, diff, spec);
+	imageBasedLighting(viewMatrix, V, viewNormal, materialNormal, reflect, diff, spec, roughness);
 
 	const vec3 col = diff + spec;
     fragmentColor = vec4(col, 1);

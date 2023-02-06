@@ -48,12 +48,12 @@ void main()
 	//TEST
 	//attributes.x = 0.8f;
 
-	const float reflectance = 1 - attributes.x;
-
-	const vec3 baseColor = texture(albedoMap, Input.TexCoord).xyz * MaterialColor.xyz;
+	vec3 baseColor = texture(albedoMap, Input.TexCoord).xyz * MaterialColor.xyz;
+	const vec3 reflect = mix(vec3(0.04f, 0.04f, 0.04f), baseColor.xyz, attributes.y);
+	baseColor *= vec3(1,1,1) - attributes.yyy;
 
 	directIllumination(viewMatrix, V, P, normal, LightColor.xyz, LightDirection, baseColor, attributes.x, diffuse, specular);
-	imageBasedLighting(viewMatrix, V, normal, worldNormal, reflectance, diffuse, specular, attributes.x);
+	imageBasedLighting(viewMatrix, V, normal, worldNormal, reflect, diffuse, specular, attributes.x);
 
 	const vec3 color = diffuse + specular;
     fragmentColor = vec4(color.xyz, 1);
