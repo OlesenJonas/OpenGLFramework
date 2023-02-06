@@ -182,7 +182,7 @@ void SSMSFogEffect::updateSettings()
 
     upsampleAndCombineShader.useProgram();
     glUniform1f(0, 1.0f + fracSteps);
-    glUniform1f(1, 1.0f);
+    glUniform1f(1, settings.steps);
     glUniform1f(2, settings.intensity);
 }
 

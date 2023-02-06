@@ -6,7 +6,7 @@ layout (binding = 0) uniform sampler2D fullSizeTex;
 layout (binding = 1) uniform sampler2D halfSizeUpsampledTex;
 
 layout (location = 0) uniform float sampleScale;
-layout (location = 1) uniform float radius;
+layout (location = 1) uniform float steps;
 layout (location = 2) uniform float intensity;
 
 out vec4 fragOut;
@@ -35,5 +35,5 @@ void main()
 
     vec3 blur = s * (1.0 / 16);
 
-    fragOut.rgb = base + intensity * blur * (1 / radius);
+    fragOut.rgb = base + intensity * blur * (1 / steps);
 }
