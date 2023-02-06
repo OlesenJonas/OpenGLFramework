@@ -24,7 +24,8 @@ vec3 worldPositionFromDepth(vec2 texCoord, float depthBufferDepth)
     return(posWorldSpace.xyz / posWorldSpace.w);
 }
 
-out vec4 fragmentColor;
+layout (location = 0) out vec4 sceneColorWithFog;
+layout (location = 1) out vec4 invTransmittance;
 
 void main()
 {    
@@ -126,13 +127,11 @@ void main()
     // Light the camera receives from all the points between pixel and camera (with uniform inscattering)
     const vec3 l_i = inscatteredLight.rgb*inscatteredLight.w;
     const vec3 albedo = sigmaS/sigmaT;
-    vec3 inScatterIntegral = l_i*albedo - transmittance*l_i*albedo;
+    vec3 inScatterIntegral = (1.0-transmittance)*l_i*albedo;
 
     //add integral
     pixelColor += inScatterIntegral;
 
-    fragmentColor = vec4(pixelColor,1.0);
-
-    // fragmentColor.rgb = fract(pixelPosWorldSpace);
-    // fragmentColor.a = 1.0;
+    sceneColorWithFog = vec4(pixelColor,1.0);
+    invTransmittance.rgb = (1.0 - transmittance);
 }

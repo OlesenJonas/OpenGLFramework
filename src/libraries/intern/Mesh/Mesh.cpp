@@ -79,5 +79,4 @@ void Mesh::draw() const
 {
     glBindVertexArray(vaoHandle);
     glDrawElements(GL_TRIANGLES, indexCount, indexType, nullptr);
-    glBindVertexArray(0);
 }

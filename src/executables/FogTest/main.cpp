@@ -17,11 +17,11 @@
 #include <intern/Misc/ImGuiExtensions.h>
 #include <intern/Misc/OpenGLErrorHandler.h>
 #include <intern/PostProcessEffects/Fog/BasicFog.h>
+#include <intern/PostProcessEffects/Fog/SSMSFog.h>
 #include <intern/ShaderProgram/ShaderProgram.h>
 #include <intern/Terrain/CBTGPU.h>
 #include <intern/Texture/Texture.h>
 #include <intern/Window/Window.h>
-#include <stdlib.h>
 
 int main()
 {
@@ -177,8 +177,8 @@ int main()
         {SHADERS_PATH "/General/screenQuad.vert", SHADERS_PATH "/General/postProcess.frag"}};
 
     BasicFogEffect basicFogEffect(WIDTH, HEIGHT);
-    basicFogEffect.getSettings().extinctionCoefficient.w = 0.0f;
-    basicFogEffect.updateSettings();
+    SSMSFogEffect ssmsFogEffect(WIDTH, HEIGHT);
+    ssmsFogEffect.updateSettings();
 
     //----------------------- RENDERLOOP
 
@@ -205,6 +205,7 @@ int main()
         glEnable(GL_DEPTH_TEST);
 
         // draw scene
+        glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Scene Rendering");
         {
             prototypeGridShader.useProgram();
             glBindTextureUnit(0, borderTexture.getTextureID());
@@ -236,17 +237,19 @@ int main()
                 geosphere.draw();
             }
         }
+        glPopDebugGroup();
 
         glDisable(GL_DEPTH_TEST);
         // Post Processing
         {
             // fog
             const auto& hdrColorWithFogTex =
-                basicFogEffect.execute(internalFBO.getColorTextures()[0], *internalFBO.getDepthTexture());
+                ssmsFogEffect.execute(internalFBO.getColorTextures()[0], *internalFBO.getDepthTexture());
+            // basicFogEffect.execute(internalFBO.getColorTextures()[0], *internalFBO.getDepthTexture());
+            glViewport(0, 0, WIDTH, HEIGHT);
 
             // color management
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            // glViewport()?
             // overwriting full screen anyways, dont need to clear
             glBindTextureUnit(0, hdrColorWithFogTex.getTextureID());
             postProcessShader.useProgram();
@@ -260,10 +263,8 @@ int main()
             if(ImGui::CollapsingHeader("Fog##settings"))
             {
                 ImGui::Indent(5.0f);
-                if(ImGui::CollapsingHeader("BasicFog##settings"))
-                {
-                    basicFogEffect.drawUI();
-                }
+                ssmsFogEffect.drawUI();
+                // basicFogEffect.drawUI();
                 ImGui::Indent(-5.0f);
             }
             if(ImGui::CollapsingHeader("Camera##settings", ImGuiTreeNodeFlags_DefaultOpen))
