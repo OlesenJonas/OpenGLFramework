@@ -213,11 +213,23 @@ int main()
             glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(*cam.getProj()));
 
             // ground
-            const glm::mat4 groundTransform =
-                glm::scale(glm::vec3{200.0f, 0.1f, 200.0f}) * glm::translate(glm::vec3(0.f, -0.5f, 0.0f));
+            const float extent = 100.0f;
+            const glm::mat4 groundTransform = glm::scale(glm::vec3{2 * extent, 0.1f, 2 * extent}) *
+                                              glm::translate(glm::vec3(0.f, -0.5f, 0.0f));
             glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(groundTransform));
             glUniform3fv(3, 1, glm::value_ptr(glm::vec3{1.0f}));
             cube.draw();
+            glm::mat4 sideTransform = glm::translate(glm::vec3{-extent, 0.0f, 0.0f}) *
+                                      glm::scale(glm::vec3{0.1f, 10.0f, 2 * extent}) *
+                                      glm::translate(glm::vec3{-0.5f, 0.5f, 0.0f});
+            for(int i = 0; i < 4; i++)
+            {
+                sideTransform =
+                    glm::rotate(glm::radians(i * 90.0f), glm::vec3{0.f, 1.f, 0.f}) * sideTransform;
+                glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(sideTransform));
+                glUniform3fv(3, 1, glm::value_ptr(glm::vec3{1.0f}));
+                cube.draw();
+            }
 
             for(int i = 0; i < cubeTransforms.size(); i++)
             {

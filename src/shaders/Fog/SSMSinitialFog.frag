@@ -38,6 +38,17 @@ void main()
     const vec3 startPos = cameraPosWS;
     const float origin = startPos.y + heightOffset;
 
+    //since theres no light occlusion thats taken into account
+    //looking downwards results into the fog without hitting a surface
+    //results in a very large amount of inscattered light
+    //so just ignore pixels on the bottom hemisphere if no surface visible
+    if(pixelDepth == 1 && v.y < 0.0)
+    {
+        directLight.rgb = pixelColor;
+        scatteredLight.rgb = vec3(0.0);
+        return;
+    }
+
 
     // Light camera receives from shaded pixel
     const vec3 sigmaA = absorptionCoefficient.rgb*absorptionCoefficient.w;
@@ -46,7 +57,7 @@ void main()
     //need two integrals, one for scattered and one for absorbed light
     vec3 absorbIntegral = vec3(0);
     vec3 scatterIntegral = vec3(0);
-    if(v.y == 0) //very unlikely that its exactly 0
+    if(v.y == 0)
     {
         absorbIntegral = D * sigmaA * exp(-origin/falloff);
         scatterIntegral = D * sigmaS * exp(-origin/falloff);
@@ -70,19 +81,28 @@ void main()
     const vec3 directLightFromPixel = pixelColor * transmittanceAbsorption * transmittanceScattering;
     const vec3 scatteredLightFromPixel = pixelColor * transmittanceAbsorption * (1-transmittanceScattering);
 
-    // Light the camera receives from all the points between pixel and camera (with uniform inscattering)
     const vec3 l_i = inscatteredLight.rgb*inscatteredLight.w;
     const vec3 nonAbsorbedAndNonScatteredInscatteredLight = (1.0 - transmittanceAbsorption*transmittanceScattering) * l_i * (sigmaS/(sigmaA+sigmaS));
     //Calculate inscattered light that isnt absorbed
-    const vec3 nonAbsorbedInscatteredLight = (1.0 - transmittanceAbsorption*transmittanceScattering) * l_i * (sigmaS/sigmaA);
+    const vec3 nonAbsorbedInscatteredLight_NonZeroSigmaA = (1.0 - transmittanceAbsorption) * l_i * (sigmaS/sigmaA);
+    vec3 nonAbsorbedInscatteredLight_ZeroSigmaA;
+    if(v.y == 0)
+    {
+        nonAbsorbedInscatteredLight_ZeroSigmaA = D*l_i*sigmaS*exp(-origin/falloff);
+    }
+    else
+    {
+        const vec3 cls = falloff*l_i*sigmaS;
+        const float left = exp((-D*v.y-origin)/falloff)/v.y;
+        const float right = exp((-origin)/falloff)/v.y;
+        nonAbsorbedInscatteredLight_ZeroSigmaA = -cls*left + cls*right;
+    }
+    // vec3 nonAbsorbedInscatteredLight = mix(nonAbsorbedInscatteredLight_NonZeroSigmaA, nonAbsorbedInscatteredLight_ZeroSigmaA, equal(sigmaA, vec3(0.0)));
+    vec3 nonAbsorbedInscatteredLight = nonAbsorbedInscatteredLight_NonZeroSigmaA;
 
     const vec3 directLightFromInscattering = nonAbsorbedAndNonScatteredInscatteredLight;
     const vec3 scatteredLightFromInscattering = nonAbsorbedInscatteredLight-nonAbsorbedAndNonScatteredInscatteredLight;
-    
-    // const vec3 factor
-    //TODO: mix part of inscattering light into indirect image
 
     directLight.rgb = directLightFromPixel + directLightFromInscattering;
-
     scatteredLight.rgb = scatteredLightFromPixel*blurTint + scatteredLightFromInscattering;
 }

@@ -192,28 +192,24 @@ void SSMSFogEffect::drawUI()
 
     ImGui::Separator();
 
-    const float absorptionCoeffLimit =
-        length(settings.scatteringCoefficient * settings.scatteringCoefficient.w) == 0.0f ? .01f : 0.0f;
-    const float scatteringCoeffLimit =
-        length(settings.absorptionCoefficient * settings.absorptionCoefficient.w) == 0.0f ? .01f : 0.0f;
     if(ImGui::ColorEdit3(
            "Absorption coefficient", &settings.absorptionCoefficient.x, ImGuiColorEditFlags_Float))
     {
-        settings.absorptionCoefficient = glm::max(settings.absorptionCoefficient, absorptionCoeffLimit);
+        settings.absorptionCoefficient = glm::max(settings.absorptionCoefficient, .001f);
         changed = true;
     }
-    changed |= ImGui::DragFloat(
-        "Multiplier##absorption", &settings.absorptionCoefficient.w, 0.05f, absorptionCoeffLimit, FLT_MAX);
+    changed |=
+        ImGui::DragFloat("Multiplier##absorption", &settings.absorptionCoefficient.w, 0.05f, .001f, FLT_MAX);
 
     ImGui::Separator();
     if(ImGui::ColorEdit3(
            "Scattering coefficient", &settings.scatteringCoefficient.x, ImGuiColorEditFlags_Float))
     {
-        settings.scatteringCoefficient = glm::max(settings.scatteringCoefficient, scatteringCoeffLimit);
+        settings.scatteringCoefficient = glm::max(settings.scatteringCoefficient, .001f);
         changed = true;
     }
-    changed |= ImGui::DragFloat(
-        "Multiplier##scattering", &settings.scatteringCoefficient.w, 0.05f, scatteringCoeffLimit, FLT_MAX);
+    changed |=
+        ImGui::DragFloat("Multiplier##scattering", &settings.scatteringCoefficient.w, 0.05f, .001f, FLT_MAX);
 
     ImGui::Separator();
     changed |= ImGui::ColorEdit3(
