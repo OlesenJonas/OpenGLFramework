@@ -37,9 +37,8 @@ class SSMSFogEffect
 
         // SSMS parameters
         glm::vec3 blurTint{1.0f};
-        int steps = 1;
+        float steps = 2.0f;
         float blurWeight = 1.0f;
-        float sampleScale = 1.0f;
         float intensity = 1.0f;
     } settings;
 

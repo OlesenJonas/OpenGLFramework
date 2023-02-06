@@ -91,6 +91,8 @@ const Texture& SSMSFogEffect::execute(const Texture& colorInput, const Texture& 
     const auto& cam = *Context::globalContext->getCamera();
     const glm::mat4 invProjView = glm::inverse(*cam.getProj() * *cam.getView());
 
+    const int steps = int(settings.steps);
+
     glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Initial fog");
     initialFogFramebuffer.bind();
     glBindTextureUnit(0, colorInput.getTextureID());
@@ -107,7 +109,7 @@ const Texture& SSMSFogEffect::execute(const Texture& colorInput, const Texture& 
     glBindTextureUnit(0, downsampleTextures[0].getTextureID());
     downsample0to1Shader.useProgram();
     fullScreenTri.draw();
-    for(int level = 2; level <= settings.steps; level++)
+    for(int level = 2; level <= steps; level++)
     {
         downsampleFramebuffers[level].bind();
         glBindTextureUnit(0, downsampleTextures[level - 1].getTextureID());
@@ -120,13 +122,13 @@ const Texture& SSMSFogEffect::execute(const Texture& colorInput, const Texture& 
     // combining the lowest two levels first (both downsample textures)
     upsampleShader.useProgram();
 
-    upsampleFramebuffers[settings.steps - 1].bind();
-    glBindTextureUnit(0, downsampleTextures[settings.steps - 1].getTextureID());
-    glBindTextureUnit(1, downsampleTextures[settings.steps].getTextureID());
+    upsampleFramebuffers[steps - 1].bind();
+    glBindTextureUnit(0, downsampleTextures[steps - 1].getTextureID());
+    glBindTextureUnit(1, downsampleTextures[steps].getTextureID());
     fullScreenTri.draw();
     // Then merge the downscale texture of each level, with the last combined upscale texture of the level
     // below
-    for(int level = (settings.steps - 1) - 1; level >= 1; level--)
+    for(int level = (steps - 1) - 1; level >= 1; level--)
     {
         upsampleFramebuffers[level].bind();
         glBindTextureUnit(0, downsampleTextures[level].getTextureID());
@@ -172,15 +174,14 @@ void SSMSFogEffect::updateSettings()
         1,
         glm::value_ptr(settings.blurTint));
 
+    const float fracSteps = glm::fract(settings.steps);
+
     upsampleShader.useProgram();
-    // radiusAdjustedLogH = log2(height) + settings.radius - 8;
-    // glUniform1f(0, 0.5f + radiusAdjustedLogH - int(radiusAdjustedLogH));
-    glUniform1f(0, settings.sampleScale);
+    glUniform1f(0, 1.0f + fracSteps);
     glUniform1f(1, settings.blurWeight);
 
     upsampleAndCombineShader.useProgram();
-    // glUniform1f(0, 0.5f + radiusAdjustedLogH - int(radiusAdjustedLogH));
-    glUniform1f(0, settings.sampleScale);
+    glUniform1f(0, 1.0f + fracSteps);
     glUniform1f(1, 1.0f);
     glUniform1f(2, settings.intensity);
 }
@@ -221,11 +222,10 @@ void SSMSFogEffect::drawUI()
     // SSMS settings
     ImGui::Separator();
     ImGui::TextUnformatted("SSMS Parameters");
-    changed |= ImGui::SliderInt("Blur steps", &settings.steps, 2, levels - 1);
+    changed |= ImGui::SliderFloat("Blur steps", &settings.steps, 2, levels - 1);
     changed |= ImGui::ColorEdit3("Blur Tint", &settings.blurTint.x, ImGuiColorEditFlags_Float);
     changed |= ImGui::SliderFloat(
         "Blur weight", &settings.blurWeight, 0.0f, 100.0f, "%.3f", ImGuiSliderFlags_Logarithmic);
-    changed |= ImGui::SliderFloat("Sample scale", &settings.sampleScale, 0.0f, 3.0f);
     changed |= ImGui::SliderFloat("Intensity", &settings.intensity, 0.0f, 1.0f);
 
     if(changed)
