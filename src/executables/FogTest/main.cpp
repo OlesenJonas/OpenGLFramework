@@ -16,8 +16,7 @@
 #include <intern/Mesh/FullscreenTri.h>
 #include <intern/Misc/ImGuiExtensions.h>
 #include <intern/Misc/OpenGLErrorHandler.h>
-#include <intern/PostProcessEffects/Fog/BasicFog.h>
-#include <intern/PostProcessEffects/Fog/SSMSFog.h>
+#include <intern/PostProcessEffects/Fog/Fog.h>
 #include <intern/ShaderProgram/ShaderProgram.h>
 #include <intern/Terrain/CBTGPU.h>
 #include <intern/Texture/Texture.h>
@@ -176,9 +175,7 @@ int main()
         VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
         {SHADERS_PATH "/General/screenQuad.vert", SHADERS_PATH "/General/postProcess.frag"}};
 
-    BasicFogEffect basicFogEffect(WIDTH, HEIGHT);
-    SSMSFogEffect ssmsFogEffect(WIDTH, HEIGHT);
-    ssmsFogEffect.updateSettings();
+    FogEffect fogEffect(WIDTH, HEIGHT);
 
     //----------------------- RENDERLOOP
 
@@ -256,8 +253,7 @@ int main()
         {
             // fog
             const auto& hdrColorWithFogTex =
-                ssmsFogEffect.execute(internalFBO.getColorTextures()[0], *internalFBO.getDepthTexture());
-            // basicFogEffect.execute(internalFBO.getColorTextures()[0], *internalFBO.getDepthTexture());
+                fogEffect.execute(internalFBO.getColorTextures()[0], *internalFBO.getDepthTexture());
             glViewport(0, 0, WIDTH, HEIGHT);
 
             // color management
@@ -275,7 +271,7 @@ int main()
             if(ImGui::CollapsingHeader("Fog##settings"))
             {
                 ImGui::Indent(5.0f);
-                ssmsFogEffect.drawUI();
+                fogEffect.drawUI();
                 // basicFogEffect.drawUI();
                 ImGui::Indent(-5.0f);
             }
