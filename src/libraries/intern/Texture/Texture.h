@@ -25,6 +25,8 @@ struct TextureDesc
     GLenum dataFormat = 0xFFFFFFFF;
     GLenum dataType = 0xFFFFFFFF;
     bool generateMips = false;
+	GLint compFunc = GL_LEQUAL;
+	GLint compMode = GL_NONE;
 };
 
 class Texture : public GLTexture

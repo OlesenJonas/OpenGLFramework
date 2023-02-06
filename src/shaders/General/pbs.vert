@@ -11,6 +11,7 @@ layout (location = 2) uniform mat4 projectionMatrix;
 
 out VSOutput
 {
+	vec4 worldPos;
     vec4 ViewPos;
     vec2 TexCoord;
     vec3 Normal;
@@ -20,7 +21,8 @@ out VSOutput
 
 void main()
 {
-    Output.ViewPos  = viewMatrix * modelMatrix * position;
+	Output.worldPos	= modelMatrix * position;
+    Output.ViewPos  = viewMatrix * Output.worldPos;
     gl_Position     = projectionMatrix * Output.ViewPos;
     Output.TexCoord = textureCoord;
     Output.Normal   = (viewMatrix * modelMatrix * vec4(normal, 0)).xyz;

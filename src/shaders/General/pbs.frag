@@ -17,6 +17,7 @@ out vec4 fragmentColor;
 
 in VSOutput
 {
+	vec4 worldPos;
     vec4 ViewPos;
     vec2 TexCoord;
     vec3 Normal;
@@ -45,14 +46,13 @@ void main()
 	//normal = Input.Normal;
 	vec4 attributes = texture(attributesMap, Input.TexCoord);
 	
-	//TEST
-	//attributes.x = 0.8f;
+	//attributes.x = 0.2f;
 
 	vec3 baseColor = texture(albedoMap, Input.TexCoord).xyz * MaterialColor.xyz;
 	const vec3 reflect = mix(vec3(0.04f, 0.04f, 0.04f), baseColor.xyz, attributes.y);
 	baseColor *= vec3(1,1,1) - attributes.yyy;
 
-	directIllumination(viewMatrix, V, P, normal, LightColor.xyz, LightDirection, baseColor, attributes.x, diffuse, specular);
+	directIllumination(viewMatrix, V, P, normal, Input.worldPos.xyz, LightColor.xyz, LightDirection, baseColor, attributes.x, diffuse, specular);
 	imageBasedLighting(viewMatrix, V, normal, worldNormal, reflect, diffuse, specular, attributes.x);
 
 	const vec3 color = diffuse + specular;

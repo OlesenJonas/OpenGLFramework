@@ -7,6 +7,7 @@
 #include <intern/Scene/Entity.h>
 #include <intern/Scene/Material.h>
 #include <intern/Camera/Camera.h>
+#include <intern/Terrain/CBTGPU.h>
 
 Scene::Scene() : 
 	m_sunlight(nullptr), 
@@ -36,6 +37,10 @@ Scene::Scene() :
     m_environmentMapGenerationShader  = new ShaderProgram {
         VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
         {SHADERS_PATH "/General/environmentMap.vert", SHADERS_PATH "/General/environmentMap.frag"}};
+
+	m_shadowPass = new ShaderProgram {
+        VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
+        {SHADERS_PATH "/General/shadow.vert", SHADERS_PATH "/General/shadow.frag"}};
 
 		m_irradianceMapSize = 32;
 		m_environmentMapSize = 512;
@@ -113,7 +118,7 @@ void Scene::init()
     glBindFramebuffer(GL_FRAMEBUFFER, 0);  
 
 	m_sunlight = new Light(this);
-	m_sunlight->init();
+	m_sunlight->init(true);
 	m_sunlight->setDirectionVector(glm::vec4(0.4, 0.9f, 0.3f, 0.0f));
 	m_sunlight->setColor(Color::White);
 	m_sunlight->setIntensity(2.0f);
@@ -138,8 +143,31 @@ void Scene::bind()
     glBindTextureUnit(13, m_skyTexture->getTextureID());
 }
 
-void Scene::draw(const class Camera& camera)
+void Scene::prepass(CBTGPU& cbt)
 {
+	glCullFace(GL_FRONT);
+	m_shadowPass->useProgram();
+	if (m_sunlight && m_sunlight->castShadows())
+	{
+		m_sunlight->renderShadow();
+
+		cbt.draw(m_sunlight->getLightView(), m_sunlight->getLightProjection() * m_sunlight->getLightView());
+
+		m_shadowPass->useProgram();
+		for (const auto& entity : m_entities)
+		{
+			entity->draw();
+		}
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	}
+	glCullFace(GL_BACK);
+}
+
+void Scene::draw(const class Camera& camera, size_t viewportX, size_t viewportY)
+{
+	// Main view
+
+	glViewport(0, 0, viewportX, viewportY);
 	for (const auto& entity : m_entities)
 	{
 		// Bind shader

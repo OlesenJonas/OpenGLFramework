@@ -10,7 +10,8 @@ public:
 
     void init();
 	void bind();
-	void draw(const class Camera& camera);
+	void prepass(class CBTGPU& cbt);
+	void draw(const class Camera& camera, size_t viewportX, size_t viewportY);
 	void updateIBL();
 
 	class Entity* createEntity();
@@ -46,6 +47,7 @@ protected:
 
 	class ShaderProgram* m_irradianceGenerationShader;
 	class ShaderProgram* m_environmentMapGenerationShader;
+	class ShaderProgram* m_shadowPass;
 
 	FullscreenTri* m_tri;
 	

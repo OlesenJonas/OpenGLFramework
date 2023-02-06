@@ -131,7 +131,7 @@ void main()
 	vec3 baseColor = diffuse;
 	const vec3 reflect = mix(vec3(0.04f, 0.04f, 0.04f), baseColor.xyz, 0.0f);
 
-	directIllumination(viewMatrix, V, P, viewNormal, LightColor.xyz, LightDirection, baseColor, roughness, diff, spec);
+	directIllumination(viewMatrix, V, P, viewNormal, worldPos, LightColor.xyz, LightDirection, baseColor, roughness, diff, spec);
 	imageBasedLighting(viewMatrix, V, viewNormal, materialNormal, reflect, diff, spec, roughness);
 
 	const vec3 col = diff + spec;

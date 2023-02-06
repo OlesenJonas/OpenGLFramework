@@ -3,9 +3,11 @@ const float Pi = 3.14159265358979323846;
 uniform layout (binding = 10) samplerCube irradianceMap;
 uniform layout (binding = 11) samplerCube environmentMap;
 uniform layout (binding = 12) sampler2D brdf;
+uniform layout (binding = 13) sampler2DShadow sunShadowmap;
 
 layout (binding = 21) uniform Lightbuffer
 {
+	mat4 shadowMatrix;
     vec4 LightDirection;
     vec4 LightColor;
 	float IndirectLightExposure;
@@ -66,8 +68,37 @@ vec3 diffuseBRDF(vec3 N, vec3 L, vec3 V, float NdotL, float NdotV, float LdotV, 
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------------------
-void directIllumination(in mat4 view, in vec3 V, in vec3 P, in vec3 N, in vec3 lightColor, in vec4 lightDir, in vec3 baseColor, in float r, inout vec3 diffuse, inout vec3 specular)
+float ShadowCoverage(in const vec3 worldPos)
 {
+	vec4 lightPos = shadowMatrix * vec4(worldPos, 1);
+	vec3 projCoords = lightPos.xyz / lightPos.w;
+	projCoords = projCoords * 0.5f + 0.5f; 
+	const float offset = 1.0/4096.0f;
+
+	// Reference: https://ogldev.org/www/tutorial42/tutorial42.html
+    float sum = 0.0f;
+    for (int y = -1 ; y <= 1 ; y++) 
+	{
+        for (int x = -1 ; x <= 1 ; x++) 
+		{
+            const vec3 uvc = vec3(projCoords.xy + vec2(x * offset, y * offset), projCoords.z - 0.00001f);
+            sum += texture(sunShadowmap, uvc).x;
+        }
+    }
+	return (sum / 9.0f);
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------------------
+void directIllumination(in mat4 view, in vec3 V, in vec3 P, in vec3 N, in vec3 worldPos, in vec3 lightColor, in vec4 lightDir, in vec3 baseColor, in float r, inout vec3 diffuse, inout vec3 specular)
+{
+
+	// Shadow
+	const float shadowTerm = ShadowCoverage(worldPos);
+	if (shadowTerm <= 0)
+	{
+		return;
+	}
+
     const vec3 L = normalize(view * lightDir).xyz;
 
 	const vec3 H = normalize(L + V);
@@ -80,8 +111,8 @@ void directIllumination(in mat4 view, in vec3 V, in vec3 P, in vec3 N, in vec3 l
 	const vec3 F0 = vec3(0.1,0.1,0.1);
 	const float r2 = r * r;
 
-	diffuse += diffuseBRDF(N, L, V, NdotL, NdotV, LdotV, baseColor, r2) * c;
-	specular += specularBRDF(NdotL, NdotV, NdotH, LdotH, r2, F0) * c;
+	diffuse += diffuseBRDF(N, L, V, NdotL, NdotV, LdotV, baseColor, r2) * c * shadowTerm;
+	specular += specularBRDF(NdotL, NdotV, NdotH, LdotH, r2, F0) * c * shadowTerm;
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------------------

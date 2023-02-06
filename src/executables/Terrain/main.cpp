@@ -294,13 +294,22 @@ int main()
 
     Scene MainScene;
     MainScene.init();
+	MainScene.setSkyExposure(0.5f);
+	MainScene.sun()->setDirectionFromPolarCoord(glm::radians(45.0f), glm::radians(130.0f));
 
 	Entity* testObject = MainScene.createEntity();
     testObject->setMaterial(new Material(MISC_PATH "/YellowBrick_basecolor.tga", MISC_PATH "/YellowBrick_normal.tga", MISC_PATH "/YellowBrick_attributes.tga"));
 	testObject->setMesh(new Mesh(MISC_PATH "/Meshes/sphere.obj"));
 	testObject->setPosition(glm::vec3(0,20,10));
-	testObject->getMaterial()->setBaseColor(Color::White);
+	testObject->getMaterial()->setBaseColor(Color(1.0f, 1.0f, 0.0f));
 	testObject->getMaterial()->setNormalIntensity(0.0f);
+
+	Entity* testObject2 = MainScene.createEntity();
+    testObject2->setMaterial(new Material(MISC_PATH "/YellowBrick_basecolor.tga", MISC_PATH "/YellowBrick_normal.tga", MISC_PATH "/YellowBrick_attributes.tga"));
+	testObject2->setMesh(new Mesh(MISC_PATH "/Meshes/shadowtest.obj"));
+	testObject2->setPosition(glm::vec3(10,20,10));
+	testObject2->getMaterial()->setBaseColor(Color::White);
+	testObject2->getMaterial()->setNormalIntensity(0.0f);
 
     //----------------------- RENDERLOOP
 
@@ -322,20 +331,23 @@ int main()
 
         auto currentTime = static_cast<float>(input.getSimulationTime());
 
-        MainScene.bind();
-
-        internalFBO.bind();
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glDepthFunc(GL_LESS);
-        glEnable(GL_DEPTH_TEST);
-
-        glBindTextureUnit(0, terrainHeightmap.getTextureID());
+		glBindTextureUnit(0, terrainHeightmap.getTextureID());
         if(!cbt.getSettings().freezeUpdates)
         {
             cbt.update(*cam.getProj() * *cam.getView(), {WIDTH, HEIGHT});
         }
         cbt.doSumReduction();
         cbt.writeIndirectCommands();
+
+		MainScene.prepass(cbt);
+		MainScene.bind();
+
+        internalFBO.bind();
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glDepthFunc(GL_LESS);
+        glEnable(GL_DEPTH_TEST);
+
+        
 
         glBindTextureUnit(1, terrainNormal.getTextureID());
         glBindTextureUnit(2, terrainMaterialIDs.getTextureID());
@@ -350,8 +362,7 @@ int main()
             cbt.drawOutline(*cam.getProj() * *cam.getView());
         }
 
-		glViewport(0, 0, WIDTH, HEIGHT);
-		MainScene.draw(cam);
+		MainScene.draw(cam, WIDTH, HEIGHT);
 
         //pbsShader.useProgram();
         //glUniformMatrix4fv(
@@ -424,15 +435,16 @@ int main()
                 {
                     MainScene.sun()->setColor(Color::fromTemperature(SunTemp));
                 }
-				static float SunPitch = 90.0f;
-				static float SunYaw = 130.0f;
-				if(ImGui::SliderFloat("Direction", &SunPitch, 0.0f, 360.0f))
+
+				static float Theta = 45.0f;
+				static float Phi = 130.0f;
+				if(ImGui::SliderFloat("Theta", &Theta, -90.0f, 90.0f))
                 {
-                    MainScene.sun()->setDirection(90.0f, SunPitch, SunYaw);
+                    MainScene.sun()->setDirectionFromPolarCoord(glm::radians(Theta), glm::radians(Phi));
                 }
-				if(ImGui::SliderFloat("Height", &SunYaw, 90.0f, 270.0f))
+				if(ImGui::SliderFloat("Phi", &Phi, 0.0f, 360.0f))
                 {
-                    MainScene.sun()->setDirection(90.0f, SunPitch, SunYaw);
+                    MainScene.sun()->setDirectionFromPolarCoord(glm::radians(Theta), glm::radians(Phi));
                 }
 
 				ImGui::Indent(-10.0f);
@@ -440,13 +452,13 @@ int main()
                 ImGui::Indent(10.0f);
 
 				ImGui::TextUnformatted("Sky");
-				static float SkyExposure = 1.0f;
-				if(ImGui::SliderFloat("Indirect Light", &SkyExposure, 0.0f, 100.0f))
+				static float SkyExposure = 0.5f;
+				if(ImGui::SliderFloat("Indirect Light", &SkyExposure, 0.0f, 4.0f))
                 {
                     MainScene.setSkyExposure(SkyExposure);
                 }
 				static float SkyboxExposure = 1.0f;
-				if(ImGui::SliderFloat("Skybox Exposure", &SkyboxExposure, 0.0f, 100.0f))
+				if(ImGui::SliderFloat("Skybox Exposure", &SkyboxExposure, 0.0f, 4.0f))
                 {
                     MainScene.setSkyboxExposure(SkyboxExposure);
                 }

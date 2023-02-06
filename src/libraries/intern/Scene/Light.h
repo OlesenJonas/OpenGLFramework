@@ -10,6 +10,7 @@ struct LightBuffer
 {
 	// TODO: support more than directional light
 
+	glm::mat4 shadowMatrix;
 	glm::vec4 direction;
 	glm::vec4 color;
 	float indirectLightIntensity;
@@ -23,10 +24,11 @@ public:
 
 	void setDirectionVector(const glm::vec4& direction) { m_direction = direction; }
 
-	void setDirection(float roll, float pitch, float yaw) 
-	{ 
-		glm::mat4 mat = glm::yawPitchRoll(glm::radians(yaw), glm::radians(pitch), glm::radians(roll));
-		m_direction = glm::vec4(1,0,0,0) * mat;
+	void setDirectionFromPolarCoord(float theta, float phi)
+	{
+		glm::vec3 v = posFromPolar(theta, phi);
+		m_lightView = glm::lookAt(200.0f * v, glm::vec3(0,0,0), glm::vec3(1.f, 0.f, 0.f));
+		m_direction = glm::vec4(v, 0);
 	}
 
 	void setColor(const Color& color) { m_color = color; }
@@ -35,13 +37,29 @@ public:
 
 	glm::vec4 direction() const { return m_direction; }
 
-	void init();
+	bool castShadows() const { return m_castShadows; }
+
+	void init(bool castShadows);
 	void bind();
+
+	void renderShadow();
 	
+	glm::mat4 getLightView() const { return m_lightView; }
+
+	glm::mat4 getLightProjection() const { return m_lightProjection; }
+
 protected:
 
 	glm::vec4 m_direction;
 	float m_intensity;
 	Color m_color;
 	uint32_t m_bufferIndex;
+
+	bool m_castShadows;
+	uint32_t m_shadowMapSize;
+	class Texture* m_shadowMap;
+	unsigned int m_depthMapFBO;
+
+	glm::mat4 m_lightView;
+	glm::mat4 m_lightProjection;
 };
