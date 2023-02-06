@@ -37,8 +37,9 @@ class SSMSFogEffect
 
         // SSMS parameters
         glm::vec3 blurTint{1.0f};
-        float radius = 7.0f;     //[1,7]
-        float blurWeight = 1.0f; //[0,100]
+        int steps = 1;
+        float blurWeight = 1.0f;
+        float sampleScale = 1.0f;
         float intensity = 1.0f;
     } settings;
 
@@ -46,7 +47,6 @@ class SSMSFogEffect
     int width = 0;
     int height = 0;
     uint8_t levels = 0;
-    float radiusAdjustedLogH = 0.0f;
 
     // a bit overkill with the resources allocated here, but effect is just for comparison anyways
     Texture directLight;

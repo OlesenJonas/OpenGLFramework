@@ -13,7 +13,7 @@
 #include <intern/PostProcessEffects/Fog/BasicFog.h>
 
 SSMSFogEffect::SSMSFogEffect(int width, int height, uint8_t levels)
-    : levels(levels), radiusAdjustedLogH(levels), width(width), height(height),
+    : levels(levels), width(width), height(height),
       directLight{
           {.name = "Direct light",
            .levels = 1,
@@ -77,6 +77,7 @@ SSMSFogEffect::SSMSFogEffect(int width, int height, uint8_t levels)
         currentHeight /= 2;
     }
     initialFogFramebuffer = Framebuffer{width, height, {{directLight, 0}, {downsampleTextures[0], 0}}, false};
+    settings.steps = levels - 1;
     updateSettings();
 };
 
@@ -100,15 +101,13 @@ const Texture& SSMSFogEffect::execute(const Texture& colorInput, const Texture& 
     fullScreenTri.draw();
     glPopDebugGroup();
 
-    const int actualIterations = glm::clamp<int>(int(radiusAdjustedLogH), 2, levels);
-
     // constructing mip pyramid
     glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Downscale mip pyramid");
     downsampleFramebuffers[1].bind();
     glBindTextureUnit(0, downsampleTextures[0].getTextureID());
     downsample0to1Shader.useProgram();
     fullScreenTri.draw();
-    for(int level = 2; level < actualIterations; level++)
+    for(int level = 2; level <= settings.steps; level++)
     {
         downsampleFramebuffers[level].bind();
         glBindTextureUnit(0, downsampleTextures[level - 1].getTextureID());
@@ -121,13 +120,13 @@ const Texture& SSMSFogEffect::execute(const Texture& colorInput, const Texture& 
     // combining the lowest two levels first (both downsample textures)
     upsampleShader.useProgram();
 
-    upsampleFramebuffers[actualIterations - 2].bind();
-    glBindTextureUnit(0, downsampleTextures[actualIterations - 2].getTextureID());
-    glBindTextureUnit(1, downsampleTextures[actualIterations - 1].getTextureID());
+    upsampleFramebuffers[settings.steps - 1].bind();
+    glBindTextureUnit(0, downsampleTextures[settings.steps - 1].getTextureID());
+    glBindTextureUnit(1, downsampleTextures[settings.steps].getTextureID());
     fullScreenTri.draw();
     // Then merge the downscale texture of each level, with the last combined upscale texture of the level
     // below
-    for(int level = (actualIterations - 2) - 1; level >= 1; level--)
+    for(int level = (settings.steps - 1) - 1; level >= 1; level--)
     {
         upsampleFramebuffers[level].bind();
         glBindTextureUnit(0, downsampleTextures[level].getTextureID());
@@ -174,13 +173,15 @@ void SSMSFogEffect::updateSettings()
         glm::value_ptr(settings.blurTint));
 
     upsampleShader.useProgram();
-    radiusAdjustedLogH = log2(height) + settings.radius - 8;
-    glUniform1f(0, 0.5f + radiusAdjustedLogH - int(radiusAdjustedLogH));
+    // radiusAdjustedLogH = log2(height) + settings.radius - 8;
+    // glUniform1f(0, 0.5f + radiusAdjustedLogH - int(radiusAdjustedLogH));
+    glUniform1f(0, settings.sampleScale);
     glUniform1f(1, settings.blurWeight);
 
     upsampleAndCombineShader.useProgram();
-    glUniform1f(0, 0.5f + radiusAdjustedLogH - int(radiusAdjustedLogH));
-    glUniform1f(1, settings.radius);
+    // glUniform1f(0, 0.5f + radiusAdjustedLogH - int(radiusAdjustedLogH));
+    glUniform1f(0, settings.sampleScale);
+    glUniform1f(1, 1.0f);
     glUniform1f(2, settings.intensity);
 }
 
@@ -220,9 +221,11 @@ void SSMSFogEffect::drawUI()
     // SSMS settings
     ImGui::Separator();
     ImGui::TextUnformatted("SSMS Parameters");
+    changed |= ImGui::SliderInt("Blur steps", &settings.steps, 2, levels - 1);
     changed |= ImGui::ColorEdit3("Blur Tint", &settings.blurTint.x, ImGuiColorEditFlags_Float);
-    changed |= ImGui::SliderFloat("Blur radius", &settings.radius, 1.0f, 7.0f);
-    changed |= ImGui::SliderFloat("Blur weight", &settings.blurWeight, 0.0f, 100.0f);
+    changed |= ImGui::SliderFloat(
+        "Blur weight", &settings.blurWeight, 0.0f, 100.0f, "%.3f", ImGuiSliderFlags_Logarithmic);
+    changed |= ImGui::SliderFloat("Sample scale", &settings.sampleScale, 0.0f, 3.0f);
     changed |= ImGui::SliderFloat("Intensity", &settings.intensity, 0.0f, 1.0f);
 
     if(changed)

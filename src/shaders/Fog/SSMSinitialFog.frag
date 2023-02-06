@@ -85,19 +85,6 @@ void main()
     const vec3 nonAbsorbedAndNonScatteredInscatteredLight = (1.0 - transmittanceAbsorption*transmittanceScattering) * l_i * (sigmaS/(sigmaA+sigmaS));
     //Calculate inscattered light that isnt absorbed
     const vec3 nonAbsorbedInscatteredLight_NonZeroSigmaA = (1.0 - transmittanceAbsorption) * l_i * (sigmaS/sigmaA);
-    vec3 nonAbsorbedInscatteredLight_ZeroSigmaA;
-    if(v.y == 0)
-    {
-        nonAbsorbedInscatteredLight_ZeroSigmaA = D*l_i*sigmaS*exp(-origin/falloff);
-    }
-    else
-    {
-        const vec3 cls = falloff*l_i*sigmaS;
-        const float left = exp((-D*v.y-origin)/falloff)/v.y;
-        const float right = exp((-origin)/falloff)/v.y;
-        nonAbsorbedInscatteredLight_ZeroSigmaA = -cls*left + cls*right;
-    }
-    // vec3 nonAbsorbedInscatteredLight = mix(nonAbsorbedInscatteredLight_NonZeroSigmaA, nonAbsorbedInscatteredLight_ZeroSigmaA, equal(sigmaA, vec3(0.0)));
     vec3 nonAbsorbedInscatteredLight = nonAbsorbedInscatteredLight_NonZeroSigmaA;
 
     const vec3 directLightFromInscattering = nonAbsorbedAndNonScatteredInscatteredLight;
