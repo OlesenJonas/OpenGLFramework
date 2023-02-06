@@ -6,18 +6,6 @@ layout (binding = 0) uniform sampler2D levelAbove;
 
 out vec4 fragOut;
 
-// Brightness function
-float Brightness(vec3 c)
-{
-    return max(max(c.r, c.g), c.b);
-}
-
-// 3-tap median filter
-vec3 Median(vec3 a, vec3 b, vec3 c)
-{
-    return a + b + c - min(min(a, b), c) - max(max(a, b), c);
-}
-
 void main()
 {
     const vec2 uv = passTextureCoord;

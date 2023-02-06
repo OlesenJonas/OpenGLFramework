@@ -4,11 +4,12 @@ in vec2 passTextureCoord;
 
 layout (binding = 0) uniform sampler2D fullSizeTex;
 layout (binding = 1) uniform sampler2D halfSizeUpsampledTex;
-layout (binding = 2) uniform sampler2D invTransmittanceTex;
+layout (binding = 2) uniform sampler2D blurWeightTex;
 
 layout (location = 0) uniform float sampleScale;
-layout (location = 1) uniform float radius;
+layout (location = 1) uniform float steps;
 layout (location = 2) uniform float intensity;
+layout (location = 3) uniform bool approxInscatterTransmittance;
 
 out vec4 fragOut;
 
@@ -17,6 +18,7 @@ void main()
     const vec2 uv = passTextureCoord;
 
     vec3 base = texture(fullSizeTex, uv).rgb;
+    vec3 blurWeight = texture(blurWeightTex, uv).rgb;
 
     // 9-tap bilinear upsampler (tent filter)
     vec4 d = (1.0/textureSize(halfSizeUpsampledTex,0)).xyxy * vec4(1, 1, -1, 0) * sampleScale;
@@ -36,9 +38,6 @@ void main()
 
     vec3 blur = s * (1.0 / 16);
 
-    // SMSS
-    vec3 invTransmittance = texture(invTransmittanceTex, uv).rgb;
-    // depth = AdjustDepth(depth);
-
-    fragOut.rgb = mix(base, vec3(blur) * (1 / radius), clamp(invTransmittance ,0,intensity)) ;
+    const vec3 transmittanceFac = approxInscatterTransmittance ? blurWeight : vec3(1.0);
+    fragOut.rgb = base + (blur / steps) * intensity * transmittanceFac;
 }
