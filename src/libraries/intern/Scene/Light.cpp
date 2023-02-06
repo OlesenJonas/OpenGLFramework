@@ -1,7 +1,8 @@
 #include "Light.h"
 #include <glad/glad/glad.h>
+#include <intern/Scene/Scene.h>
 
-Light::Light() : m_direction(0.0f, -1.0f, 0.0f, 0.0f), m_intensity(1.0f), m_color(Color::White), m_bufferIndex(-1)
+Light::Light(Scene* scene) : Entity(scene), m_direction(0.0f, -1.0f, 0.0f, 0.0f), m_intensity(1.0f), m_color(Color::White), m_bufferIndex(-1)
 {
 }
 
@@ -20,7 +21,7 @@ void Light::init()
 void Light::bind()
 {
 
-	LightBuffer buffer { glm::normalize(m_direction), glm::vec4(m_color.r * m_intensity, m_color.g * m_intensity, m_color.b * m_intensity, 1.0f)};
+	LightBuffer buffer { glm::normalize(m_direction), glm::vec4(m_color.r * m_intensity, m_color.g * m_intensity, m_color.b * m_intensity, 1.0f), m_scene->skyExposure() };
 
 	glBindBuffer(GL_UNIFORM_BUFFER, m_bufferIndex);
 	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(LightBuffer), &buffer); 

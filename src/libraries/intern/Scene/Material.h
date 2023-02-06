@@ -30,6 +30,8 @@ public:
 
 	void setBaseColor(const Color& color) { m_baseColor = color; }
 
+	void setNormalIntensity(float intensity) { m_normalIntensity = intensity; }
+
 	void bind(MaterialChannel materialChannel = MaterialChannel_1);
 
 	class ShaderProgram* getCustomShader() const { return m_shader; }

@@ -25,12 +25,6 @@ layout(std430, binding = 3) buffer textureInfoBuffer
     float textureScales[];
 };
 
-layout (binding = 21) uniform Lightbuffer
-{
-    vec4 LightDirection;
-    vec4 LightColor;
-};  
-
 // UE4's RandFast function
 // https://github.com/EpicGames/UnrealEngine/blob/release/Engine/Shaders/Private/Random.ush
 //  from: https://www.shadertoy.com/view/XlGcRh
@@ -134,7 +128,7 @@ void main()
 	const vec3 V = normalize(-P);
 	const vec3 viewNormal = normalize(viewMatrix * vec4(worldNormal, 0)).xyz;
 	directIllumination(viewMatrix, V, P, viewNormal, LightColor.xyz, LightDirection, diffuse, roughness, diff, spec);
-	imageBasedLighting(viewMatrix, V, viewNormal, 1.0f - roughness, spec, roughness);
+	imageBasedLighting(viewMatrix, V, viewNormal, materialNormal, 1.0f - roughness, diff, spec, roughness);
 
 	const vec3 col = diff + spec;
     fragmentColor = vec4(col, 1);

@@ -180,7 +180,7 @@ glm::mat4* Camera::getMatricesPointer()
     return &matrices[0];
 }
 
-glm::mat4 Camera::getSkyProj()
+glm::mat4 Camera::getSkyProj() const
 {
     glm::mat4 view = matrices[0];
     view[3] = glm::vec4(0, 0, 0, 1);

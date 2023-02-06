@@ -7,12 +7,6 @@ uniform layout (binding = 3) sampler2D attributesMap;
 
 layout (location = 1) uniform mat4 viewMatrix;
 
-layout (binding = 21) uniform Lightbuffer
-{
-    vec4 LightDirection;
-    vec4 LightColor;
-};  
-
 layout (binding = 22) uniform Materialbuffer
 {
     vec4 MaterialColor;
@@ -46,20 +40,20 @@ void main()
 	//normal.y = 1 - normal.y;
 	//normal = vec3(0.5, 0.5, 1.0);
     normal = normalize(mix(vec3(0,0,1), normal * 2.0 - 1.0, NormalIntensity));  
-    normal = Input.TangentFrame * normal;
-	normal = (viewMatrix * vec4(normal, 0)).xyz;
+    vec3 worldNormal = Input.TangentFrame * normal;
+	normal = (viewMatrix * vec4(worldNormal, 0)).xyz;
 	//normal = Input.Normal;
 	vec4 attributes = texture(attributesMap, Input.TexCoord);
 	
 	//TEST
-	//attributes.x = 0.0f;
+	//attributes.x = 0.8f;
 
 	const float reflectance = 1 - attributes.x;
 
 	const vec3 baseColor = texture(albedoMap, Input.TexCoord).xyz * MaterialColor.xyz;
 
 	directIllumination(viewMatrix, V, P, normal, LightColor.xyz, LightDirection, baseColor, attributes.x, diffuse, specular);
-	imageBasedLighting(viewMatrix, V, normal, reflectance, specular, attributes.x);
+	imageBasedLighting(viewMatrix, V, normal, worldNormal, reflectance, diffuse, specular, attributes.x);
 
 	const vec3 color = diffuse + specular;
     fragmentColor = vec4(color.xyz, 1);

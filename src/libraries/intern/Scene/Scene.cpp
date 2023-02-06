@@ -8,11 +8,37 @@
 #include <intern/Scene/Material.h>
 #include <intern/Camera/Camera.h>
 
-Scene::Scene() : m_sunlight(nullptr), m_skyRotation(0.0f), m_skyExposure(1.0f), m_skyTexture(nullptr), m_irradianceMap(nullptr), m_environmentMap(nullptr), m_BRDFIntegral(nullptr), m_activeShader(nullptr)
+Scene::Scene() : 
+	m_sunlight(nullptr), 
+	m_skyRotation(0.0f), 
+	m_skyExposure(1.0f), 
+	m_skyboxExposure(1.0f), 
+	m_skyTexture(nullptr), 
+	m_irradianceMap(nullptr), 
+	m_environmentMap(nullptr), 
+	m_BRDFIntegral(nullptr), 
+	m_activeShader(nullptr)
 {
-	m_defaultShader = new ShaderProgram{
+	m_defaultShader = new ShaderProgram {
         VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
         {SHADERS_PATH "/General/pbs.vert", SHADERS_PATH "/General/pbs.frag"}};
+
+	m_skyShader = new ShaderProgram {
+        VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
+        {SHADERS_PATH "/General/sky.vert", SHADERS_PATH "/General/sky.frag"}};
+
+	m_tri = new FullscreenTri();
+
+	m_irradianceGenerationShader  = new ShaderProgram {
+        VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
+        {SHADERS_PATH "/General/irradianceMap.vert", SHADERS_PATH "/General/irradianceMap.frag"}};
+
+    m_environmentMapGenerationShader  = new ShaderProgram {
+        VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
+        {SHADERS_PATH "/General/environmentMap.vert", SHADERS_PATH "/General/environmentMap.frag"}};
+
+		m_irradianceMapSize = 32;
+		m_environmentMapSize = 512;
 }
 
 Scene::~Scene()
@@ -34,37 +60,40 @@ Scene::~Scene()
 	m_irradianceMap = nullptr;
 	m_environmentMap = nullptr;
 	m_BRDFIntegral = nullptr;
+
+	delete m_defaultShader;
+	delete m_skyShader;
+	delete m_irradianceGenerationShader;
+	delete m_environmentMapGenerationShader;
+
+	m_activeShader = nullptr;
+	m_defaultShader = nullptr;
+	m_skyShader = nullptr;
+	m_irradianceGenerationShader = nullptr;
+	m_environmentMapGenerationShader = nullptr;
+
+	delete m_tri;
+	m_tri = nullptr;
 }
 
 void Scene::init()
 {
-	const size_t irradianceMapSize = 32;
-    const size_t environmentMapSize = 512;
     const size_t brdfIntegralSize = 512;
 
     m_skyTexture = new TextureCube(MISC_PATH "/HDRPanorama.jpg");
-    FullscreenTri tri = FullscreenTri();
 
     unsigned int captureFBO;
     unsigned int captureRBO;
     glGenFramebuffers(1, &captureFBO);
     glGenRenderbuffers(1, &captureRBO);
 
-    m_irradianceMap = new TextureCube(irradianceMapSize);
-    m_environmentMap = new TextureCube(environmentMapSize);
+    m_irradianceMap = new TextureCube(m_irradianceMapSize);
+    m_environmentMap = new TextureCube(m_environmentMapSize);
     m_BRDFIntegral = new Texture(TextureDesc{.width = brdfIntegralSize, .height = brdfIntegralSize, .internalFormat = GL_RGB16F});
 
     glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
     glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, irradianceMapSize, irradianceMapSize);
-
-    ShaderProgram irradianceGenerationShader{
-        VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
-        {SHADERS_PATH "/General/irradianceMap.vert", SHADERS_PATH "/General/irradianceMap.frag"}};
-
-    ShaderProgram EnvironmentMapGenerationShader{
-        VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
-        {SHADERS_PATH "/General/environmentMap.vert", SHADERS_PATH "/General/environmentMap.frag"}};
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, m_irradianceMapSize, m_irradianceMapSize);
 
     ShaderProgram BRDFIntegralGenerationShader{
         VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
@@ -80,63 +109,16 @@ void Scene::init()
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_BRDFIntegral->getTextureID(), 0);
     glViewport(0, 0, brdfIntegralSize, brdfIntegralSize);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    tri.draw();
+    m_tri->draw();
     glBindFramebuffer(GL_FRAMEBUFFER, 0);  
 
-    // Irradiance Map
-
-    irradianceGenerationShader.useProgram();
-    glBindTextureUnit(4, m_skyTexture->getTextureID());
-    glViewport(0, 0, irradianceMapSize, irradianceMapSize);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
-    for(unsigned int i = 0; i < 6; ++i)
-    {
-        glUniform1i(3, i);
-        glFramebufferTexture2D(
-            GL_FRAMEBUFFER,
-            GL_COLOR_ATTACHMENT0,
-            GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-            m_irradianceMap->getTextureID(),
-            0);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        tri.draw();
-    }
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    // Environment Map
-
-    EnvironmentMapGenerationShader.useProgram();
-    glUniform1i(3, 0);
-    glBindTextureUnit(4, m_skyTexture->getTextureID());
-
-    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
-    uint32_t maxMipLevels = 8;
-    for(uint32_t mip = 0; mip < maxMipLevels; ++mip)
-    {
-        uint32_t mipSize = environmentMapSize * std::pow(0.5, mip);
-        glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, mipSize, mipSize);
-        glViewport(0, 0, mipSize, mipSize);
-
-        const float roughness = (float)mip / (float)(maxMipLevels - 1);
-        glUniform1f(5, roughness);
-        for(uint32_t i = 0; i < 6; ++i)
-        {
-            glUniform1i(3, i);
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, m_environmentMap->getTextureID(), mip);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            tri.draw();
-        }
-    }
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	m_sunlight = new Light();
+	m_sunlight = new Light(this);
 	m_sunlight->init();
-	m_sunlight->setDirection(glm::vec4(0.4, 0.9f, 0.3f, 0.0f));
+	m_sunlight->setDirectionVector(glm::vec4(0.4, 0.9f, 0.3f, 0.0f));
 	m_sunlight->setColor(Color::White);
 	m_sunlight->setIntensity(2.0f);
+
+	updateIBL();
 }
 
 void Scene::bind()
@@ -178,6 +160,78 @@ void Scene::draw(const class Camera& camera)
 
 		entity->draw();
 	}
+
+	/*		Sky		*/
+
+    {
+        m_skyShader->useProgram();
+        glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(camera.getSkyProj()));
+        glUniform1f(4, m_skyboxExposure);
+        glDepthFunc(GL_EQUAL);
+        m_tri->draw();
+    }
+}
+
+void Scene::updateIBL()
+{
+	if (!m_skyTexture)
+	{
+		return;
+	}
+
+	unsigned int captureFBO;
+    unsigned int captureRBO;
+    glGenFramebuffers(1, &captureFBO);
+    glGenRenderbuffers(1, &captureRBO);
+	
+	// Irradiance Map
+
+    m_irradianceGenerationShader->useProgram();
+    glBindTextureUnit(4, m_skyTexture->getTextureID());
+    glViewport(0, 0, m_irradianceMapSize, m_irradianceMapSize);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+    for(unsigned int i = 0; i < 6; ++i)
+    {
+        glUniform1i(3, i);
+        glFramebufferTexture2D(
+            GL_FRAMEBUFFER,
+            GL_COLOR_ATTACHMENT0,
+            GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+            m_irradianceMap->getTextureID(),
+            0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        m_tri->draw();
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // Environment Map
+
+    m_environmentMapGenerationShader->useProgram();
+    glUniform1i(3, 0);
+    glBindTextureUnit(4, m_skyTexture->getTextureID());
+
+    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+    uint32_t maxMipLevels = 8;
+    for(uint32_t mip = 0; mip < maxMipLevels; ++mip)
+    {
+        uint32_t mipSize = m_environmentMapSize * std::pow(0.5, mip);
+        glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, mipSize, mipSize);
+        glViewport(0, 0, mipSize, mipSize);
+
+        const float roughness = (float)mip / (float)(maxMipLevels - 1);
+        glUniform1f(5, roughness);
+        for(uint32_t i = 0; i < 6; ++i)
+        {
+            glUniform1i(3, i);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, m_environmentMap->getTextureID(), mip);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            m_tri->draw();
+        }
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 Entity* Scene::createEntity()

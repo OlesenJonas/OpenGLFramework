@@ -26,6 +26,7 @@
 #include <intern/Texture/TextureCube.h>
 #include <intern/Window/Window.h>
 #include <intern/Scene/Material.h>
+#include <intern/Scene/Light.h>
 
 int main()
 {
@@ -283,9 +284,6 @@ int main()
 
     BasicFogEffect basicFogEffect(WIDTH, HEIGHT);
 
-    ShaderProgram skyShader{
-        VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
-        {SHADERS_PATH "/General/sky.vert", SHADERS_PATH "/General/sky.frag"}};
     FullscreenTri tri = FullscreenTri();
 
     Texture tAlbedo(MISC_PATH "/YellowBrick_basecolor.tga", false, true);
@@ -299,9 +297,10 @@ int main()
 
 	Entity* testObject = MainScene.createEntity();
     testObject->setMaterial(new Material(MISC_PATH "/YellowBrick_basecolor.tga", MISC_PATH "/YellowBrick_normal.tga", MISC_PATH "/YellowBrick_attributes.tga"));
-	testObject->setMesh(new Mesh(MISC_PATH "/Meshes/testcube.obj"));
-	testObject->setPosition(glm::vec3(0,30,10));
-	testObject->getMaterial()->setBaseColor(Color::Green);
+	testObject->setMesh(new Mesh(MISC_PATH "/Meshes/sphere.obj"));
+	testObject->setPosition(glm::vec3(0,20,10));
+	testObject->getMaterial()->setBaseColor(Color::White);
+	testObject->getMaterial()->setNormalIntensity(0.0f);
 
     //----------------------- RENDERLOOP
 
@@ -351,6 +350,7 @@ int main()
             cbt.drawOutline(*cam.getProj() * *cam.getView());
         }
 
+		glViewport(0, 0, WIDTH, HEIGHT);
 		MainScene.draw(cam);
 
         //pbsShader.useProgram();
@@ -361,14 +361,7 @@ int main()
         //cube.draw();
 
 
-        //----------------------- Sky
-        {
-            skyShader.useProgram();
-            glViewport(0, 0, WIDTH, HEIGHT);
-            glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(cam.getSkyProj()));
-            glDepthFunc(GL_EQUAL);
-            fullScreenTri.draw();
-        }
+        
 
         glDisable(GL_DEPTH_TEST);
         // Post Processing
@@ -415,6 +408,50 @@ int main()
                     glUniform1f(0, exposure);
                 }
             }
+			if(ImGui::CollapsingHeader("Scene##settings", ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				ImGui::TextUnformatted("Sun");
+                ImGui::Indent(10.0f);
+
+				static float SunIntensity = 1.0f;
+				if(ImGui::SliderFloat("Sun Intensity", &SunIntensity, 0.0f, 100.0f))
+                {
+                    MainScene.sun()->setIntensity(SunIntensity);
+                }
+
+				static float SunTemp = 5900.0f;
+				if(ImGui::SliderFloat("Temperature", &SunTemp, 1000.0f, 15000.0f))
+                {
+                    MainScene.sun()->setColor(Color::fromTemperature(SunTemp));
+                }
+				static float SunPitch = 90.0f;
+				static float SunYaw = 130.0f;
+				if(ImGui::SliderFloat("Direction", &SunPitch, 0.0f, 360.0f))
+                {
+                    MainScene.sun()->setDirection(90.0f, SunPitch, SunYaw);
+                }
+				if(ImGui::SliderFloat("Height", &SunYaw, 90.0f, 270.0f))
+                {
+                    MainScene.sun()->setDirection(90.0f, SunPitch, SunYaw);
+                }
+
+				ImGui::Indent(-10.0f);
+				ImGui::TextUnformatted("Sky");
+                ImGui::Indent(10.0f);
+
+				ImGui::TextUnformatted("Sky");
+				static float SkyExposure = 1.0f;
+				if(ImGui::SliderFloat("Indirect Light", &SkyExposure, 0.0f, 100.0f))
+                {
+                    MainScene.setSkyExposure(SkyExposure);
+                }
+				static float SkyboxExposure = 1.0f;
+				if(ImGui::SliderFloat("Skybox Exposure", &SkyboxExposure, 0.0f, 100.0f))
+                {
+                    MainScene.setSkyboxExposure(SkyboxExposure);
+                }
+
+			}
             ImGui::End();
         }
         {

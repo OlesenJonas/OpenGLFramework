@@ -1,6 +1,7 @@
 #version 430
 
 layout (location = 3) uniform mat4 skyProjection;
+layout(location = 4) uniform float exposure;
 
 out vec4 fragmentColor;
 
@@ -14,5 +15,5 @@ uniform layout (binding = 13) samplerCube sky;
 void main() {
     const vec2 coord = (passTextureCoord + vec2(-0.5f, -0.5f)) * vec2(2.0f, 2.0f);
 	const vec3 dir = normalize((skyProjection * vec4(coord, 0, 1)).xyz);
-    fragmentColor = texture(sky, dir);
+    fragmentColor = texture(sky, dir) * exposure;
 }

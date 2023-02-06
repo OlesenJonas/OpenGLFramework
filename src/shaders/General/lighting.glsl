@@ -4,6 +4,13 @@ uniform layout (binding = 10) samplerCube irradianceMap;
 uniform layout (binding = 11) samplerCube environmentMap;
 uniform layout (binding = 12) sampler2D brdf;
 
+layout (binding = 21) uniform Lightbuffer
+{
+    vec4 LightDirection;
+    vec4 LightColor;
+	float IndirectLightExposure;
+};  
+
 //--------------------------------------------------------------------------------------------------------------------------------------------
 float saturate(float v)
 {
@@ -78,7 +85,7 @@ void directIllumination(in mat4 view, in vec3 V, in vec3 P, in vec3 N, in vec3 l
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------------------
-void imageBasedLighting(in mat4 view, in vec3 V, in vec3 N, in float reflectance, inout vec3 specular, in float roughness)
+void imageBasedLighting(in mat4 view, in vec3 V, in vec3 N, in vec3 wN, in float reflectance, inout vec3 diffuse, inout vec3 specular, in float roughness)
 {
 	const float NdotV = saturate(dot(N, V));
 
@@ -86,9 +93,10 @@ void imageBasedLighting(in mat4 view, in vec3 V, in vec3 N, in float reflectance
 
 	vec4 viewR = inverse(view) * vec4(R,0);
 
-    const vec3 preFilteredEnvironment = textureLod(environmentMap, viewR.xyz, roughness * 8.0f).xyz * reflectance * 0.5f;
+    const vec3 preFilteredEnvironment = textureLod(environmentMap, viewR.xyz, roughness * 8.0f).xyz * reflectance * IndirectLightExposure;
 	const vec2 brdfIntegral	= texture(brdf, vec2(roughness, NdotV)).xy;
 	const vec3 specularIB = preFilteredEnvironment * (reflectance * brdfIntegral.x + brdfIntegral.y);
     
+	diffuse += textureLod(irradianceMap, wN, 0.0f).xyz * IndirectLightExposure;
 	specular += specularIB;
 }
