@@ -5,10 +5,9 @@
 #include <intern/ShaderProgram/ShaderProgram.h>
 
 /*
-
     Port of:
       https://github.com/OCASM/SSMS
-    With different fog factor calculations
+    with adjustments
 */
 class SSMSFogEffect
 {
@@ -25,7 +24,7 @@ class SSMSFogEffect
 
     [[nodiscard]] inline const Texture& getResultColor() const
     {
-        assert(false);
+        return upsampleTextures[0];
     }
 
     struct Settings
@@ -54,8 +53,7 @@ class SSMSFogEffect
     float radiusAdjustedLogH = 0.0f;
 
     // a bit overkill with the resources allocated here, but effect is just for comparison anyways
-    Texture initialSceneColorWithFog;
-    Texture invTransmittanceTexture;
+    Texture directLight;
     Framebuffer initialFogFramebuffer;
     std::vector<Texture> downsampleTextures;
     std::vector<Texture> upsampleTextures;
@@ -65,7 +63,6 @@ class SSMSFogEffect
     std::vector<Framebuffer> upsampleFramebuffers;
 
     ShaderProgram initialFogShader;
-    ShaderProgram prefilterShader;
     ShaderProgram downsample0to1Shader;
     ShaderProgram downsampleShader;
     ShaderProgram upsampleShader;

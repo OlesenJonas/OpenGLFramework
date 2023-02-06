@@ -4,7 +4,6 @@ in vec2 passTextureCoord;
 
 layout (binding = 0) uniform sampler2D fullSizeTex;
 layout (binding = 1) uniform sampler2D halfSizeUpsampledTex;
-layout (binding = 2) uniform sampler2D invTransmittanceTex;
 
 layout (location = 0) uniform float sampleScale;
 layout (location = 1) uniform float radius;
@@ -36,9 +35,5 @@ void main()
 
     vec3 blur = s * (1.0 / 16);
 
-    // SMSS
-    vec3 invTransmittance = texture(invTransmittanceTex, uv).rgb;
-    // depth = AdjustDepth(depth);
-
-    fragOut.rgb = mix(base, vec3(blur) * (1 / radius), clamp(invTransmittance ,0,intensity)) ;
+    fragOut.rgb = base + intensity * blur * (1 / radius);
 }

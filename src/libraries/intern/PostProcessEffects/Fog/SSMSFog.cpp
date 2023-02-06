@@ -14,16 +14,8 @@
 
 SSMSFogEffect::SSMSFogEffect(int width, int height, uint8_t levels)
     : levels(levels), radiusAdjustedLogH(levels), width(width), height(height),
-      initialSceneColorWithFog{
-          {.name = "Initial fogged scene color",
-           .levels = 1,
-           .width = width,
-           .height = height,
-           .internalFormat = GL_RGBA16F,
-           .wrapS = GL_CLAMP_TO_EDGE,
-           .wrapT = GL_CLAMP_TO_EDGE}},
-      invTransmittanceTexture{
-          {.name = "Inv Fog Factor",
+      directLight{
+          {.name = "Direct light",
            .levels = 1,
            .width = width,
            .height = height,
@@ -33,9 +25,6 @@ SSMSFogEffect::SSMSFogEffect(int width, int height, uint8_t levels)
       initialFogShader{
           VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
           {SHADERS_PATH "/General/screenQuad.vert", SHADERS_PATH "/Fog/SSMSinitialFog.frag"}},
-      prefilterShader{
-          VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
-          {SHADERS_PATH "/General/screenQuad.vert", SHADERS_PATH "/Fog/SSMSprefilter.frag"}},
       downsample0to1Shader{
           VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
           {SHADERS_PATH "/General/screenQuad.vert", SHADERS_PATH "/Fog/SSMSdownsample0to1.frag"}},
@@ -49,10 +38,6 @@ SSMSFogEffect::SSMSFogEffect(int width, int height, uint8_t levels)
           VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
           {SHADERS_PATH "/General/screenQuad.vert", SHADERS_PATH "/Fog/SSMSupsampleAndCombine.frag"}}
 {
-
-    initialFogFramebuffer =
-        Framebuffer{width, height, {{initialSceneColorWithFog, 0}, {invTransmittanceTexture, 0}}, false};
-
     upsampleTextures.reserve(levels);
     downsampleTextures.reserve(levels);
     downsampleFramebuffers.reserve(levels);
@@ -91,6 +76,7 @@ SSMSFogEffect::SSMSFogEffect(int width, int height, uint8_t levels)
         currentWidth /= 2;
         currentHeight /= 2;
     }
+    initialFogFramebuffer = Framebuffer{width, height, {{directLight, 0}, {downsampleTextures[0], 0}}, false};
     updateSettings();
 };
 
@@ -104,7 +90,7 @@ const Texture& SSMSFogEffect::execute(const Texture& colorInput, const Texture& 
     const auto& cam = *Context::globalContext->getCamera();
     const glm::mat4 invProjView = glm::inverse(*cam.getProj() * *cam.getView());
 
-    glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Initial fog and prefilter");
+    glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Initial fog");
     initialFogFramebuffer.bind();
     glBindTextureUnit(0, colorInput.getTextureID());
     glBindTextureUnit(1, depthInput.getTextureID());
@@ -112,20 +98,14 @@ const Texture& SSMSFogEffect::execute(const Texture& colorInput, const Texture& 
     glUniform3fv(0, 1, glm::value_ptr(cam.getPosition()));
     glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(invProjView));
     fullScreenTri.draw();
-
-    downsampleFramebuffers[0].bind();
-    glBindTextureUnit(0, initialSceneColorWithFog.getTextureID());
-    glBindTextureUnit(1, invTransmittanceTexture.getTextureID());
-    prefilterShader.useProgram();
-    fullScreenTri.draw();
     glPopDebugGroup();
 
     const int actualIterations = glm::clamp<int>(int(radiusAdjustedLogH), 2, levels);
 
     // constructing mip pyramid
     glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Downscale mip pyramid");
-    glBindTextureUnit(0, downsampleTextures[0].getTextureID());
     downsampleFramebuffers[1].bind();
+    glBindTextureUnit(0, downsampleTextures[0].getTextureID());
     downsample0to1Shader.useProgram();
     fullScreenTri.draw();
     for(int level = 2; level < actualIterations; level++)
@@ -157,9 +137,8 @@ const Texture& SSMSFogEffect::execute(const Texture& colorInput, const Texture& 
     // last upsample also combines with original image
     upsampleFramebuffers[0].bind();
     upsampleAndCombineShader.useProgram();
-    glBindTextureUnit(0, initialSceneColorWithFog.getTextureID());
+    glBindTextureUnit(0, directLight.getTextureID());
     glBindTextureUnit(1, upsampleTextures[1].getTextureID());
-    glBindTextureUnit(2, invTransmittanceTexture.getTextureID());
     fullScreenTri.draw();
 
     glPopDebugGroup();
@@ -192,9 +171,10 @@ void SSMSFogEffect::updateSettings()
     glUniform1i(glGetUniformLocation(initialFogShader.getProgramID(), "doFade"), settings.doFade);
     glUniform1f(glGetUniformLocation(initialFogShader.getProgramID(), "fadeStart"), settings.fadeStart);
     glUniform1f(glGetUniformLocation(initialFogShader.getProgramID(), "fadeLength"), settings.fadeLength);
-
-    prefilterShader.useProgram();
-    glUniform3fv(0, 1, glm::value_ptr(settings.blurTint));
+    glUniform3fv(
+        glGetUniformLocation(initialFogShader.getProgramID(), "blurTint"),
+        1,
+        glm::value_ptr(settings.blurTint));
 
     upsampleShader.useProgram();
     radiusAdjustedLogH = log2(height) + settings.radius - 8;
@@ -234,7 +214,6 @@ void SSMSFogEffect::drawUI()
         "Multiplier##absorption", &settings.absorptionCoefficient.w, 0.05f, absorptionCoeffLimit, FLT_MAX);
 
     ImGui::Separator();
-    ImGui::TextUnformatted("! Only really works with wavelength independent scattering !");
     if(ImGui::ColorEdit3(
            "Scattering coefficient", &settings.scatteringCoefficient.x, ImGuiColorEditFlags_Float))
     {
