@@ -132,7 +132,7 @@ void main()
 	const vec3 reflect = mix(vec3(0.04f, 0.04f, 0.04f), baseColor.xyz, 0.0f);
 
 	directIllumination(viewMatrix, V, P, viewNormal, worldPos, LightColor.xyz, LightDirection, baseColor, roughness, diff, spec);
-	imageBasedLighting(viewMatrix, V, viewNormal, materialNormal, reflect, diff, spec, roughness);
+	imageBasedLighting(viewMatrix, V, viewNormal, materialNormal, reflect, diff, spec, roughness, ambientOcclusion);
 
 	const vec3 col = diff + spec;
     fragmentColor = vec4(col, 1);

@@ -116,7 +116,7 @@ void directIllumination(in mat4 view, in vec3 V, in vec3 P, in vec3 N, in vec3 w
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------------------
-void imageBasedLighting(in mat4 view, in vec3 V, in vec3 N, in vec3 wN, in vec3 reflectance, inout vec3 diffuse, inout vec3 specular, in float roughness)
+void imageBasedLighting(in mat4 view, in vec3 V, in vec3 N, in vec3 wN, in vec3 reflectance, inout vec3 diffuse, inout vec3 specular, in float roughness, in float ao)
 {
 	const float NdotV = saturate(dot(N, V));
 
@@ -128,6 +128,6 @@ void imageBasedLighting(in mat4 view, in vec3 V, in vec3 N, in vec3 wN, in vec3 
 	const vec2 brdfIntegral	= texture(brdf, vec2(roughness, NdotV)).xy;
 	const vec3 specularIB = preFilteredEnvironment * (reflectance * brdfIntegral.x + brdfIntegral.y);
     
-	diffuse += textureLod(irradianceMap, wN, 0.0f).xyz * IndirectLightExposure;
+	diffuse += textureLod(irradianceMap, wN, 0.0f).xyz * IndirectLightExposure * ao;
 	specular += specularIB;
 }

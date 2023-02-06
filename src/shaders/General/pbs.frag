@@ -53,7 +53,7 @@ void main()
 	baseColor *= vec3(1,1,1) - attributes.yyy;
 
 	directIllumination(viewMatrix, V, P, normal, Input.worldPos.xyz, LightColor.xyz, LightDirection, baseColor, attributes.x, diffuse, specular);
-	imageBasedLighting(viewMatrix, V, normal, worldNormal, reflect, diffuse, specular, attributes.x);
+	imageBasedLighting(viewMatrix, V, normal, worldNormal, reflect, diffuse, specular, attributes.x, attributes.z);
 
 	const vec3 color = diffuse + specular;
     fragmentColor = vec4(color.xyz, 1);
