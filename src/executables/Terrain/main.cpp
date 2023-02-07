@@ -270,7 +270,7 @@ int main()
     ShaderProgram postProcessShader{
         VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
         {SHADERS_PATH "/General/screenQuad.vert", SHADERS_PATH "/General/postProcess.frag"}};
-    Framebuffer internalFBO{WIDTH, HEIGHT, {{.internalFormat = GL_RGBA16F}}, true};
+    Framebuffer internalFBO{WIDTH, HEIGHT, {{.internalFormat = GL_R11F_G11F_B10F}}, true};
 
     const Cube cube{1.0f};
     const Mesh referenceHuman{MISC_PATH "/HumanScaleReference.obj"};
