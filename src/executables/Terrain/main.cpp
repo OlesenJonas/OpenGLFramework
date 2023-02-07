@@ -279,7 +279,9 @@ int main()
         VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
         {SHADERS_PATH "/General/simpleTexture.vert", SHADERS_PATH "/General/simpleTexture.frag"}};
 
+    bool applyFog = true;
     FogEffect fogEffect(WIDTH, HEIGHT);
+    GPUTimer<128> fogPassTimer{"Fog"};
     
     FullscreenTri tri = FullscreenTri();
 
@@ -312,6 +314,7 @@ int main()
 	//testObject3->setPosition(glm::vec3(15,20,5));
 	//testObject3->getMaterial()->setBaseColor(Color::White);
 	//testObject3->getMaterial()->setNormalIntensity(1.0f);
+
 
     //----------------------- RENDERLOOP
 
@@ -380,14 +383,19 @@ int main()
         // Post Processing
         {
             // fog
-            const auto& hdrColorWithFogTex =
-                fogEffect.execute(internalFBO.getColorTextures()[0], *internalFBO.getDepthTexture());
+            fogPassTimer.start();
+            const auto& hdrColorTex =
+                applyFog
+                    ? fogEffect.execute(internalFBO.getColorTextures()[0], *internalFBO.getDepthTexture())
+                    : internalFBO.getColorTextures()[0];
+            fogPassTimer.end();
+            fogPassTimer.evaluate();
 
             // color management
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             // glViewport()?
             // overwriting full screen anyways, dont need to clear
-            glBindTextureUnit(0, hdrColorWithFogTex.getTextureID());
+            glBindTextureUnit(0, hdrColorTex.getTextureID());
             postProcessShader.useProgram();
             fullScreenTri.draw();
         }
@@ -406,7 +414,8 @@ int main()
             if(ImGui::CollapsingHeader("Fog##settings"))
             {
                 ImGui::Indent(5.0f);
-                if(ImGui::CollapsingHeader("BasicFog##settings"))
+                ImGui::Checkbox("Apply fog", &applyFog);
+                if(applyFog)
                 {
                     fogEffect.drawUI();
                 }
@@ -505,6 +514,10 @@ int main()
                 ImGui::Text("Indirect write: %.3f ms", cbt.getIndirectWriteTimer().timeMilliseconds());
                 ImGui::Text("Drawing       : %.3f ms", cbt.getDrawTimer().timeMilliseconds());
                 ImGui::Text("Additional subdiv level: %d", cbt.getTemplateLevel());
+            }
+            if(ImGui::CollapsingHeader("Fog", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::Text("Total: %.3f ms", fogPassTimer.timeMilliseconds());
             }
             ImGui::End();
         }

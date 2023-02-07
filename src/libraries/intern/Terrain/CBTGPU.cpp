@@ -265,6 +265,7 @@ void CBTGPU::drawOutline(const glm::mat4& projViewMatrix)
     // glDisable(GL_DEPTH_TEST);
     glDepthFunc(GL_EQUAL);
     glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     outlineShader.useProgram();
     glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
     glBindVertexArray(triangleTemplates[settings.selectedSubdivLevel].getVAO());
