@@ -1,5 +1,11 @@
 #version 430
 
+#ifdef GLSLANGVALIDATOR
+    // otherwise glslangValidator complains about #include
+    #extension GL_GOOGLE_include_directive : require
+    //for OpenGL those will be parsed when shader is loaded  
+#endif
+
 out vec4 fragmentColor;
 
 layout (binding = 1) uniform sampler2D macroNormal;
@@ -30,6 +36,8 @@ float fast(vec2 v)
     return fract( state * state * (3571. * 2.));
 }
 
+#include "../../General/Blending.glsl"
+
 // Uses reorient normal blending for blending material normal maps and terrain normal:
 // https://blog.selfshadow.com/publications/blending-in-detail/
 
@@ -55,6 +63,7 @@ void main()
     const vec3 samplePosFC = vec3(worldPos.xz/textureScales[materialidFC], materialidFC);
     const vec3 samplePosCF = vec3(worldPos.xz/textureScales[materialidCF], materialidCF);
     const vec3 samplePosCC = vec3(worldPos.xz/textureScales[materialidCC], materialidCC);
+
     // TODO: Triplanar
     //  Who decides if a sample needs to be triplanar? Store slope information in materialID texture?
     //  KEEP BRANCHING IN MIND! see https://666uille.files.wordpress.com/2017/03/gdc2017_ghostreconwildlands_terrainandtechnologytools-onlinevideos1.pdf
@@ -62,17 +71,43 @@ void main()
     const vec3 diffuseFC = texture(diffuseArray, samplePosFC).rgb;
     const vec3 diffuseCF = texture(diffuseArray, samplePosCF).rgb;
     const vec3 diffuseCC = texture(diffuseArray, samplePosCC).rgb;
-    const vec3 diffuseF = mix(diffuseFF, diffuseFC, weights.y);
-    const vec3 diffuseC = mix(diffuseCF, diffuseCC, weights.y);
-    vec3 diffuse = mix(diffuseF, diffuseC, weights.x);
-
     const vec3 normalFF = 2*texture(normalArray, samplePosFF).rgb-1;
     const vec3 normalFC = 2*texture(normalArray, samplePosFC).rgb-1;
     const vec3 normalCF = 2*texture(normalArray, samplePosCF).rgb-1;
     const vec3 normalCC = 2*texture(normalArray, samplePosCC).rgb-1;
+    const vec3 ordFF = texture(ordArray, samplePosFF).rgb;
+    const vec3 ordFC = texture(ordArray, samplePosFC).rgb;
+    const vec3 ordCF = texture(ordArray, samplePosCF).rgb;
+    const vec3 ordCC = texture(ordArray, samplePosCC).rgb;
+    //This would be more readable and also easier to abstract further imo, but at least atm its more expensive
+    // const MaterialAttributes maFF = CreateMaterialAttributes(diffuseFF, normalFF, ordFF);
+    // const MaterialAttributes maFC = CreateMaterialAttributes(diffuseFC, normalFC, ordFC);
+    // const MaterialAttributes maCF = CreateMaterialAttributes(diffuseCF, normalCF, ordCF);
+    // const MaterialAttributes maCC = CreateMaterialAttributes(diffuseCC, normalCC, ordCC);
+    // const MaterialAttributes maF = lerp(maFF, maFC, weights.y);
+    // const MaterialAttributes maC = lerp(maCF, maCC, weights.y);
+    // const MaterialAttributes attributes = lerp(maF, maC, weights.x);
+    // const vec3 diffuse = attributes.diffuseRoughness.rgb;
+    // const float roughness = attributes.diffuseRoughness.w;
+    // vec3 materialNormal = attributes.normalMetallic.xyz;
+    // const float ambientOcclusion = attributes.aoHeight.x;
+
+    const vec3 ordF = mix(ordFF, ordFC, weights.y);
+    const vec3 ordC = mix(ordCF, ordCC, weights.y);
+    const vec3 ord = mix(ordF, ordC, weights.x);
+    const float roughness = ord.g;
+    const float ambientOcclusion = ord.r;
+
+    const vec3 diffuseF = mix(diffuseFF, diffuseFC, weights.y);
+    const vec3 diffuseC = mix(diffuseCF, diffuseCC, weights.y);
+    vec3 diffuse = mix(diffuseF, diffuseC, weights.x);
+
     const vec3 normalF = mix(normalFF, normalFC, weights.y);
     const vec3 normalC = mix(normalCF, normalCC, weights.y);
-    vec3 materialNormal = normalize(mix(normalF, normalC, weights.x));
+    vec3 materialNormal = mix(normalF, normalC, weights.x);
+
+
+
 
     vec3 macroNormal = texture(macroNormal, uv).xyz;
     //macro normal is only ever used as a base for reorient normal blending, so transform directly here
@@ -95,20 +130,10 @@ void main()
     //TBN columns would just be (1,0,0),(0,0,-1),(0,1,0), so no need for matrix mult here
     vec3 worldNormal = vec3(tangentNormal.x, tangentNormal.z, -tangentNormal.y);
     
-    const vec3 ordFF = texture(ordArray, samplePosFF).rgb;
-    const vec3 ordFC = texture(ordArray, samplePosFC).rgb;
-    const vec3 ordCF = texture(ordArray, samplePosCF).rgb;
-    const vec3 ordCC = texture(ordArray, samplePosCC).rgb;
-    const vec3 ordF = mix(ordFF, ordFC, weights.y);
-    const vec3 ordC = mix(ordCF, ordCC, weights.y);
-    const vec3 ord = mix(ordF, ordC, weights.x);
-    
-    const float ambientOcclusion = ord.r;
-    const float roughness = ord.g;
 
     // vec3 color = vec3(0.5);
     // vec3 color = vec3(materialIDVis);
-    vec3 color = diffuse;
+    vec3 color = diffuse * ambientOcclusion;
     color *= max(dot(worldNormal, normalize(vec3(1.0,1.0,0.0))), 0.0) + 0.1;
 
     fragmentColor = vec4(color,1.0);

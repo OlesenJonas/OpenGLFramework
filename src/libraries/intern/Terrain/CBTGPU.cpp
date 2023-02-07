@@ -302,6 +302,7 @@ void CBTGPU::drawUI()
     }
     ImGui::Checkbox("Draw outline", &settings.drawOutline);
     ImGui::Checkbox("Freeze update", &settings.freezeUpdates);
+    ImGui::Separator();
     if(ImGui::SliderFloat("Material normal intensity", &settings.materialNormalIntensity, 0.0f, 1.0f))
     {
         drawShader.useProgram();
