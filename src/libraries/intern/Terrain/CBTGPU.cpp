@@ -136,6 +136,7 @@ CBTGPU::~CBTGPU()
 
 void CBTGPU::update(const glm::mat4& projView, const glm::vec2 screenRes)
 {
+    glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "CBT Update");
     static bool splitPass = true;
     if(splitPass)
     {
@@ -160,6 +161,7 @@ void CBTGPU::update(const glm::mat4& projView, const glm::vec2 screenRes)
         mergeTimer.evaluate();
     }
     splitPass = !splitPass;
+    glPopDebugGroup();
 }
 
 void CBTGPU::setTargetEdgeLength(float newLength)
@@ -198,6 +200,7 @@ void CBTGPU::refineAroundPoint(glm::vec2 point)
 
 void CBTGPU::doSumReduction()
 {
+    glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "CBT Sum reduction");
 #define USE_OPTIMIZED
 
     sumReductionTimer.start();
@@ -228,10 +231,13 @@ void CBTGPU::doSumReduction()
     sumReductionTimer.end();
     sumReductionTimer.evaluate();
 #undef USE_OPTIMIZED
+
+    glPopDebugGroup();
 }
 
 void CBTGPU::writeIndirectCommands()
 {
+    glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "CBT Indirect writes");
     indirectWriteTimer.start();
     writeIndirectCommandsShader.useProgram();
     glDispatchCompute(1, 1, 1);
@@ -240,10 +246,12 @@ void CBTGPU::writeIndirectCommands()
     // glMemoryBarrier(GL_COMMAND_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
     indirectWriteTimer.end();
     indirectWriteTimer.evaluate();
+    glPopDebugGroup();
 }
 
 void CBTGPU::draw(const glm::mat4& viewMatrix, const glm::mat4& projViewMatrix)
 {
+    glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "CBT Draw");
     drawTimer.start();
     drawShader.useProgram();
     glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
@@ -255,10 +263,12 @@ void CBTGPU::draw(const glm::mat4& viewMatrix, const glm::mat4& projViewMatrix)
     glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
     drawTimer.end();
     drawTimer.evaluate();
+    glPopDebugGroup();
 }
 
 void CBTGPU::drawOutline(const glm::mat4& projViewMatrix)
 {
+    glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "CBT Draw outline");
     // with the current depth range (0.01 to 1000) using just a depth offset
     // doesnt work anymore. Either its too small or too large
     // so just render without depth test and do masking in fragment shader
@@ -276,6 +286,7 @@ void CBTGPU::drawOutline(const glm::mat4& projViewMatrix)
     glDisable(GL_BLEND);
     glDepthFunc(GL_LESS);
     // glEnable(GL_DEPTH_TEST);
+    glPopDebugGroup();
 }
 
 void CBTGPU::drawOverlay(float aspect)

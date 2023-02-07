@@ -377,10 +377,12 @@ int main()
         // glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(*cam.getProj()));
         // cube.draw();
 
+        glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Post Processing");
         glDisable(GL_DEPTH_TEST);
         // Post Processing
         {
             // fog
+            glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Fog");
             fogPassTimer.start();
             const auto& hdrColorTex =
                 applyFog
@@ -388,6 +390,7 @@ int main()
                     : internalFBO.getColorTextures()[0];
             fogPassTimer.end();
             fogPassTimer.evaluate();
+            glPopDebugGroup();
 
             // color management
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -397,6 +400,7 @@ int main()
             postProcessShader.useProgram();
             fullScreenTri.draw();
         }
+        glPopDebugGroup();
 
         // draw CBT overlay as part of UI
         cbt.drawOverlay(cam.getAspect());
