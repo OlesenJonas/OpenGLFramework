@@ -6,6 +6,9 @@
 Material::Material(Texture* baseMap, Texture* normalMap, Texture* attributesMap) : 
 	m_baseColor(Color::White), 
 	m_normalIntensity(1.0f), 
+	m_roughness(1.0f), 
+	m_metallic(1.0f), 
+	m_occlusion(1.0f), 
 	m_baseMap(baseMap), 
 	m_normalMap(normalMap), 
 	m_attributesMap(attributesMap), 
@@ -36,7 +39,7 @@ Material::~Material()
 void Material::bind(MaterialChannel materialChannel)
 {
 	// Update buffer
-	MaterialBuffer buffer { glm::vec4(m_baseColor), m_normalIntensity };
+	MaterialBuffer buffer { glm::vec4(m_baseColor), glm::vec4(m_roughness, m_metallic, m_occlusion, m_normalIntensity) };
 
 	glBindBuffer(GL_UNIFORM_BUFFER, m_bufferIndex);
 	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(MaterialBuffer), &buffer); 

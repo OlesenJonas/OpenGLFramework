@@ -29,6 +29,7 @@ public:
 		glm::vec3 v = posFromPolar(theta, phi);
 		m_lightView = glm::lookAt(200.0f * v, glm::vec3(0,0,0), glm::vec3(1.f, 0.f, 0.f));
 		m_direction = glm::vec4(v, 0);
+		m_shadowDirty = true;
 	}
 
 	void setColor(const Color& color) { m_color = color; }
@@ -38,6 +39,7 @@ public:
 	glm::vec4 direction() const { return m_direction; }
 
 	bool castShadows() const { return m_castShadows; }
+	bool shadowDirty() const { return m_shadowDirty; }
 
 	void init(bool castShadows);
 	void bind();
@@ -50,6 +52,8 @@ public:
 
 protected:
 
+	bool m_shadowActive;
+	bool m_shadowDirty;
 	glm::vec4 m_direction;
 	float m_intensity;
 	Color m_color;

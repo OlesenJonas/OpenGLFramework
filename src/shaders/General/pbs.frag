@@ -10,7 +10,7 @@ layout (location = 1) uniform mat4 viewMatrix;
 layout (binding = 22) uniform Materialbuffer
 {
     vec4 MaterialColor;
-	float NormalIntensity;
+	vec4 attributeFactors;
 };  
 
 out vec4 fragmentColor;
@@ -42,11 +42,12 @@ void main()
 	//normal = pow(normal.xyz, vec3(1.0/2.2));
 	//normal.y = 1 - normal.y;
 	//normal = vec3(0.5, 0.5, 1.0);
-    normal = normalize(mix(vec3(0,0,1), normal * 2.0 - 1.0, NormalIntensity));  
+    normal = normalize(mix(vec3(0,0,1), normal * 2.0 - 1.0, attributeFactors.w));  
     vec3 worldNormal = Input.TangentFrame * normal;
 	normal = (viewMatrix * vec4(worldNormal, 0)).xyz;
 	//normal = Input.Normal;
 	vec4 attributes = texture(attributesMap, Input.TexCoord);
+	attributes.xyz *= attributeFactors.xyz;
 
 	vec3 baseColor = texture(albedoMap, Input.TexCoord).xyz * MaterialColor.xyz;
 	const vec3 reflect = mix(vec3(0.04f, 0.04f, 0.04f), baseColor.xyz, attributes.y);

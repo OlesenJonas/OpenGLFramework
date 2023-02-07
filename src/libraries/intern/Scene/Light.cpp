@@ -3,12 +3,25 @@
 #include <intern/Scene/Scene.h>
 #include <intern/Texture/Texture.h>
 
-Light::Light(Scene* scene) : Entity(scene), m_direction(0.0f, -1.0f, 0.0f, 0.0f), m_intensity(1.0f), m_color(Color::White), m_bufferIndex(-1), m_shadowMapSize(4096)
+Light::Light(Scene* scene) : 
+	Entity(scene), 
+	m_shadowActive(true), 
+	m_shadowDirty(true), 
+	m_direction(0.0f, -1.0f, 0.0f, 0.0f), 
+	m_intensity(1.0f), 
+	m_color(Color::White), 
+	m_bufferIndex(-1), 
+	m_castShadows(false), 
+	m_shadowMapSize(4096), 
+	m_shadowMap(nullptr),
+	m_depthMapFBO(-1)
 {
 }
 
 Light::~Light()
 {
+	delete m_shadowMap;
+	m_shadowMap = nullptr;
 }
 
 void Light::init(bool castShadows)
@@ -56,6 +69,7 @@ void Light::bind()
 
 void Light::renderShadow()
 {
+	m_shadowDirty = false;
 	m_lightProjection = glm::ortho(-250.0f, 250.0f, -250.0f, 250.0f, 10.0f, 500.0f);
 
 	glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(m_lightView));

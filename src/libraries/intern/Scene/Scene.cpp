@@ -99,7 +99,7 @@ void Scene::init()
 
     m_irradianceMap = new TextureCube((uint32_t)m_irradianceMapSize);
     m_environmentMap = new TextureCube((uint32_t)m_environmentMapSize);
-    m_BRDFIntegral = new Texture(TextureDesc{.width = brdfIntegralSize, .height = brdfIntegralSize, .internalFormat = GL_RGB16F});
+    m_BRDFIntegral = new Texture(TextureDesc{.width = brdfIntegralSize, .height = brdfIntegralSize, .internalFormat = GL_RGB16F, .wrapS = GL_CLAMP_TO_EDGE, .wrapT = GL_CLAMP_TO_EDGE});
 
     glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
     glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
@@ -168,7 +168,7 @@ void Scene::prepass(CBTGPU& cbt)
 
 	glCullFace(GL_FRONT);
 	m_shadowPass->useProgram();
-	if (m_sunlight && m_sunlight->castShadows())
+	if (m_sunlight && m_sunlight->castShadows() && m_sunlight->shadowDirty())
 	{
 		m_sunlight->renderShadow();
 

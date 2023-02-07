@@ -15,7 +15,7 @@ enum MaterialChannel
 struct MaterialBuffer
 {
 	glm::vec4 basecolor;
-	float normalIntensity;
+	glm::vec4 parameters; // roughness, metallic, ao, normal intensity
 };
 
 
@@ -29,8 +29,10 @@ public:
 	~Material();
 
 	void setBaseColor(const Color& color) { m_baseColor = color; }
-
 	void setNormalIntensity(float intensity) { m_normalIntensity = intensity; }
+	void setRoughness(float roughness) { m_roughness = roughness; }
+	void setMetallic(float metallic) { m_metallic = metallic; }
+	void setOcclusion(float occlusion) { m_occlusion = occlusion; }
 
 	void setCustomShader(class ShaderProgram* program) { m_shader = program; }
 
@@ -42,6 +44,9 @@ protected:
 
 	Color m_baseColor;
 	float m_normalIntensity;
+	float m_roughness;
+	float m_metallic;
+	float m_occlusion;
 	class Texture* m_baseMap;
 	class Texture* m_normalMap;
 	class Texture* m_attributesMap;
