@@ -26,6 +26,7 @@ layout (binding = 3) uniform sampler2DArray heightArray;
 layout (location = 0) uniform mat4 projectionViewMatrix;
 layout (location = 1) uniform float materialDisplacementIntensity = 0.0;
 layout (location = 2) uniform int materialDisplacementLodOffset = 0;
+uniform float triplanarSharpness = 0.5;
 
 layout (location = 0) flat out vec2 cornerPoint;
 layout (location = 1) out vec2 uv;
@@ -38,6 +39,7 @@ layout(std430, binding = 3) buffer textureInfoBuffer
 
 #define DISPLACEMENT_ALREADY_DEFINED
 #include "transform.glsl"
+#include "FetchHeightFromID.glsl"
 
 void main()
 {
@@ -63,34 +65,24 @@ void main()
     //pass the *non-displaced* position for triplanar sampling in fragment shader
     worldPos = worldPosition.xyz;
 
-    //sample and transform directly into world space
-    // ts=(2*nrmMap-1), ws=(ts.x,ts.z,-ts.y) => ws=(2*n.x-1, 2*n.z-1, -2*n.y+1))
-    const vec3 vertexNormal = vec3(2,2,-2) * textureLod(macroNormal,uv,0).xzy + vec3(-1,-1, 1);
+    vec3 tangentNormal = 2.0*textureLod(macroNormal,uv,0).xzy-1.0;
+    vec3 worldNormal = vec3(tangentNormal.x, tangentNormal.z, -tangentNormal.y);
 
     const vec2 scaledUVs = uv*textureSize(materialIDTex,0);
     const ivec2 idsStartTexel = ivec2(scaledUVs);
     const vec2 weights = fract(scaledUVs);
 
-    // TODO: replace with a single textureGather call?
-    const uint materialidFF = texelFetchOffset(materialIDTex, idsStartTexel, 0, ivec2(0,0)).r;
-    const uint materialidFC = texelFetchOffset(materialIDTex, idsStartTexel, 0, ivec2(0,1)).r;
-    const uint materialidCF = texelFetchOffset(materialIDTex, idsStartTexel, 0, ivec2(1,0)).r;
-    const uint materialidCC = texelFetchOffset(materialIDTex, idsStartTexel, 0, ivec2(1,1)).r;
-
-    // TODO: Triplanar
-    //  Who decides if a sample needs to be triplanar? Store slope information in materialID texture?
-    //  KEEP BRANCHING IN MIND! see https://666uille.files.wordpress.com/2017/03/gdc2017_ghostreconwildlands_terrainandtechnologytools-onlinevideos1.pdf
-    const float heightFF = textureLod(heightArray, vec3(worldPos.xz/textureScales[materialidFF], materialidFF), materialDisplacementLodOffset).r;
-    const float heightFC = textureLod(heightArray, vec3(worldPos.xz/textureScales[materialidFC], materialidFC), materialDisplacementLodOffset).r;
-    const float heightCF = textureLod(heightArray, vec3(worldPos.xz/textureScales[materialidCF], materialidCF), materialDisplacementLodOffset).r;
-    const float heightCC = textureLod(heightArray, vec3(worldPos.xz/textureScales[materialidCC], materialidCC), materialDisplacementLodOffset).r;
-
-    const float resultF = mix(heightFF, heightFC, weights.y);
-    const float resultC = mix(heightCF, heightCC, weights.y);
-    const float height = mix(resultF, resultC, weights.x);
+    const float heightFF = getHeightFromTexelAndWorldPos(idsStartTexel+ivec2(0,0), worldPos, tangentNormal);
+    const float heightFC = getHeightFromTexelAndWorldPos(idsStartTexel+ivec2(0,1), worldPos, tangentNormal);
+    const float heightCF = getHeightFromTexelAndWorldPos(idsStartTexel+ivec2(1,0), worldPos, tangentNormal);
+    const float heightCC = getHeightFromTexelAndWorldPos(idsStartTexel+ivec2(1,1), worldPos, tangentNormal);
+    const float heightF = mix(heightFF, heightFC, weights.y);
+    const float heightC = mix(heightCF, heightCC, weights.y);
+    const float height = mix(heightF, heightC, weights.x);
 
     const float displacement = (height - 0.5) * materialDisplacementIntensity;
-    worldPosition += vec4(vertexNormal*displacement, 0.0);
+
+    worldPosition += vec4(worldNormal*displacement, 0.0);
 
     cornerPoint = 0.3*(currentCorners[0]+currentCorners[1]+currentCorners[2]);
 

@@ -303,6 +303,13 @@ void CBTGPU::drawUI()
     ImGui::Checkbox("Draw outline", &settings.drawOutline);
     ImGui::Checkbox("Freeze update", &settings.freezeUpdates);
     ImGui::Separator();
+    if(ImGui::DragFloat("Triplanar blending sharpness", &settings.triplanarSharpness, 0.05f, 0.0f, 10.0f))
+    {
+        drawShader.useProgram();
+        glUniform1f(
+            glGetUniformLocation(drawShader.getProgramID(), "triplanarSharpness"),
+            settings.triplanarSharpness);
+    }
     if(ImGui::SliderFloat("Material normal intensity", &settings.materialNormalIntensity, 0.0f, 1.0f))
     {
         drawShader.useProgram();
