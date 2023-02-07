@@ -103,7 +103,7 @@ class CBTGPU
         bool freezeUpdates = false;
         int selectedSubdivLevel = 0;
         float triplanarSharpness = 0.5f;
-        float materialNormalIntensity = 1.0f;
+        float materialNormalIntensity = 0.3f;
         float materialDisplacementIntensity = 0.0f;
         int materialDisplacementLodOffset = 0;
     } settings;

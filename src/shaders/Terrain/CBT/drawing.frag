@@ -15,7 +15,7 @@ layout (binding = 4) uniform sampler2DArray diffuseArray;
 layout (binding = 5) uniform sampler2DArray normalArray;
 layout (binding = 6) uniform sampler2DArray ordArray;
 
-layout (location = 3) uniform float materialNormalIntensity = 1.0;
+layout (location = 3) uniform float materialNormalIntensity = 0.3;
 uniform float triplanarSharpness = 0.5;
 
 layout (location = 0) flat in vec2 cornerPoint;
@@ -84,7 +84,6 @@ void main()
     vec3 worldNormal = vec3(tangentNormal.x, tangentNormal.z, -tangentNormal.y);
 
     // vec3 color = vec3(0.9);
-    // // vec3 color = vec3(materialIDVis);
     vec3 color = diffuse * ambientOcclusion;
     color *= max(dot(worldNormal, normalize(vec3(1.0,1.0,0.0))), 0.0) + 0.1;
     fragmentColor = vec4(color,1.0);

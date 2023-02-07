@@ -65,7 +65,7 @@ void main()
     //pass the *non-displaced* position for triplanar sampling in fragment shader
     worldPos = worldPosition.xyz;
 
-    vec3 tangentNormal = 2.0*textureLod(macroNormal,uv,0).xzy-1.0;
+    vec3 tangentNormal = 2.0*textureLod(macroNormal,uv,0).xyz-1.0;
     vec3 worldNormal = vec3(tangentNormal.x, tangentNormal.z, -tangentNormal.y);
 
     const vec2 scaledUVs = uv*textureSize(materialIDTex,0);
