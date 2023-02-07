@@ -25,7 +25,7 @@ CBTGPU::CBTGPU(uint32_t maxDepth)
           {SHADERS_PATH "/Terrain/CBT/drawing.vert", SHADERS_PATH "/Terrain/CBT/drawing.frag"}),
       outlineShader(
           VERTEX_SHADER_BIT | GEOMETRY_SHADER_BIT | FRAGMENT_SHADER_BIT,
-          {SHADERS_PATH "/Terrain/CBT/outline.vert",
+          {SHADERS_PATH "/Terrain/CBT/drawing.vert",
            SHADERS_PATH "/Terrain/CBT/outline.geom",
            SHADERS_PATH "/Terrain/CBT/outline.frag"}),
       overlayShader(
@@ -310,6 +310,10 @@ void CBTGPU::drawUI()
         glUniform1f(
             glGetUniformLocation(drawShader.getProgramID(), "triplanarSharpness"),
             settings.triplanarSharpness);
+        outlineShader.useProgram();
+        glUniform1f(
+            glGetUniformLocation(outlineShader.getProgramID(), "triplanarSharpness"),
+            settings.triplanarSharpness);
     }
     if(ImGui::SliderFloat("Material normal intensity", &settings.materialNormalIntensity, 0.0f, 1.0f))
     {
@@ -321,10 +325,14 @@ void CBTGPU::drawUI()
     {
         drawShader.useProgram();
         glUniform1f(1, settings.materialDisplacementIntensity);
+        outlineShader.useProgram();
+        glUniform1f(1, settings.materialDisplacementIntensity);
     }
     if(ImGui::SliderInt("Material displacement lod offset", &settings.materialDisplacementLodOffset, 0, 7))
     {
         drawShader.useProgram();
+        glUniform1i(2, settings.materialDisplacementLodOffset);
+        outlineShader.useProgram();
         glUniform1i(2, settings.materialDisplacementLodOffset);
     }
 }
