@@ -33,9 +33,10 @@ Texture::Texture(const std::string& file, bool imageIsInSRGB, bool mipMap)
         stbi_set_flip_vertically_on_load(true);
 
         bool isHdr = stbi_is_hdr(file.c_str()) != 0;
+		bool isNormalMap = (file.find("normal") != std::string::npos);
 
         unsigned char* image = nullptr;
-        if(!isHdr)
+        if(!isHdr && !isNormalMap)
         {
             image = stbi_load(file.c_str(), &width, &height, &channels, 0);
             // default to treating nonHDR textures as sRGB for now
@@ -73,7 +74,7 @@ Texture::Texture(const std::string& file, bool imageIsInSRGB, bool mipMap)
             std::cout << "Could not load texture " << file << std::endl;
             return;
         }
-        const int bpp = isHdr ? 4 : 1;
+        const int bpp = isHdr || isNormalMap ? 4 : 1;
 
         // kind of ugly but so are the stbi interfaces :shrug:
         imageData.data = std::make_unique<unsigned char[]>(width * height * channels * bpp);
