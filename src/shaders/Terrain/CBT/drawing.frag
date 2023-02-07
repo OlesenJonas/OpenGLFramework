@@ -59,6 +59,10 @@ void main()
     const uint materialidCF = texelFetchOffset(materialIDTex, idsStartTexel, 0, ivec2(1,0)).r;
     const uint materialidCC = texelFetchOffset(materialIDTex, idsStartTexel, 0, ivec2(1,1)).r;
 
+    //need to explicitly calculate derivatives before scaling by textureScale, otherweise pixel neighbours
+    //can have discontinuities in their UVs
+    const vec2 duvdx = dFdx(worldPos.xz);
+    const vec2 duvdy = dFdy(worldPos.xz);
     const vec3 samplePosFF = vec3(worldPos.xz/textureScales[materialidFF], materialidFF);
     const vec3 samplePosFC = vec3(worldPos.xz/textureScales[materialidFC], materialidFC);
     const vec3 samplePosCF = vec3(worldPos.xz/textureScales[materialidCF], materialidCF);
@@ -67,18 +71,18 @@ void main()
     // TODO: Triplanar
     //  Who decides if a sample needs to be triplanar? Store slope information in materialID texture?
     //  KEEP BRANCHING IN MIND! see https://666uille.files.wordpress.com/2017/03/gdc2017_ghostreconwildlands_terrainandtechnologytools-onlinevideos1.pdf
-    const vec3 diffuseFF = texture(diffuseArray, samplePosFF).rgb;
-    const vec3 diffuseFC = texture(diffuseArray, samplePosFC).rgb;
-    const vec3 diffuseCF = texture(diffuseArray, samplePosCF).rgb;
-    const vec3 diffuseCC = texture(diffuseArray, samplePosCC).rgb;
-    const vec3 normalFF = 2*texture(normalArray, samplePosFF).rgb-1;
-    const vec3 normalFC = 2*texture(normalArray, samplePosFC).rgb-1;
-    const vec3 normalCF = 2*texture(normalArray, samplePosCF).rgb-1;
-    const vec3 normalCC = 2*texture(normalArray, samplePosCC).rgb-1;
-    const vec3 ordFF = texture(ordArray, samplePosFF).rgb;
-    const vec3 ordFC = texture(ordArray, samplePosFC).rgb;
-    const vec3 ordCF = texture(ordArray, samplePosCF).rgb;
-    const vec3 ordCC = texture(ordArray, samplePosCC).rgb;
+    const vec3 diffuseFF = textureGrad(diffuseArray, samplePosFF, duvdx/textureScales[materialidFF], duvdy/textureScales[materialidFF]).rgb;
+    const vec3 diffuseFC = textureGrad(diffuseArray, samplePosFC, duvdx/textureScales[materialidFC], duvdy/textureScales[materialidFC]).rgb;
+    const vec3 diffuseCF = textureGrad(diffuseArray, samplePosCF, duvdx/textureScales[materialidCF], duvdy/textureScales[materialidCF]).rgb;
+    const vec3 diffuseCC = textureGrad(diffuseArray, samplePosCC, duvdx/textureScales[materialidCC], duvdy/textureScales[materialidCC]).rgb;
+    const vec3 normalFF = 2*textureGrad(normalArray, samplePosFF, duvdx/textureScales[materialidFF], duvdy/textureScales[materialidFF]).rgb-1;
+    const vec3 normalFC = 2*textureGrad(normalArray, samplePosFC, duvdx/textureScales[materialidFC], duvdy/textureScales[materialidFC]).rgb-1;
+    const vec3 normalCF = 2*textureGrad(normalArray, samplePosCF, duvdx/textureScales[materialidCF], duvdy/textureScales[materialidCF]).rgb-1;
+    const vec3 normalCC = 2*textureGrad(normalArray, samplePosCC, duvdx/textureScales[materialidCC], duvdy/textureScales[materialidCC]).rgb-1;
+    const vec3 ordFF = textureGrad(ordArray, samplePosFF, duvdx/textureScales[materialidFF], duvdy/textureScales[materialidFF]).rgb;
+    const vec3 ordFC = textureGrad(ordArray, samplePosFC, duvdx/textureScales[materialidFC], duvdy/textureScales[materialidFC]).rgb;
+    const vec3 ordCF = textureGrad(ordArray, samplePosCF, duvdx/textureScales[materialidCF], duvdy/textureScales[materialidCF]).rgb;
+    const vec3 ordCC = textureGrad(ordArray, samplePosCC, duvdx/textureScales[materialidCC], duvdy/textureScales[materialidCC]).rgb;
     //This would be more readable and also easier to abstract further imo, but at least atm its more expensive
     // const MaterialAttributes maFF = CreateMaterialAttributes(diffuseFF, normalFF, ordFF);
     // const MaterialAttributes maFC = CreateMaterialAttributes(diffuseFC, normalFC, ordFC);
