@@ -16,7 +16,7 @@ layout (binding = 5) uniform sampler2DArray normalArray;
 layout (binding = 6) uniform sampler2DArray ordArray;
 
 layout (location = 0) uniform mat4 projectionViewMatrix;
-layout (location = 3) uniform float materialNormalIntensity = 0.3;
+layout (location = 3) uniform float materialNormalIntensity = 0.7;
 layout (location = 4) uniform mat4 viewMatrix;
 uniform float triplanarSharpness = 0.5;
 
