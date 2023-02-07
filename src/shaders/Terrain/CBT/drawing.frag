@@ -38,6 +38,22 @@ float fast(vec2 v)
 
 #include "../../General/Blending.glsl"
 
+vec3 reconstructNormalY(const float x, const float z)
+{
+    return vec3(
+        x,
+        sqrt(1-x*x-z*z),
+        z
+    );
+}
+
+vec2 getUVFromProjectionAxis(const vec3 projectionAxis, const vec3 worldPos)
+{
+    const vec3 tempRight = cross(vec3(0,1,0),projectionAxis);
+    const vec3 tempUp = cross(projectionAxis,tempRight);
+    return vec2(dot(worldPos,tempRight), dot(worldPos, tempUp));
+}
+
 // Uses reorient normal blending for blending material normal maps and terrain normal:
 // https://blog.selfshadow.com/publications/blending-in-detail/
 
@@ -53,16 +69,33 @@ void main()
     const ivec2 idsStartTexel = ivec2(scaledUVs);
     const vec2 weights = fract(scaledUVs);
 
-    // TODO: replace with a single textureGather call?
-    const uint materialidFF = texelFetchOffset(materialIDTex, idsStartTexel, 0, ivec2(0,0)).r;
-    const uint materialidFC = texelFetchOffset(materialIDTex, idsStartTexel, 0, ivec2(0,1)).r;
-    const uint materialidCF = texelFetchOffset(materialIDTex, idsStartTexel, 0, ivec2(1,0)).r;
-    const uint materialidCC = texelFetchOffset(materialIDTex, idsStartTexel, 0, ivec2(1,1)).r;
+    const uvec3 sampleInfoFF = texelFetchOffset(materialIDTex, idsStartTexel, 0, ivec2(0,0)).rgb;
+    const uvec3 sampleInfoFC = texelFetchOffset(materialIDTex, idsStartTexel, 0, ivec2(0,1)).rgb;
+    const uvec3 sampleInfoCF = texelFetchOffset(materialIDTex, idsStartTexel, 0, ivec2(1,0)).rgb;
+    const uvec3 sampleInfoCC = texelFetchOffset(materialIDTex, idsStartTexel, 0, ivec2(1,1)).rgb;
 
-    const vec3 samplePosFF = vec3(worldPos.xz/textureScales[materialidFF], materialidFF);
-    const vec3 samplePosFC = vec3(worldPos.xz/textureScales[materialidFC], materialidFC);
-    const vec3 samplePosCF = vec3(worldPos.xz/textureScales[materialidCF], materialidCF);
-    const vec3 samplePosCC = vec3(worldPos.xz/textureScales[materialidCC], materialidCC);
+    const uint materialidFF = sampleInfoFF.r;
+    const uint materialidFC = sampleInfoFC.r;
+    const uint materialidCF = sampleInfoCF.r;
+    const uint materialidCC = sampleInfoCC.r;
+
+    const vec2 sampleDirxzFF = 2.0*(sampleInfoFF.gb/255.0)-1.0;
+    const vec3 sampleNrmFF = reconstructNormalY(sampleDirxzFF.x, sampleDirxzFF.y);
+    const vec2 sampleDirxzFC = 2.0*(sampleInfoFC.gb/255.0)-1.0;
+    const vec3 sampleNrmFC = reconstructNormalY(sampleDirxzFC.x, sampleDirxzFC.y);
+    const vec2 sampleDirxzCF = 2.0*(sampleInfoCF.gb/255.0)-1.0;
+    const vec3 sampleNrmCF = reconstructNormalY(sampleDirxzCF.x, sampleDirxzCF.y);
+    const vec2 sampleDirxzCC = 2.0*(sampleInfoCC.gb/255.0)-1.0;
+    const vec3 sampleNrmCC = reconstructNormalY(sampleDirxzCC.x, sampleDirxzCC.y);
+
+    // const vec3 samplePosFF = vec3(worldPos.xz/textureScales[materialidFF], materialidFF);
+    // const vec3 samplePosFC = vec3(worldPos.xz/textureScales[materialidFC], materialidFC);
+    // const vec3 samplePosCF = vec3(worldPos.xz/textureScales[materialidCF], materialidCF);
+    // const vec3 samplePosCC = vec3(worldPos.xz/textureScales[materialidCC], materialidCC);
+    const vec3 samplePosFF = vec3(getUVFromProjectionAxis(sampleNrmFF,worldPos)/textureScales[materialidFF], materialidFF);
+    const vec3 samplePosFC = vec3(getUVFromProjectionAxis(sampleNrmFC,worldPos)/textureScales[materialidFC], materialidFC);
+    const vec3 samplePosCF = vec3(getUVFromProjectionAxis(sampleNrmCF,worldPos)/textureScales[materialidCF], materialidCF);
+    const vec3 samplePosCC = vec3(getUVFromProjectionAxis(sampleNrmCC,worldPos)/textureScales[materialidCC], materialidCC);
 
     // TODO: Triplanar
     //  Who decides if a sample needs to be triplanar? Store slope information in materialID texture?

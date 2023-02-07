@@ -86,18 +86,20 @@ int main()
     // const Texture terrainMaterialIDs{MISC_PATH "/CBT/TerrainMaterialIDs.png", false, false};
     // Need to load as UI8 texture, which is not currently supported by the default texture load functionality
     auto imageData = png::read(MISC_PATH "/CBT/TerrainMaterialIDs.png", false, true);
+    assert(imageData.channels == Texture::Channels::RGB);
+    assert(imageData.pixelType == Texture::PixelType::UCHAR);
     const Texture terrainMaterialIDs{TextureDesc{
         .name = "Terrain Material IDs",
         .levels = 1,
         .width = static_cast<GLsizei>(imageData.width),
         .height = static_cast<GLsizei>(imageData.height),
-        .internalFormat = GL_R8UI,
+        .internalFormat = GL_RGB8UI,
         .minFilter = GL_NEAREST,
         .magFilter = GL_NEAREST,
         .wrapS = GL_CLAMP_TO_EDGE,
         .wrapT = GL_CLAMP_TO_EDGE,
         .data = imageData.data.get(),
-        .dataFormat = GL_RED_INTEGER,
+        .dataFormat = GL_RGB_INTEGER,
         .dataType = GL_UNSIGNED_BYTE,
         .generateMips = false}};
     imageData.data.release();
