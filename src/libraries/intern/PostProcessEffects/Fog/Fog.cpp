@@ -25,9 +25,11 @@ const Texture& FogEffect::execute(const Texture& colorInput, const Texture& dept
 
 void FogEffect::drawUI()
 {
+    int oldMode = mode;
     if(ImGui::Combo("Rendering Mode", &mode, "Basic\0SSMS\0"))
     {
-        changeRenderingMode();
+        if(mode != oldMode)
+            changeRenderingMode();
     }
     ImGui::Separator();
     if(mode == 0)
