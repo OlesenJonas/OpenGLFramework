@@ -41,6 +41,23 @@ float fast(vec2 v)
 // Uses reorient normal blending for blending material normal maps and terrain normal:
 // https://blog.selfshadow.com/publications/blending-in-detail/
 
+// TODO: Triplanar
+//  Who decides if a sample needs to be triplanar? Store slope information in materialID texture?
+//  KEEP BRANCHING IN MIND! see https://666uille.files.wordpress.com/2017/03/gdc2017_ghostreconwildlands_terrainandtechnologytools-onlinevideos1.pdf
+MaterialAttributes getMaterialAttributesFromTexelAndWorldPos(const ivec2 texelPos, vec3 worldPos, vec3 dPdx, vec3 dPdy)
+{
+    const uint materialID = texelFetch(materialIDTex, texelPos, 0).r;
+    const float texScale = textureScales[materialID];
+    worldPos = worldPos/texScale;
+    dPdx = dPdx/texScale;
+    dPdy = dPdy/texScale;
+    return CreateMaterialAttributes(
+        textureGrad(diffuseArray, vec3(worldPos.xz,materialID), dPdx.xz, dPdy.xz).rgb,
+        2*textureGrad(normalArray, vec3(worldPos.xz,materialID), dPdx.xz, dPdy.xz).rgb-1,
+        textureGrad(ordArray, vec3(worldPos.xz,materialID), dPdx.xz, dPdy.xz).rgb
+    );
+}
+
 void main()
 {
     float gs = 0.2+0.6*fast(cornerPoint);
@@ -53,65 +70,22 @@ void main()
     const ivec2 idsStartTexel = ivec2(scaledUVs);
     const vec2 weights = fract(scaledUVs);
 
-    // TODO: replace with a single textureGather call?
-    const uint materialidFF = texelFetchOffset(materialIDTex, idsStartTexel, 0, ivec2(0,0)).r;
-    const uint materialidFC = texelFetchOffset(materialIDTex, idsStartTexel, 0, ivec2(0,1)).r;
-    const uint materialidCF = texelFetchOffset(materialIDTex, idsStartTexel, 0, ivec2(1,0)).r;
-    const uint materialidCC = texelFetchOffset(materialIDTex, idsStartTexel, 0, ivec2(1,1)).r;
-
     //need to explicitly calculate derivatives before scaling by textureScale, otherweise pixel neighbours
     //can have discontinuities in their UVs
-    const vec2 duvdx = dFdx(worldPos.xz);
-    const vec2 duvdy = dFdy(worldPos.xz);
-    const vec3 samplePosFF = vec3(worldPos.xz/textureScales[materialidFF], materialidFF);
-    const vec3 samplePosFC = vec3(worldPos.xz/textureScales[materialidFC], materialidFC);
-    const vec3 samplePosCF = vec3(worldPos.xz/textureScales[materialidCF], materialidCF);
-    const vec3 samplePosCC = vec3(worldPos.xz/textureScales[materialidCC], materialidCC);
+    const vec3 dPdx = dFdx(worldPos);
+    const vec3 dPdy = dFdy(worldPos);
 
-    // TODO: Triplanar
-    //  Who decides if a sample needs to be triplanar? Store slope information in materialID texture?
-    //  KEEP BRANCHING IN MIND! see https://666uille.files.wordpress.com/2017/03/gdc2017_ghostreconwildlands_terrainandtechnologytools-onlinevideos1.pdf
-    const vec3 diffuseFF = textureGrad(diffuseArray, samplePosFF, duvdx/textureScales[materialidFF], duvdy/textureScales[materialidFF]).rgb;
-    const vec3 diffuseFC = textureGrad(diffuseArray, samplePosFC, duvdx/textureScales[materialidFC], duvdy/textureScales[materialidFC]).rgb;
-    const vec3 diffuseCF = textureGrad(diffuseArray, samplePosCF, duvdx/textureScales[materialidCF], duvdy/textureScales[materialidCF]).rgb;
-    const vec3 diffuseCC = textureGrad(diffuseArray, samplePosCC, duvdx/textureScales[materialidCC], duvdy/textureScales[materialidCC]).rgb;
-    const vec3 normalFF = 2*textureGrad(normalArray, samplePosFF, duvdx/textureScales[materialidFF], duvdy/textureScales[materialidFF]).rgb-1;
-    const vec3 normalFC = 2*textureGrad(normalArray, samplePosFC, duvdx/textureScales[materialidFC], duvdy/textureScales[materialidFC]).rgb-1;
-    const vec3 normalCF = 2*textureGrad(normalArray, samplePosCF, duvdx/textureScales[materialidCF], duvdy/textureScales[materialidCF]).rgb-1;
-    const vec3 normalCC = 2*textureGrad(normalArray, samplePosCC, duvdx/textureScales[materialidCC], duvdy/textureScales[materialidCC]).rgb-1;
-    const vec3 ordFF = textureGrad(ordArray, samplePosFF, duvdx/textureScales[materialidFF], duvdy/textureScales[materialidFF]).rgb;
-    const vec3 ordFC = textureGrad(ordArray, samplePosFC, duvdx/textureScales[materialidFC], duvdy/textureScales[materialidFC]).rgb;
-    const vec3 ordCF = textureGrad(ordArray, samplePosCF, duvdx/textureScales[materialidCF], duvdy/textureScales[materialidCF]).rgb;
-    const vec3 ordCC = textureGrad(ordArray, samplePosCC, duvdx/textureScales[materialidCC], duvdy/textureScales[materialidCC]).rgb;
-    //This would be more readable and also easier to abstract further imo, but at least atm its more expensive
-    // const MaterialAttributes maFF = CreateMaterialAttributes(diffuseFF, normalFF, ordFF);
-    // const MaterialAttributes maFC = CreateMaterialAttributes(diffuseFC, normalFC, ordFC);
-    // const MaterialAttributes maCF = CreateMaterialAttributes(diffuseCF, normalCF, ordCF);
-    // const MaterialAttributes maCC = CreateMaterialAttributes(diffuseCC, normalCC, ordCC);
-    // const MaterialAttributes maF = lerp(maFF, maFC, weights.y);
-    // const MaterialAttributes maC = lerp(maCF, maCC, weights.y);
-    // const MaterialAttributes attributes = lerp(maF, maC, weights.x);
-    // const vec3 diffuse = attributes.diffuseRoughness.rgb;
-    // const float roughness = attributes.diffuseRoughness.w;
-    // vec3 materialNormal = attributes.normalMetallic.xyz;
-    // const float ambientOcclusion = attributes.aoHeight.x;
-
-    const vec3 ordF = mix(ordFF, ordFC, weights.y);
-    const vec3 ordC = mix(ordCF, ordCC, weights.y);
-    const vec3 ord = mix(ordF, ordC, weights.x);
-    const float roughness = ord.g;
-    const float ambientOcclusion = ord.r;
-
-    const vec3 diffuseF = mix(diffuseFF, diffuseFC, weights.y);
-    const vec3 diffuseC = mix(diffuseCF, diffuseCC, weights.y);
-    vec3 diffuse = mix(diffuseF, diffuseC, weights.x);
-
-    const vec3 normalF = mix(normalFF, normalFC, weights.y);
-    const vec3 normalC = mix(normalCF, normalCC, weights.y);
-    vec3 materialNormal = mix(normalF, normalC, weights.x);
-
-
-
+    const MaterialAttributes maFF = getMaterialAttributesFromTexelAndWorldPos(idsStartTexel+ivec2(0,0), worldPos, dPdx, dPdy);
+    const MaterialAttributes maFC = getMaterialAttributesFromTexelAndWorldPos(idsStartTexel+ivec2(0,1), worldPos, dPdx, dPdy);
+    const MaterialAttributes maCF = getMaterialAttributesFromTexelAndWorldPos(idsStartTexel+ivec2(1,0), worldPos, dPdx, dPdy);
+    const MaterialAttributes maCC = getMaterialAttributesFromTexelAndWorldPos(idsStartTexel+ivec2(1,1), worldPos, dPdx, dPdy);
+    const MaterialAttributes maF = lerp(maFF, maFC, weights.y);
+    const MaterialAttributes maC = lerp(maCF, maCC, weights.y);
+    const MaterialAttributes attributes = lerp(maF, maC, weights.x);
+    const vec3 diffuse = attributes.diffuseRoughness.rgb;
+    const float roughness = attributes.diffuseRoughness.w;
+    vec3 materialNormal = attributes.normalMetallic.xyz;
+    const float ambientOcclusion = attributes.aoHeight.x;
 
     vec3 macroNormal = texture(macroNormal, uv).xyz;
     //macro normal is only ever used as a base for reorient normal blending, so transform directly here
