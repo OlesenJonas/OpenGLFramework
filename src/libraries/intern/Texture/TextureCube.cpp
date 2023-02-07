@@ -9,6 +9,25 @@
 #include <glm/glm.hpp>
 #include <stb/stb_image.h>
 
+TextureCube::TextureCube(uint32_t size) : width(size), height(size)
+{
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+    for(size_t i = 0; i < 6; ++i)
+    {
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGBA16F, size, size, 0, GL_RGBA, GL_FLOAT, nullptr);
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glGenerateTextureMipmap(textureID);
+
+	initialized = true;
+}
+
 TextureCube::TextureCube(const std::vector<std::string>& files)
 {
     glGenTextures(1, &textureID);
@@ -47,20 +66,66 @@ static inline glm::vec2 polarCoordinates(const glm::vec3& dir)
     return glm::vec2(u, acos(dirN.y) / M_PI);
 }
 
+Color* TextureCube::subimage(Color* source, size_t offsetX, size_t offsetY, size_t _width, size_t _height)
+{
+	if (offsetX < 0 || offsetY < 0 || (size_t)(offsetX + _width) > width || (size_t)(offsetY + _height) > height)
+		return nullptr;
+
+	Color* data = new Color[_width * _height];
+	Color* subsource = source + offsetX;
+	Color* destination = data;
+	for (int y = _height - 1; y >= 0; --y)
+	{
+		subsource = source + offsetX + width * (offsetY + y);
+		memcpy(destination, subsource, _width * sizeof(Color));
+		destination += _width;
+	}
+	return data;
+}
+
 TextureCube::TextureCube(const std::string& file)
 {
     glGenTextures(1, &textureID);
     glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
 
     int channels;
-    Color* data = reinterpret_cast<Color*>(stbi_load(file.c_str(), &width, &height, &channels, 0));
+	stbi_ldr_to_hdr_gamma(1.0f);
+    Color* data = reinterpret_cast<Color*>(stbi_loadf(file.c_str(), &width, &height, &channels, STBI_rgb_alpha));
 
     const bool isCubemapFormat = (width * 4 == height * 3) || (width * 3 == height * 4);
 
     if (isCubemapFormat)
     {
-        // Todo: horizontal or vertical cross
-        assert(false && "todo: cubemap format not supported");
+        // Todo: assumes horizontal cross!
+        //assert(false && "todo: cubemap format not supported");
+
+		const size_t faceSize = width / 4;
+
+		// Horizontal cross
+
+		Color* faces[6];
+        for(int i = 0; i < 6; ++i)
+        {
+            faces[i] = new Color[faceSize * faceSize];
+        }
+		faces[0] = subimage(data, 2*faceSize, faceSize, faceSize, faceSize);
+		faces[1] = subimage(data, 0, faceSize, faceSize, faceSize);
+		faces[3] = subimage(data, faceSize, 0, faceSize, faceSize);
+		faces[2] = subimage(data, faceSize, 2*faceSize, faceSize, faceSize);
+		faces[4] = subimage(data, faceSize, faceSize, faceSize, faceSize);
+		faces[5] = subimage(data, 3*faceSize, faceSize, faceSize, faceSize);
+
+
+		for(int i = 0; i < 6; ++i)
+        {
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGBA, faceSize, faceSize, 0, GL_RGBA, GL_FLOAT, faces[i]);
+        }
+
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
     }
     else
     {
@@ -160,7 +225,7 @@ TextureCube::TextureCube(const std::string& file)
 
         for(int i = 0; i < 6; ++i)
         {
-            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, faceSize, faceSize, 0, GL_RGB, GL_UNSIGNED_BYTE, faces[i]);
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGBA, faceSize, faceSize, 0, GL_RGBA, GL_FLOAT, faces[i]);
         }
 
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);

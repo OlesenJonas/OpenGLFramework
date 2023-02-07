@@ -242,11 +242,12 @@ void CBTGPU::writeIndirectCommands()
     indirectWriteTimer.evaluate();
 }
 
-void CBTGPU::draw(const glm::mat4& projViewMatrix)
+void CBTGPU::draw(const glm::mat4& viewMatrix, const glm::mat4& projViewMatrix)
 {
     drawTimer.start();
     drawShader.useProgram();
     glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
+    glUniformMatrix4fv(4, 1, GL_FALSE, glm::value_ptr(viewMatrix));
     glBindVertexArray(triangleTemplates[settings.selectedSubdivLevel].getVAO());
 
     // glDrawElementsInstancedBaseVertexBaseInstance(

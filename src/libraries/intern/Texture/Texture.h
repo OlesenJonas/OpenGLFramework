@@ -25,6 +25,8 @@ struct TextureDesc
     GLenum dataFormat = 0xFFFFFFFF;
     GLenum dataType = 0xFFFFFFFF;
     bool generateMips = false;
+	GLint compFunc = GL_LEQUAL;
+	GLint compMode = GL_NONE;
 };
 
 class Texture : public GLTexture
@@ -43,7 +45,7 @@ class Texture : public GLTexture
      * @param imageIsInSRGB Is the image data in the file in sRGB color space
      * @param mipMap True if texture is supposed to generate mipmapping
      */
-    Texture(const std::string& file, bool imageIsInSRGB, bool mipMap);
+    Texture(const std::string& file, bool imageIsInSRGB, bool mipMap = true);
 
     /** Creates an immutable Texture object based on a given descriptor.
      * @param descriptor Descriptor to use for configuring the texture

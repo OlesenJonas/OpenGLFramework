@@ -8,6 +8,8 @@
 
 out vec4 fragmentColor;
 
+layout (location = 0) uniform mat4 projectionViewMatrix;
+
 layout (binding = 1) uniform sampler2D macroNormal;
 layout (binding = 2) uniform usampler2D materialIDTex;
 
@@ -17,10 +19,14 @@ layout (binding = 6) uniform sampler2DArray ordArray;
 
 layout (location = 3) uniform float materialNormalIntensity = 0.3;
 uniform float triplanarSharpness = 0.5;
+layout (location = 4) uniform mat4 viewMatrix;
 
 layout (location = 0) flat in vec2 cornerPoint;
 layout (location = 1) in vec2 uv;
-layout (location = 2) in vec3 worldPos;
+layout (location = 2) in vec3 worldPosNoDisplacement;
+layout (location = 3) in vec3 worldPos;
+layout (location = 4) in vec3 viewPos;
+
 
 layout(std430, binding = 3) buffer textureInfoBuffer
 {   
@@ -37,7 +43,9 @@ float fast(vec2 v)
     return fract( state * state * (3571. * 2.));
 }
 
-// reorient normal blending for blending material normal maps and terrain normal:
+#include "../../General/lighting.glsl"
+
+// Reorient normal blending for blending material normal maps and terrain normal:
 // https://blog.selfshadow.com/publications/blending-in-detail/
 vec3 reorientNormalBlend(vec3 t, vec3 u)
 {
@@ -66,13 +74,13 @@ void main()
 
     //need to explicitly calculate derivatives before scaling by textureScale, otherweise pixel neighbours
     //can have discontinuities in their UVs
-    const vec3 dPdx = dFdx(worldPos);
-    const vec3 dPdy = dFdy(worldPos);
+    const vec3 dPdx = dFdx(worldPosNoDisplacement);
+    const vec3 dPdy = dFdy(worldPosNoDisplacement);
 
-    const MaterialAttributes maFF = getMaterialAttributesFromTexelAndWorldPos(idsStartTexel+ivec2(0,0), worldPos, dPdx, dPdy, macroNormal);
-    const MaterialAttributes maFC = getMaterialAttributesFromTexelAndWorldPos(idsStartTexel+ivec2(0,1), worldPos, dPdx, dPdy, macroNormal);
-    const MaterialAttributes maCF = getMaterialAttributesFromTexelAndWorldPos(idsStartTexel+ivec2(1,0), worldPos, dPdx, dPdy, macroNormal);
-    const MaterialAttributes maCC = getMaterialAttributesFromTexelAndWorldPos(idsStartTexel+ivec2(1,1), worldPos, dPdx, dPdy, macroNormal);
+    const MaterialAttributes maFF = getMaterialAttributesFromTexelAndWorldPos(idsStartTexel+ivec2(0,0), worldPosNoDisplacement, dPdx, dPdy, macroNormal);
+    const MaterialAttributes maFC = getMaterialAttributesFromTexelAndWorldPos(idsStartTexel+ivec2(0,1), worldPosNoDisplacement, dPdx, dPdy, macroNormal);
+    const MaterialAttributes maCF = getMaterialAttributesFromTexelAndWorldPos(idsStartTexel+ivec2(1,0), worldPosNoDisplacement, dPdx, dPdy, macroNormal);
+    const MaterialAttributes maCC = getMaterialAttributesFromTexelAndWorldPos(idsStartTexel+ivec2(1,1), worldPosNoDisplacement, dPdx, dPdy, macroNormal);
     const MaterialAttributes maF = lerp(maFF, maFC, weights.y);
     const MaterialAttributes maC = lerp(maCF, maCC, weights.y);
     const MaterialAttributes attributes = lerp(maF, maC, weights.x);
@@ -83,8 +91,21 @@ void main()
     //TBN columns would just be (1,0,0),(0,0,-1),(0,1,0), so no need for matrix mult here
     vec3 worldNormal = vec3(tangentNormal.x, tangentNormal.z, -tangentNormal.y);
 
-    // vec3 color = vec3(0.9);
-    vec3 color = diffuse * ambientOcclusion;
-    color *= max(dot(worldNormal, normalize(vec3(1.0,1.0,0.0))), 0.0) + 0.1;
-    fragmentColor = vec4(color,1.0);
+	// Lighting
+
+	vec3 diff = vec3(0,0,0);
+	vec3 spec = vec3(0,0,0);
+
+	const vec3 P = viewPos.xyz;
+	const vec3 V = normalize(-P);
+	const vec3 viewNormal = normalize(viewMatrix * vec4(worldNormal, 0)).xyz;
+
+	vec3 baseColor = diffuse;
+	const vec3 reflect = mix(vec3(0.04f, 0.04f, 0.04f), baseColor.xyz, 0.0f);
+
+	directIllumination(viewMatrix, V, P, viewNormal, worldPos, LightColor.xyz, LightDirection, baseColor, roughness, diff, spec);
+	imageBasedLighting(viewMatrix, V, viewNormal, worldNormal, reflect, diff, spec, roughness, ambientOcclusion);
+
+	const vec3 col = diff + spec;
+    fragmentColor = vec4(col, 1);
 }

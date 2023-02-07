@@ -4,14 +4,11 @@
 #include <string>
 #include <vector>
 #include "GLTexture.h"
+#include "intern/Misc/Color.h"
 
 // forward declared, part of Texture.h
 struct TextureDesc;
 
-struct Color
-{
-    uint8_t r,g,b;
-};
 
 /** Texture class encapsulating and managing an OpenGL 3D texture object.
  */
@@ -32,6 +29,9 @@ class TextureCube : public GLTexture
     explicit TextureCube(const std::vector<std::string>& files);
 
     explicit TextureCube(const std::string& file);
+
+    explicit TextureCube(uint32_t size);
+
 
     /*
         Move constructor
@@ -58,6 +58,9 @@ class TextureCube : public GLTexture
     {
         return height;
     };
+
+	Color* subimage(Color* source, size_t _width, size_t _height, size_t offsetX, size_t offsetY);
+
 
   private:
     /*

@@ -33,13 +33,14 @@ Texture::Texture(const std::string& file, bool imageIsInSRGB, bool mipMap)
         stbi_set_flip_vertically_on_load(true);
 
         bool isHdr = stbi_is_hdr(file.c_str()) != 0;
+		bool isNormalMap = (file.find("normal") != std::string::npos);
 
         unsigned char* image = nullptr;
-        if(!isHdr)
+        if(!isHdr && !isNormalMap)
         {
             image = stbi_load(file.c_str(), &width, &height, &channels, 0);
             // default to treating nonHDR textures as sRGB for now
-            imageData.pixelType = Texture::PixelType::UCHAR_SRGB;
+            imageData.pixelType = imageIsInSRGB ? Texture::PixelType::UCHAR_SRGB : Texture::PixelType::UCHAR;
         }
         else
         {
@@ -73,7 +74,7 @@ Texture::Texture(const std::string& file, bool imageIsInSRGB, bool mipMap)
             std::cout << "Could not load texture " << file << std::endl;
             return;
         }
-        const int bpp = isHdr ? 4 : 1;
+        const int bpp = isHdr || isNormalMap ? 4 : 1;
 
         // kind of ugly but so are the stbi interfaces :shrug:
         imageData.data = std::make_unique<unsigned char[]>(width * height * channels * bpp);
@@ -141,6 +142,9 @@ Texture::Texture(const TextureDesc descriptor) : width(descriptor.width), height
     glTextureParameteri(textureID, GL_TEXTURE_MAG_FILTER, descriptor.magFilter);
     glTextureParameteri(textureID, GL_TEXTURE_WRAP_S, descriptor.wrapS);
     glTextureParameteri(textureID, GL_TEXTURE_WRAP_T, descriptor.wrapT);
+	glTextureParameteri(textureID, GL_TEXTURE_COMPARE_FUNC, descriptor.compFunc);
+	glTextureParameteri(textureID, GL_TEXTURE_COMPARE_MODE, descriptor.compMode);
+
     // GLfloat maxAniso = 0;
     // glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &maxAniso);
     // glTextureParameterf(handle, GL_TEXTURE_MAX_ANISOTROPY, std::max(maxAniso, descriptor.maxAnisotropy));
