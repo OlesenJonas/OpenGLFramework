@@ -8,18 +8,17 @@
 
 out vec4 fragmentColor;
 
-layout (location = 0) uniform mat4 projectionViewMatrix;
 
 layout (binding = 1) uniform sampler2D macroNormal;
 layout (binding = 2) uniform usampler2D materialIDTex;
-
 layout (binding = 4) uniform sampler2DArray diffuseArray;
 layout (binding = 5) uniform sampler2DArray normalArray;
 layout (binding = 6) uniform sampler2DArray ordArray;
 
+layout (location = 0) uniform mat4 projectionViewMatrix;
 layout (location = 3) uniform float materialNormalIntensity = 0.3;
-uniform float triplanarSharpness = 0.5;
 layout (location = 4) uniform mat4 viewMatrix;
+uniform float triplanarSharpness = 0.5;
 
 layout (location = 0) flat in vec2 cornerPoint;
 layout (location = 1) in vec2 uv;

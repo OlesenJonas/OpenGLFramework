@@ -17,17 +17,17 @@
 #include <intern/Misc/ImGuiExtensions.h>
 #include <intern/Misc/OpenGLErrorHandler.h>
 #include <intern/PostProcessEffects/Fog/Fog.h>
+#include <intern/Scene/Entity.h>
+#include <intern/Scene/Light.h>
+#include <intern/Scene/Material.h>
+#include <intern/Scene/ReflectionProbe.h>
+#include <intern/Scene/Scene.h>
 #include <intern/ShaderProgram/ShaderProgram.h>
 #include <intern/Terrain/CBTGPU.h>
-#include <intern/Scene/Scene.h>
-#include <intern/Scene/Entity.h>
-#include <intern/Scene/ReflectionProbe.h>
 #include <intern/Texture/IO/png.h>
 #include <intern/Texture/Texture.h>
 #include <intern/Texture/TextureCube.h>
 #include <intern/Window/Window.h>
-#include <intern/Scene/Material.h>
-#include <intern/Scene/Light.h>
 
 int main()
 {
@@ -282,7 +282,7 @@ int main()
     bool applyFog = true;
     FogEffect fogEffect(WIDTH, HEIGHT);
     GPUTimer<128> fogPassTimer{"Fog"};
-    
+
     FullscreenTri tri = FullscreenTri();
 
     Texture tAlbedo(MISC_PATH "/YellowBrick_basecolor.tga", false, true);
@@ -293,28 +293,30 @@ int main()
 
     Scene MainScene;
     MainScene.init();
-	MainScene.setSkyExposure(5.0f);
-	MainScene.sun()->setDirectionFromPolarCoord(glm::radians(45.0f), glm::radians(130.0f));
-	MainScene.sun()->setColor(Color::fromTemperature(4900.0f));
+    MainScene.setSkyExposure(5.0f);
+    MainScene.sun()->setDirectionFromPolarCoord(glm::radians(45.0f), glm::radians(130.0f));
+    MainScene.sun()->setColor(Color::fromTemperature(4900.0f));
 
-	ReflectionProbe* probe = MainScene.createReflectionProbe();
-	probe->setActive(false);
-	probe->setVisibility(false);
+    ReflectionProbe* probe = MainScene.createReflectionProbe();
+    probe->setActive(false);
+    probe->setVisibility(false);
 
-	Entity* testObject2 = MainScene.createEntity();
-    testObject2->setMaterial(new Material(MISC_PATH "/YellowBrick_basecolor.tga", MISC_PATH "/YellowBrick_normal.tga", MISC_PATH "/YellowBrick_attributes.tga"));
-	testObject2->setMesh(new Mesh(MISC_PATH "/Meshes/shadowtest.obj"));
-	testObject2->setPosition(glm::vec3(10,20,10));
-	testObject2->getMaterial()->setBaseColor(Color::White);
-	testObject2->getMaterial()->setNormalIntensity(1.0f);
+    Entity* testObject2 = MainScene.createEntity();
+    testObject2->setMaterial(new Material(
+        MISC_PATH "/YellowBrick_basecolor.tga",
+        MISC_PATH "/YellowBrick_normal.tga",
+        MISC_PATH "/YellowBrick_attributes.tga"));
+    testObject2->setMesh(new Mesh(MISC_PATH "/Meshes/shadowtest.obj"));
+    testObject2->setPosition(glm::vec3(10, 20, 10));
+    testObject2->getMaterial()->setBaseColor(Color::White);
+    testObject2->getMaterial()->setNormalIntensity(1.0f);
 
-	//Entity* testObject3 = MainScene.createEntity();
-    //testObject3->setMaterial(new Material(MISC_PATH "/Props_Bench2_basecolor.tga", MISC_PATH "/Props_Bench2_normal.tga", MISC_PATH "/Props_Bench2_attributes.tga"));
-	//testObject3->setMesh(new Mesh(MISC_PATH "/Meshes/Bench.obj"));
-	//testObject3->setPosition(glm::vec3(15,20,5));
-	//testObject3->getMaterial()->setBaseColor(Color::White);
-	//testObject3->getMaterial()->setNormalIntensity(1.0f);
-
+    // Entity* testObject3 = MainScene.createEntity();
+    // testObject3->setMaterial(new Material(MISC_PATH "/Props_Bench2_basecolor.tga", MISC_PATH
+    // "/Props_Bench2_normal.tga", MISC_PATH "/Props_Bench2_attributes.tga")); testObject3->setMesh(new
+    // Mesh(MISC_PATH "/Meshes/Bench.obj")); testObject3->setPosition(glm::vec3(15,20,5));
+    // testObject3->getMaterial()->setBaseColor(Color::White);
+    // testObject3->getMaterial()->setNormalIntensity(1.0f);
 
     //----------------------- RENDERLOOP
 
@@ -336,7 +338,7 @@ int main()
 
         auto currentTime = static_cast<float>(input.getSimulationTime());
 
-		glBindTextureUnit(0, terrainHeightmap.getTextureID());
+        glBindTextureUnit(0, terrainHeightmap.getTextureID());
         if(!cbt.getSettings().freezeUpdates)
         {
             cbt.update(*cam.getProj() * *cam.getView(), {WIDTH, HEIGHT});
@@ -344,40 +346,36 @@ int main()
         cbt.doSumReduction();
         cbt.writeIndirectCommands();
 
-		MainScene.prepass(cbt);
-		MainScene.bind();
+        MainScene.prepass(cbt);
+        MainScene.bind();
 
         internalFBO.bind();
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glDepthFunc(GL_LESS);
         glEnable(GL_DEPTH_TEST);
 
-        
-
+        glBindTextureUnit(0, terrainHeightmap.getTextureID());
         glBindTextureUnit(1, terrainNormal.getTextureID());
         glBindTextureUnit(2, terrainMaterialIDs.getTextureID());
         glBindTextureUnit(3, heightTextureArray);
         glBindTextureUnit(4, diffuseTextureArray);
         glBindTextureUnit(5, normalTextureArray);
         glBindTextureUnit(6, ordTextureArray);
-		MainScene.bind();
         cbt.draw(*cam.getView(), *cam.getProj() * *cam.getView());
         if(cbt.getSettings().drawOutline)
         {
             cbt.drawOutline(*cam.getProj() * *cam.getView());
         }
 
-		MainScene.draw(cam, WIDTH, HEIGHT);
+        MainScene.draw(cam, WIDTH, HEIGHT);
 
-        //pbsShader.useProgram();
-        //glUniformMatrix4fv(
-        //    0, 1, GL_FALSE, glm::value_ptr(glm::translate(glm::vec3{0.0f, 0.5f + groundOffsetAt00, 0.0f})));
-        //glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(*cam.getView()));
-        //glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(*cam.getProj()));
-        //cube.draw();
-
-
-        
+        // pbsShader.useProgram();
+        // glUniformMatrix4fv(
+        //     0, 1, GL_FALSE, glm::value_ptr(glm::translate(glm::vec3{0.0f, 0.5f + groundOffsetAt00,
+        //     0.0f})));
+        // glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(*cam.getView()));
+        // glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(*cam.getProj()));
+        // cube.draw();
 
         glDisable(GL_DEPTH_TEST);
         // Post Processing
@@ -430,69 +428,70 @@ int main()
                     glUniform1f(0, exposure);
                 }
             }
-			if(ImGui::CollapsingHeader("Scene##settings", ImGuiTreeNodeFlags_DefaultOpen))
-			{
-				ImGui::TextUnformatted("Sun");
+            if(ImGui::CollapsingHeader("Scene##settings", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::TextUnformatted("Sun");
                 ImGui::Indent(10.0f);
 
-				static float SunIntensity = 1.0f;
-				if(ImGui::SliderFloat("Sun Intensity", &SunIntensity, 0.0f, 100.0f))
+                static float SunIntensity = 1.0f;
+                if(ImGui::SliderFloat("Sun Intensity", &SunIntensity, 0.0f, 100.0f))
                 {
                     MainScene.sun()->setIntensity(SunIntensity);
                 }
 
-				static float SunTemp = 4900.0f;
-				if(ImGui::SliderFloat("Temperature", &SunTemp, 1000.0f, 15000.0f))
+                static float SunTemp = 4900.0f;
+                if(ImGui::SliderFloat("Temperature", &SunTemp, 1000.0f, 15000.0f))
                 {
                     MainScene.sun()->setColor(Color::fromTemperature(SunTemp));
                 }
 
-				static float Theta = 45.0f;
-				static float Phi = 130.0f;
-				if(ImGui::SliderFloat("Theta", &Theta, -90.0f, 90.0f))
+                static float Theta = 45.0f;
+                static float Phi = 130.0f;
+                if(ImGui::SliderFloat("Theta", &Theta, -90.0f, 90.0f))
                 {
                     MainScene.sun()->setDirectionFromPolarCoord(glm::radians(Theta), glm::radians(Phi));
                 }
-				if(ImGui::SliderFloat("Phi", &Phi, 0.0f, 360.0f))
+                if(ImGui::SliderFloat("Phi", &Phi, 0.0f, 360.0f))
                 {
                     MainScene.sun()->setDirectionFromPolarCoord(glm::radians(Theta), glm::radians(Phi));
                 }
 
-				ImGui::Indent(-10.0f);
-				ImGui::TextUnformatted("Sky");
+                ImGui::Indent(-10.0f);
+                ImGui::TextUnformatted("Sky");
                 ImGui::Indent(10.0f);
 
-				static float SkyExposure = 5.0f;
-				if(ImGui::SliderFloat("Indirect Light", &SkyExposure, 0.0f, 20.0f))
+                static float SkyExposure = 5.0f;
+                if(ImGui::SliderFloat("Indirect Light", &SkyExposure, 0.0f, 20.0f))
                 {
                     MainScene.setSkyExposure(SkyExposure);
                 }
-				static float SkyboxExposure = 1.0f;
-				if(ImGui::SliderFloat("Skybox Exposure", &SkyboxExposure, 0.0f, 4.0f))
+                static float SkyboxExposure = 1.0f;
+                if(ImGui::SliderFloat("Skybox Exposure", &SkyboxExposure, 0.0f, 4.0f))
                 {
                     MainScene.setSkyboxExposure(SkyboxExposure);
                 }
 
-				ImGui::Indent(-10.0f);
-				ImGui::TextUnformatted("Reflecion Probe");
+                ImGui::Indent(-10.0f);
+                ImGui::TextUnformatted("Reflecion Probe");
                 ImGui::Indent(10.0f);
 
-				static bool ReflectionProbeActive = false;
-				if (ImGui::Checkbox("Active", &ReflectionProbeActive))
-				{
-					MainScene.reflectionProbe()->setActive(ReflectionProbeActive);
-				}
-				static bool ShowReflectionProbes = false;
-				if (ImGui::Checkbox("Visible", &ShowReflectionProbes))
-				{
-					MainScene.reflectionProbe()->setVisibility(ShowReflectionProbes);
-				}	
-				static bool RealtimeReflection = false;
-				if (ImGui::Checkbox("Realtime Reflections", &RealtimeReflection))
-				{
-					MainScene.reflectionProbe()->setMode(RealtimeReflection ? ReflectionProbeMode_Realtime : ReflectionProbeMode_Static);
-				}
-			}
+                static bool ReflectionProbeActive = false;
+                if(ImGui::Checkbox("Active", &ReflectionProbeActive))
+                {
+                    MainScene.reflectionProbe()->setActive(ReflectionProbeActive);
+                }
+                static bool ShowReflectionProbes = false;
+                if(ImGui::Checkbox("Visible", &ShowReflectionProbes))
+                {
+                    MainScene.reflectionProbe()->setVisibility(ShowReflectionProbes);
+                }
+                static bool RealtimeReflection = false;
+                if(ImGui::Checkbox("Realtime Reflections", &RealtimeReflection))
+                {
+                    MainScene.reflectionProbe()->setMode(
+                        RealtimeReflection ? ReflectionProbeMode_Realtime : ReflectionProbeMode_Static);
+                }
+            }
             ImGui::End();
         }
         {

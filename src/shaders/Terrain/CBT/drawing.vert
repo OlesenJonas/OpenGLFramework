@@ -29,7 +29,6 @@ layout (location = 2) uniform int materialDisplacementLodOffset = 0;
 layout (location = 4) uniform mat4 viewMatrix;
 uniform float triplanarSharpness = 0.5;
 
-
 layout (location = 0) flat out vec2 cornerPoint;
 layout (location = 1) out vec2 uv;
 layout (location = 2) out vec3 worldPosNoDisplacement;
@@ -75,10 +74,10 @@ void main()
     const ivec2 idsStartTexel = ivec2(scaledUVs);
     const vec2 weights = fract(scaledUVs);
 
-    const float heightFF = getHeightFromTexelAndWorldPos(idsStartTexel+ivec2(0,0), worldPos, tangentNormal);
-    const float heightFC = getHeightFromTexelAndWorldPos(idsStartTexel+ivec2(0,1), worldPos, tangentNormal);
-    const float heightCF = getHeightFromTexelAndWorldPos(idsStartTexel+ivec2(1,0), worldPos, tangentNormal);
-    const float heightCC = getHeightFromTexelAndWorldPos(idsStartTexel+ivec2(1,1), worldPos, tangentNormal);
+    const float heightFF = getHeightFromTexelAndWorldPos(idsStartTexel+ivec2(0,0), worldPosition.xyz, tangentNormal);
+    const float heightFC = getHeightFromTexelAndWorldPos(idsStartTexel+ivec2(0,1), worldPosition.xyz, tangentNormal);
+    const float heightCF = getHeightFromTexelAndWorldPos(idsStartTexel+ivec2(1,0), worldPosition.xyz, tangentNormal);
+    const float heightCC = getHeightFromTexelAndWorldPos(idsStartTexel+ivec2(1,1), worldPosition.xyz, tangentNormal);
     const float heightF = mix(heightFF, heightFC, weights.y);
     const float heightC = mix(heightCF, heightCC, weights.y);
     const float height = mix(heightF, heightC, weights.x);
