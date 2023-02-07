@@ -59,6 +59,9 @@ class TextureCube : public GLTexture
         return height;
     };
 
+	Color* subimage(Color* source, size_t _width, size_t _height, size_t offsetX, size_t offsetY);
+
+
   private:
     /*
         does not actually store the descriptor (not needed atm)
