@@ -9,14 +9,18 @@ public:
 	~Scene();
 
     void init();
-	void bind();
+	void bind(bool reflectionProbePass = false);
 	void prepass(class CBTGPU& cbt);
-	void draw(const class Camera& camera, size_t viewportX, size_t viewportY);
-	void updateIBL();
+	void draw(const class Camera& camera, size_t viewportX, size_t viewportY, bool reflectionProbePass = false);
+	void draw(const glm::mat4& view, const glm::mat4& proj, const glm::mat4& skyProj, size_t viewportX, size_t viewportY, bool reflectionProbePass = false);
+	void updateIBL(class TextureCube* cubemap, TextureCube* irradiance, TextureCube* environment);
 
 	class Entity* createEntity();
 
+	class ReflectionProbe* createReflectionProbe();
+
 	class Light* sun() const { return m_sunlight; }
+	class ReflectionProbe* reflectionProbe() const { return m_reflectionProbe; }
 
 	float skyExposure() const { return m_skyExposure; }
 	void setSkyExposure(float value) { m_skyExposure = value; }
@@ -27,6 +31,8 @@ protected:
 	/* Scene Lighting */
 
 	class Light* m_sunlight;
+
+	class ReflectionProbe* m_reflectionProbe;
 
 	float m_skyRotation;
 	float m_skyExposure;
@@ -53,4 +59,7 @@ protected:
 	
 	size_t m_irradianceMapSize;
 	size_t m_environmentMapSize;
+
+	unsigned int m_captureFBO;
+    unsigned int m_captureRBO;
 };

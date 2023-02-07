@@ -21,6 +21,7 @@
 #include <intern/Terrain/CBTGPU.h>
 #include <intern/Scene/Scene.h>
 #include <intern/Scene/Entity.h>
+#include <intern/Scene/ReflectionProbe.h>
 #include <intern/Texture/IO/png.h>
 #include <intern/Texture/Texture.h>
 #include <intern/Texture/TextureCube.h>
@@ -290,22 +291,27 @@ int main()
 
     Scene MainScene;
     MainScene.init();
-	MainScene.setSkyExposure(0.5f);
+	MainScene.setSkyExposure(5.0f);
 	MainScene.sun()->setDirectionFromPolarCoord(glm::radians(45.0f), glm::radians(130.0f));
+	MainScene.sun()->setColor(Color::fromTemperature(4900.0f));
 
-	Entity* testObject = MainScene.createEntity();
-    testObject->setMaterial(new Material(MISC_PATH "/YellowBrick_basecolor.tga", MISC_PATH "/YellowBrick_normal.tga", MISC_PATH "/YellowBrick_attributes.tga"));
-	testObject->setMesh(new Mesh(MISC_PATH "/Meshes/sphere.obj"));
-	testObject->setPosition(glm::vec3(0,20,10));
-	testObject->getMaterial()->setBaseColor(Color(1.0f, 1.0f, 0.0f));
-	testObject->getMaterial()->setNormalIntensity(0.0f);
+	ReflectionProbe* probe = MainScene.createReflectionProbe();
+	probe->setActive(false);
+	probe->setVisibility(false);
 
 	Entity* testObject2 = MainScene.createEntity();
     testObject2->setMaterial(new Material(MISC_PATH "/YellowBrick_basecolor.tga", MISC_PATH "/YellowBrick_normal.tga", MISC_PATH "/YellowBrick_attributes.tga"));
 	testObject2->setMesh(new Mesh(MISC_PATH "/Meshes/shadowtest.obj"));
 	testObject2->setPosition(glm::vec3(10,20,10));
 	testObject2->getMaterial()->setBaseColor(Color::White);
-	testObject2->getMaterial()->setNormalIntensity(0.0f);
+	testObject2->getMaterial()->setNormalIntensity(1.0f);
+
+	//Entity* testObject3 = MainScene.createEntity();
+    //testObject3->setMaterial(new Material(MISC_PATH "/Props_Bench2_basecolor.tga", MISC_PATH "/Props_Bench2_normal.tga", MISC_PATH "/Props_Bench2_attributes.tga"));
+	//testObject3->setMesh(new Mesh(MISC_PATH "/Meshes/Bench.obj"));
+	//testObject3->setPosition(glm::vec3(15,20,5));
+	//testObject3->getMaterial()->setBaseColor(Color::White);
+	//testObject3->getMaterial()->setNormalIntensity(1.0f);
 
     //----------------------- RENDERLOOP
 
@@ -426,7 +432,7 @@ int main()
                     MainScene.sun()->setIntensity(SunIntensity);
                 }
 
-				static float SunTemp = 5900.0f;
+				static float SunTemp = 4900.0f;
 				if(ImGui::SliderFloat("Temperature", &SunTemp, 1000.0f, 15000.0f))
                 {
                     MainScene.sun()->setColor(Color::fromTemperature(SunTemp));
@@ -447,9 +453,8 @@ int main()
 				ImGui::TextUnformatted("Sky");
                 ImGui::Indent(10.0f);
 
-				ImGui::TextUnformatted("Sky");
-				static float SkyExposure = 0.5f;
-				if(ImGui::SliderFloat("Indirect Light", &SkyExposure, 0.0f, 4.0f))
+				static float SkyExposure = 5.0f;
+				if(ImGui::SliderFloat("Indirect Light", &SkyExposure, 0.0f, 20.0f))
                 {
                     MainScene.setSkyExposure(SkyExposure);
                 }
@@ -459,6 +464,25 @@ int main()
                     MainScene.setSkyboxExposure(SkyboxExposure);
                 }
 
+				ImGui::Indent(-10.0f);
+				ImGui::TextUnformatted("Reflecion Probe");
+                ImGui::Indent(10.0f);
+
+				static bool ReflectionProbeActive = false;
+				if (ImGui::Checkbox("Active", &ReflectionProbeActive))
+				{
+					MainScene.reflectionProbe()->setActive(ReflectionProbeActive);
+				}
+				static bool ShowReflectionProbes = false;
+				if (ImGui::Checkbox("Visible", &ShowReflectionProbes))
+				{
+					MainScene.reflectionProbe()->setVisibility(ShowReflectionProbes);
+				}	
+				static bool RealtimeReflection = false;
+				if (ImGui::Checkbox("Realtime Reflections", &RealtimeReflection))
+				{
+					MainScene.reflectionProbe()->setMode(RealtimeReflection ? ReflectionProbeMode_Realtime : ReflectionProbeMode_Static);
+				}
 			}
             ImGui::End();
         }

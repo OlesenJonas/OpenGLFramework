@@ -19,7 +19,7 @@ Material::Material(Texture* baseMap, Texture* normalMap, Texture* attributesMap)
 	}
 
 Material::Material(const std::string& baseMap, const std::string& normalMap, const std::string& attributesMap) : 
-	Material(new Texture(baseMap, true), new Texture(normalMap, true), new Texture(attributesMap, true)) { }
+	Material(new Texture(baseMap, false, true), new Texture(normalMap, true, true), new Texture(attributesMap, false, true)) { }
 
 
 Material::~Material()

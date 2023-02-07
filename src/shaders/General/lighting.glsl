@@ -3,7 +3,8 @@ const float Pi = 3.14159265358979323846;
 uniform layout (binding = 10) samplerCube irradianceMap;
 uniform layout (binding = 11) samplerCube environmentMap;
 uniform layout (binding = 12) sampler2D brdf;
-uniform layout (binding = 13) sampler2DShadow sunShadowmap;
+uniform layout (binding = 13) samplerCube sky;
+uniform layout (binding = 14) sampler2DShadow sunShadowmap;
 
 layout (binding = 21) uniform Lightbuffer
 {
@@ -128,6 +129,6 @@ void imageBasedLighting(in mat4 view, in vec3 V, in vec3 N, in vec3 wN, in vec3 
 	const vec2 brdfIntegral	= texture(brdf, vec2(roughness, NdotV)).xy;
 	const vec3 specularIB = preFilteredEnvironment * (reflectance * brdfIntegral.x + brdfIntegral.y);
     
-	diffuse += textureLod(irradianceMap, wN, 0.0f).xyz * IndirectLightExposure * ao;
+	diffuse += reflectance * textureLod(irradianceMap, wN, 0.0f).xyz * IndirectLightExposure * ao;
 	specular += specularIB;
 }

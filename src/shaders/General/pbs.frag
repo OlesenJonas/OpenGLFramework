@@ -21,6 +21,7 @@ in VSOutput
     vec4 ViewPos;
     vec2 TexCoord;
     vec3 Normal;
+    vec3 WorldNormal;
 	mat3 TangentFrame;
 } Input;
 
@@ -36,7 +37,8 @@ void main()
 	vec3 diffuse = vec3(0,0,0);
 	vec3 specular = vec3(0,0,0);
 	
-	vec3 normal = texture(normalMap, Input.TexCoord).xyz;
+	// Has hardcoded sampling bias for normal maps. TODO: Implement mipmapping for normalmaps.
+	vec3 normal = normalize(texture(normalMap, Input.TexCoord, 0.2f).xyz);
 	//normal = pow(normal.xyz, vec3(1.0/2.2));
 	//normal.y = 1 - normal.y;
 	//normal = vec3(0.5, 0.5, 1.0);
@@ -45,8 +47,6 @@ void main()
 	normal = (viewMatrix * vec4(worldNormal, 0)).xyz;
 	//normal = Input.Normal;
 	vec4 attributes = texture(attributesMap, Input.TexCoord);
-	
-	//attributes.x = 0.2f;
 
 	vec3 baseColor = texture(albedoMap, Input.TexCoord).xyz * MaterialColor.xyz;
 	const vec3 reflect = mix(vec3(0.04f, 0.04f, 0.04f), baseColor.xyz, attributes.y);

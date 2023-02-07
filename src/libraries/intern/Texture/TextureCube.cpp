@@ -72,19 +72,14 @@ Color* TextureCube::subimage(Color* source, size_t offsetX, size_t offsetY, size
 		return nullptr;
 
 	Color* data = new Color[_width * _height];
-
-	Color* subsource = source + offsetX + width * offsetY;
+	Color* subsource = source + offsetX;
 	Color* destination = data;
-	for (size_t y = 0; y < _height; ++y)
+	for (int y = _height - 1; y >= 0; --y)
 	{
-		memcpy(destination, subsource, _width * sizeof(Color));
-		//subsource += _width;
 		subsource = source + offsetX + width * (offsetY + y);
+		memcpy(destination, subsource, _width * sizeof(Color));
 		destination += _width;
-
-		std::cout << "copy x: " << offsetX << " y: " << offsetY + y << "     to x: 0 y: " << y << std::endl;
 	}
-
 	return data;
 }
 
@@ -94,6 +89,7 @@ TextureCube::TextureCube(const std::string& file)
     glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
 
     int channels;
+	stbi_ldr_to_hdr_gamma(1.0f);
     Color* data = reinterpret_cast<Color*>(stbi_loadf(file.c_str(), &width, &height, &channels, STBI_rgb_alpha));
 
     const bool isCubemapFormat = (width * 4 == height * 3) || (width * 3 == height * 4);
@@ -114,8 +110,8 @@ TextureCube::TextureCube(const std::string& file)
         }
 		faces[0] = subimage(data, 2*faceSize, faceSize, faceSize, faceSize);
 		faces[1] = subimage(data, 0, faceSize, faceSize, faceSize);
-		faces[2] = subimage(data, faceSize, 0, faceSize, faceSize);
-		faces[3] = subimage(data, faceSize, 2*faceSize, faceSize, faceSize);
+		faces[3] = subimage(data, faceSize, 0, faceSize, faceSize);
+		faces[2] = subimage(data, faceSize, 2*faceSize, faceSize, faceSize);
 		faces[4] = subimage(data, faceSize, faceSize, faceSize, faceSize);
 		faces[5] = subimage(data, 3*faceSize, faceSize, faceSize, faceSize);
 

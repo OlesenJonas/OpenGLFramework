@@ -4,7 +4,7 @@
 #include <intern/Scene/Scene.h>
 #include <intern/Mesh/Mesh.h>
 
-Entity::Entity(Scene* scene) : m_material(nullptr), m_mesh(nullptr), m_scene(scene)
+Entity::Entity(Scene* scene) : m_material(nullptr), m_mesh(nullptr), m_scene(scene), m_visible(true), m_drawInMainPass(true), m_drawInReflectionPass(true), m_drawInShadowPass(true)
 {
 	m_transform = glm::mat4(1);
 }

@@ -16,7 +16,7 @@ struct LightBuffer
 	float indirectLightIntensity;
 };
 
-class Light : Entity
+class Light : public Entity
 {
 public:
     Light(class Scene* scene);

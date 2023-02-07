@@ -5,12 +5,14 @@
 #include <intern/Mesh/FullscreenTri.h>
 #include <intern/Scene/Light.h>
 #include <intern/Scene/Entity.h>
+#include <intern/Scene/ReflectionProbe.h>
 #include <intern/Scene/Material.h>
 #include <intern/Camera/Camera.h>
 #include <intern/Terrain/CBTGPU.h>
 
 Scene::Scene() : 
-	m_sunlight(nullptr), 
+	m_sunlight(nullptr),
+	m_reflectionProbe(nullptr),
 	m_skyRotation(0.0f), 
 	m_skyExposure(1.0f), 
 	m_skyboxExposure(1.0f), 
@@ -18,7 +20,9 @@ Scene::Scene() :
 	m_irradianceMap(nullptr), 
 	m_environmentMap(nullptr), 
 	m_BRDFIntegral(nullptr), 
-	m_activeShader(nullptr)
+	m_activeShader(nullptr),
+	m_captureFBO(-1),
+	m_captureRBO(-1)
 {
 	m_defaultShader = new ShaderProgram {
         VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
@@ -85,25 +89,29 @@ void Scene::init()
 {
     const size_t brdfIntegralSize = 512;
 
-    m_skyTexture = new TextureCube(MISC_PATH "/HDRPanorama.jpg");
+    //m_skyTexture = new TextureCube(MISC_PATH "/HDRPanorama.jpg");
+    m_skyTexture = new TextureCube(MISC_PATH "/Gradient.png");
 
     unsigned int captureFBO;
     unsigned int captureRBO;
     glGenFramebuffers(1, &captureFBO);
     glGenRenderbuffers(1, &captureRBO);
 
-    m_irradianceMap = new TextureCube(m_irradianceMapSize);
-    m_environmentMap = new TextureCube(m_environmentMapSize);
+    m_irradianceMap = new TextureCube((uint32_t)m_irradianceMapSize);
+    m_environmentMap = new TextureCube((uint32_t)m_environmentMapSize);
     m_BRDFIntegral = new Texture(TextureDesc{.width = brdfIntegralSize, .height = brdfIntegralSize, .internalFormat = GL_RGB16F});
 
     glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
     glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, m_irradianceMapSize, m_irradianceMapSize);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, (GLsizei)m_irradianceMapSize, (GLsizei)m_irradianceMapSize);
 
     ShaderProgram BRDFIntegralGenerationShader{
         VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
         {SHADERS_PATH "/General/environmentMap.vert", SHADERS_PATH "/General/brdfIntegral.frag"}};
 
+
+	glGenFramebuffers(1, &m_captureFBO);
+    glGenRenderbuffers(1, &m_captureRBO);
 
     // BRDF Integral
 
@@ -121,12 +129,15 @@ void Scene::init()
 	m_sunlight->init(true);
 	m_sunlight->setDirectionVector(glm::vec4(0.4, 0.9f, 0.3f, 0.0f));
 	m_sunlight->setColor(Color::White);
-	m_sunlight->setIntensity(2.0f);
+	m_sunlight->setIntensity(4.0f);
 
-	updateIBL();
+	m_reflectionProbe = new ReflectionProbe(this);
+	m_reflectionProbe->init();
+	m_reflectionProbe->setPosition(glm::vec3(0,50,0));
+	updateIBL(m_skyTexture, m_irradianceMap, m_environmentMap);
 }
 
-void Scene::bind()
+void Scene::bind(bool reflectionProbePass)
 {
 	// analytical light
 
@@ -136,15 +147,25 @@ void Scene::bind()
 	}
 
 	// IBL
-
-    glBindTextureUnit(10, m_irradianceMap->getTextureID());
-    glBindTextureUnit(11, m_environmentMap->getTextureID());
+    
     glBindTextureUnit(12, m_BRDFIntegral->getTextureID());
     glBindTextureUnit(13, m_skyTexture->getTextureID());
-}
 
+	if (!reflectionProbePass && m_reflectionProbe && m_reflectionProbe->m_active)
+	{
+		m_reflectionProbe->bind();
+	}
+	else
+	{
+		glBindTextureUnit(10, m_irradianceMap->getTextureID());
+		glBindTextureUnit(11, m_environmentMap->getTextureID());
+	}
+}
+static int h = 0;
 void Scene::prepass(CBTGPU& cbt)
 {
+	// Shadows
+
 	glCullFace(GL_FRONT);
 	m_shadowPass->useProgram();
 	if (m_sunlight && m_sunlight->castShadows())
@@ -156,20 +177,42 @@ void Scene::prepass(CBTGPU& cbt)
 		m_shadowPass->useProgram();
 		for (const auto& entity : m_entities)
 		{
+			if (!entity->m_visible)
+			{
+				continue;
+			}
 			entity->draw();
 		}
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 	glCullFace(GL_BACK);
+
+	// Reflection Probes
+
+	if (m_reflectionProbe && m_reflectionProbe->isDirty())
+	{
+		h++;
+		if (h % 30 == 0)
+			m_reflectionProbe->render(cbt);
+	}
 }
 
-void Scene::draw(const class Camera& camera, size_t viewportX, size_t viewportY)
+void Scene::draw(const class Camera& camera, size_t viewportX, size_t viewportY, bool reflectionProbePass)
 {
-	// Main view
+	draw(*camera.getView(), *camera.getProj(), camera.getSkyProj(), viewportX, viewportY, reflectionProbePass);
+}
 
-	glViewport(0, 0, viewportX, viewportY);
+void Scene::draw(const glm::mat4& view, const glm::mat4& proj, const glm::mat4& skyProj, size_t viewportX, size_t viewportY, bool reflectionProbePass)
+{
+	glViewport(0, 0, (GLsizei)viewportX, (GLsizei)viewportY);
 	for (const auto& entity : m_entities)
 	{
+		if (!entity->m_visible
+		|| reflectionProbePass && !entity->m_drawInReflectionPass)
+		{
+			continue;
+		}
+
 		// Bind shader
 		if (entity->getMaterial()->getCustomShader())
 		{
@@ -183,8 +226,8 @@ void Scene::draw(const class Camera& camera, size_t viewportX, size_t viewportY)
 			}
 		}
 		m_activeShader->useProgram();
-		glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(*camera.getView()));
-		glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(*camera.getProj()));
+		glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(view));
+		glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(proj));
 
 		entity->draw();
 	}
@@ -193,32 +236,28 @@ void Scene::draw(const class Camera& camera, size_t viewportX, size_t viewportY)
 
     {
         m_skyShader->useProgram();
-        glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(camera.getSkyProj()));
+        glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(skyProj));
         glUniform1f(4, m_skyboxExposure);
         glDepthFunc(GL_EQUAL);
         m_tri->draw();
     }
 }
 
-void Scene::updateIBL()
+void Scene::updateIBL(TextureCube* cubemap, TextureCube* irradiance, TextureCube* environment)
 {
-	if (!m_skyTexture)
+	if (!cubemap)
 	{
 		return;
 	}
-
-	unsigned int captureFBO;
-    unsigned int captureRBO;
-    glGenFramebuffers(1, &captureFBO);
-    glGenRenderbuffers(1, &captureRBO);
 	
 	// Irradiance Map
 
     m_irradianceGenerationShader->useProgram();
-    glBindTextureUnit(4, m_skyTexture->getTextureID());
-    glViewport(0, 0, m_irradianceMapSize, m_irradianceMapSize);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+    glBindTextureUnit(4, cubemap->getTextureID());
+    glViewport(0, 0, (GLsizei)m_irradianceMapSize, (GLsizei)m_irradianceMapSize);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, m_captureFBO);
     for(unsigned int i = 0; i < 6; ++i)
     {
         glUniform1i(3, i);
@@ -226,7 +265,7 @@ void Scene::updateIBL()
             GL_FRAMEBUFFER,
             GL_COLOR_ATTACHMENT0,
             GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-            m_irradianceMap->getTextureID(),
+            irradiance->getTextureID(),
             0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -238,14 +277,14 @@ void Scene::updateIBL()
 
     m_environmentMapGenerationShader->useProgram();
     glUniform1i(3, 0);
-    glBindTextureUnit(4, m_skyTexture->getTextureID());
+    glBindTextureUnit(4, cubemap->getTextureID());
 
-    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_captureFBO);
     uint32_t maxMipLevels = 8;
     for(uint32_t mip = 0; mip < maxMipLevels; ++mip)
     {
-        uint32_t mipSize = m_environmentMapSize * std::pow(0.5, mip);
-        glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
+        uint32_t mipSize = m_environmentMapSize * std::pow(0.5f, mip);
+        glBindRenderbuffer(GL_RENDERBUFFER, m_captureRBO);
         glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, mipSize, mipSize);
         glViewport(0, 0, mipSize, mipSize);
 
@@ -254,7 +293,7 @@ void Scene::updateIBL()
         for(uint32_t i = 0; i < 6; ++i)
         {
             glUniform1i(3, i);
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, m_environmentMap->getTextureID(), mip);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, environment->getTextureID(), mip);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
             m_tri->draw();
         }
@@ -267,4 +306,13 @@ Entity* Scene::createEntity()
 	Entity* entity = new Entity(this);
 	m_entities.emplace_back(entity);
 	return entity;
+}
+
+ReflectionProbe* Scene::createReflectionProbe()
+{
+	ReflectionProbe* probe = new ReflectionProbe(this);
+	probe->init();
+	m_reflectionProbe = probe;
+	m_entities.emplace_back(probe);
+    return probe;
 }

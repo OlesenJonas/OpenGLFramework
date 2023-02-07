@@ -32,6 +32,8 @@ public:
 
 	void setNormalIntensity(float intensity) { m_normalIntensity = intensity; }
 
+	void setCustomShader(class ShaderProgram* program) { m_shader = program; }
+
 	void bind(MaterialChannel materialChannel = MaterialChannel_1);
 
 	class ShaderProgram* getCustomShader() const { return m_shader; }

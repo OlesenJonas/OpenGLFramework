@@ -51,7 +51,7 @@ void Light::bind()
 
 	glBindBufferBase(GL_UNIFORM_BUFFER, 21, m_bufferIndex);
 
-	glBindTextureUnit(13, m_shadowMap->getTextureID());
+	glBindTextureUnit(14, m_shadowMap->getTextureID());
 }
 
 void Light::renderShadow()

@@ -15,6 +15,7 @@ out VSOutput
     vec4 ViewPos;
     vec2 TexCoord;
     vec3 Normal;
+    vec3 WorldNormal;
 	mat3 TangentFrame;
 } Output;
 
@@ -26,6 +27,7 @@ void main()
     gl_Position     = projectionMatrix * Output.ViewPos;
     Output.TexCoord = textureCoord;
     Output.Normal   = (viewMatrix * modelMatrix * vec4(normal, 0)).xyz;
+    Output.WorldNormal   = (modelMatrix * vec4(normal, 0)).xyz;
 
 	const vec3 bitangent = cross(tangent.xyz, normal);
     vec3 T = normalize(vec3((modelMatrix * vec4(tangent.xyz, 0)).xyz));

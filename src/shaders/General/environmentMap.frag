@@ -63,7 +63,7 @@ void main() {
     vec3 preFilteredColor = vec3(0,0,0);
     const float exposure = 1.0f;
 
-    uint SampleCount = 256;
+    uint SampleCount = 128;
     for(uint i = 0; i < SampleCount; ++i)
     {
         const vec2 xi = hammersley(i, SampleCount);
@@ -72,7 +72,7 @@ void main() {
         const float  NdotL = clamp(dot(N, L), 0.0f, 1.0f);
         if (NdotL > 0)
         {
-            const vec3 sampleColor = texture(tex, L, 0).rgb;
+            const vec3 sampleColor = max(vec3(0,0,0), textureLod(tex, L, 0).rgb);
             preFilteredColor	+= sampleColor * exp2(exposure) * NdotL;
             totalWeight			+= NdotL;
         }

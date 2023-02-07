@@ -25,7 +25,7 @@ void main() {
     up         = normalize(cross(dir, right));
 
     // from https://learnopengl.com/PBR/IBL/Diffuse-irradiance:
-    float sampleDelta = 0.01f;
+    float sampleDelta = 0.02f;
     float nrSamples = 0.0; 
     for(float phi = 0.0; phi < 2.0 * Pi; phi += sampleDelta)
     {
@@ -36,7 +36,7 @@ void main() {
             // tangent space to world
             vec3 sampleVec = tangentSample.x * right + tangentSample.y * up + tangentSample.z * dir; 
 
-            irradiance += texture(tex, sampleVec).rgb * cos(theta) * sin(theta);
+            irradiance += max(vec3(0,0,0), textureLod(tex, sampleVec, 0).rgb) * cos(theta) * sin(theta);
             nrSamples++;
         }
     }
