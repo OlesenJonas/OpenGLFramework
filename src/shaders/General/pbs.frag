@@ -48,13 +48,14 @@ void main()
 	//normal = Input.Normal;
 	vec4 attributes = texture(attributesMap, Input.TexCoord);
 	attributes.xyz *= attributeFactors.xyz;
+	attributes.y = max(0.04f, attributes.y);
 
 	vec3 baseColor = texture(albedoMap, Input.TexCoord).xyz * MaterialColor.xyz;
 	const vec3 reflect = mix(vec3(0.04f, 0.04f, 0.04f), baseColor.xyz, attributes.y);
-	baseColor *= vec3(1,1,1) - attributes.yyy;
+	baseColor *= 1 - attributes.y;
 
 	directIllumination(viewMatrix, V, P, normal, Input.worldPos.xyz, LightColor.xyz, LightDirection, baseColor, attributes.x, diffuse, specular);
-	imageBasedLighting(viewMatrix, V, normal, worldNormal, reflect, diffuse, specular, attributes.x, attributes.z);
+	imageBasedLighting(viewMatrix, V, normal, worldNormal, reflect, attributes.y, baseColor, diffuse, specular, attributes.x, attributes.z);
 
 	const vec3 color = diffuse + specular;
     fragmentColor = vec4(color.xyz, 1);

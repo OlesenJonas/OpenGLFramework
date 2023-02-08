@@ -113,22 +113,26 @@ void directIllumination(in mat4 view, in vec3 V, in vec3 P, in vec3 N, in vec3 w
 	const float r2 = r * r;
 
 	diffuse += diffuseBRDF(N, L, V, NdotL, NdotV, LdotV, baseColor, r2) * c * shadowTerm;
-	specular += specularBRDF(NdotL, NdotV, NdotH, LdotH, r2, F0) * c * shadowTerm;
+	specular += max(vec3(0,0,0), specularBRDF(NdotL, NdotV, NdotH, LdotH, r2, F0) * c * shadowTerm);
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------------------
-void imageBasedLighting(in mat4 view, in vec3 V, in vec3 N, in vec3 wN, in vec3 reflectance, inout vec3 diffuse, inout vec3 specular, in float roughness, in float ao)
+void imageBasedLighting(in mat4 view, in vec3 V, in vec3 N, in vec3 wN, in vec3 reflectance, in float metallic, in vec3 baseColor, inout vec3 diffuse, inout vec3 specular, in float roughness, in float ao)
 {
 	const float NdotV = saturate(dot(N, V));
 
 	const vec3 R = reflect(-V, N);
 
 	vec4 viewR = inverse(view) * vec4(R,0);
+	
 
-    const vec3 preFilteredEnvironment = textureLod(environmentMap, viewR.xyz, roughness * 8.0f).xyz * reflectance * IndirectLightExposure;
+    const vec3 preFilteredEnvironment = textureLod(environmentMap, viewR.xyz, roughness * 8.0f).xyz * IndirectLightExposure;
 	const vec2 brdfIntegral	= texture(brdf, vec2(roughness, NdotV)).xy;
 	const vec3 specularIB = preFilteredEnvironment * (reflectance * brdfIntegral.x + brdfIntegral.y);
     
-	diffuse += reflectance * textureLod(irradianceMap, wN, 0.0f).xyz * IndirectLightExposure * ao;
+	diffuse += baseColor * textureLod(irradianceMap, wN, 0.0f).xyz * IndirectLightExposure * ao;
 	specular += specularIB;
 }
+
+
+

@@ -292,7 +292,7 @@ int main()
 
     Scene MainScene;
     MainScene.init();
-    MainScene.setSkyExposure(5.0f);
+    MainScene.setSkyExposure(3.0f);
     MainScene.sun()->setDirectionFromPolarCoord(glm::radians(45.0f), glm::radians(130.0f));
     MainScene.sun()->setColor(Color::fromTemperature(4900.0f));
 
@@ -319,6 +319,28 @@ int main()
     human->setPosition(glm::vec3(5, 10.33, -11));
     human->getMaterial()->setBaseColor(Color::White);
     human->getMaterial()->setNormalIntensity(0.0f);
+
+	std::vector<Entity*> pbrEntities;
+	for (int x = 0; x < 2; ++x)
+	{
+		for (int y = 0; y < 8; ++y)
+		{
+			Entity* sphere = MainScene.createEntity();
+			sphere->setMaterial(new Material(
+				MISC_PATH "/white.jpg",
+				MISC_PATH "/white.jpg",
+				MISC_PATH "/white.jpg"));
+			sphere->setMesh(new Mesh(MISC_PATH "/Meshes/sphere2.obj"));
+			sphere->setPosition(glm::vec3(5 + (y * 1.4f), 21.5 + (x * 1.5f), 10));
+			sphere->getMaterial()->setBaseColor(Color(0.063f, 0.22f, 0.31f));
+			//sphere->getMaterial()->setBaseColor(Color(0.0f, 0.0f, 0.0f));
+			sphere->getMaterial()->setNormalIntensity(0.0f);
+			sphere->getMaterial()->setRoughness(std::max(0.05f, (float)y * (1.0f / 8.0f)));
+			sphere->getMaterial()->setMetallic(x);
+
+			pbrEntities.emplace_back(sphere);
+		}
+	}
 
     //----------------------- RENDERLOOP
 
@@ -462,16 +484,16 @@ int main()
                 ImGui::TextUnformatted("Sky");
                 ImGui::Indent(10.0f);
 
-                static float SkyExposure = 5.0f;
-                if(ImGui::SliderFloat("Indirect Light", &SkyExposure, 0.0f, 20.0f))
+                static float SkyExposure = 3.0f;
+                if(ImGui::SliderFloat("Indirect Light", &SkyExposure, 0.0f, 10.0f))
                 {
                     MainScene.setSkyExposure(SkyExposure);
                 }
-                static float SkyboxExposure = 1.0f;
-                if(ImGui::SliderFloat("Skybox Exposure", &SkyboxExposure, 0.0f, 4.0f))
-                {
-                    MainScene.setSkyboxExposure(SkyboxExposure);
-                }
+                //static float SkyboxExposure = 1.0f;
+                //if(ImGui::SliderFloat("Skybox Exposure", &SkyboxExposure, 0.0f, 4.0f))
+                //{
+                //    MainScene.setSkyboxExposure(SkyboxExposure);
+                //}
 
                 ImGui::Indent(-10.0f);
                 ImGui::TextUnformatted("Reflecion Probe");
@@ -493,6 +515,17 @@ int main()
                 {
                     MainScene.reflectionProbe()->setMode(
                         RealtimeReflection ? ReflectionProbeMode_Realtime : ReflectionProbeMode_Static);
+                }
+
+				static bool ShowShadingTest = true;
+                if(ImGui::Checkbox("Show Shading Test", &ShowShadingTest))
+                {
+                    for (auto& entity : pbrEntities)
+					{
+						entity->setVisibility(ShowShadingTest);
+					}
+					testObject2->setVisibility(ShowShadingTest);
+					MainScene.sun()->markDirty();
                 }
             }
             ImGui::End();

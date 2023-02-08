@@ -90,7 +90,8 @@ void Scene::init()
     const size_t brdfIntegralSize = 512;
 
     //m_skyTexture = new TextureCube(MISC_PATH "/HDRPanorama.jpg");
-    m_skyTexture = new TextureCube(MISC_PATH "/Gradient.png");
+    //m_skyTexture = new TextureCube(MISC_PATH "/Gradient.png");
+	m_skyTexture = new TextureCube(MISC_PATH "/kloppenheim_07_puresky_4k.hdr");
 
     unsigned int captureFBO;
     unsigned int captureRBO;
