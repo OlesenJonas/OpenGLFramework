@@ -292,7 +292,7 @@ int main()
 
     Scene MainScene;
     MainScene.init();
-    MainScene.setSkyExposure(3.0f);
+    MainScene.setSkyExposure(0.7f);
     MainScene.sun()->setDirectionFromPolarCoord(glm::radians(45.0f), glm::radians(130.0f));
     MainScene.sun()->setColor(Color::fromTemperature(4900.0f));
 
@@ -484,7 +484,7 @@ int main()
                 ImGui::TextUnformatted("Sky");
                 ImGui::Indent(10.0f);
 
-                static float SkyExposure = 3.0f;
+                static float SkyExposure = 0.7f;
                 if(ImGui::SliderFloat("Indirect Light", &SkyExposure, 0.0f, 10.0f))
                 {
                     MainScene.setSkyExposure(SkyExposure);
