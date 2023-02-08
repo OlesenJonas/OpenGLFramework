@@ -33,18 +33,18 @@ class SSMSFogEffect
 
     struct Settings
     {
-        glm::vec4 absorptionCoefficient{0.25f, 0.25f, 0.25f, 0.1f};
-        glm::vec4 scatteringCoefficient{0.25f, 0.5f, 1.0f, 0.5f};
+        glm::vec4 absorptionCoefficient{0.25f, 0.25f, 0.25f, 0.001f};
+        glm::vec4 scatteringCoefficient{1.0f, 0.919f, 0.539f, 0.021f};
         glm::vec4 inscatteredLight{0.9f, 0.9f, 1.0f, 1.0f};
-        float falloff = 0.325f;
-        float heightOffset = 0.0f;
+        float falloff = 13.455f;
+        float heightOffset = 5.050f;
 
         // SSMS parameters
         glm::vec3 blurTint{1.0f};
         float steps = 2.0f;
         float blurWeight = 1.0f;
         float intensity = 1.0f;
-        bool approxInscatterTransmittance = false;
+        bool approxInscatterTransmittance = true;
     } settings;
 
   private:

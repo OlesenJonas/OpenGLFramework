@@ -301,7 +301,7 @@ int main()
     Scene MainScene;
     MainScene.init();
     MainScene.setSkyExposure(0.7f);
-    MainScene.sun()->setDirectionFromPolarCoord(glm::radians(45.0f), glm::radians(130.0f));
+    MainScene.sun()->setDirectionFromPolarCoord(glm::radians(47.32f), glm::radians(278.351f));
     MainScene.sun()->setColor(Color::fromTemperature(4900.0f));
 
     ReflectionProbe* probe = MainScene.createReflectionProbe();
@@ -481,8 +481,8 @@ int main()
                     MainScene.sun()->setColor(Color::fromTemperature(SunTemp));
                 }
 
-                static float Theta = 45.0f;
-                static float Phi = 130.0f;
+                static float Theta = 47.32f;
+                static float Phi = 278.351f;
                 if(ImGui::SliderFloat("Theta", &Theta, -90.0f, 90.0f))
                 {
                     MainScene.sun()->setDirectionFromPolarCoord(glm::radians(Theta), glm::radians(Phi));

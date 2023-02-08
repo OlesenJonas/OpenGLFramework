@@ -18,7 +18,8 @@ layout (binding = 6) uniform sampler2DArray ordArray;
 layout (location = 0) uniform mat4 projectionViewMatrix;
 layout (location = 3) uniform float materialNormalIntensity = 0.7;
 layout (location = 4) uniform mat4 viewMatrix;
-uniform float triplanarSharpness = 0.5;
+layout (location = 10) uniform int visMode = 2;
+uniform float triplanarSharpness = 3.0;
 
 layout (location = 0) flat in vec2 cornerPoint;
 layout (location = 1) in vec2 uv;
@@ -89,6 +90,17 @@ void main()
     vec3 tangentNormal = attributes.normalMetallic.xyz;
     //TBN columns would just be (1,0,0),(0,0,-1),(0,1,0), so no need for matrix mult here
     vec3 worldNormal = vec3(tangentNormal.x, tangentNormal.z, -tangentNormal.y);
+
+    if(visMode == 0)
+    {
+        fragmentColor.rgb = getMaterialAttributesFromTexelAndWorldPos(ivec2(round(scaledUVs)), worldPosNoDisplacement, dPdx, dPdy, macroNormal).diffuseRoughness.rgb;
+        return;
+    }
+    else if (visMode == 1)
+    {
+        fragmentColor.rgb = diffuse;
+        return;
+    }
 
     // Lighting
 
