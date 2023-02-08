@@ -280,12 +280,6 @@ int main()
     ctx.setCamera(&cam);
     cam.move({0.f, groundOffsetAt00, 0.f});
 
-    FullscreenTri fullScreenTri;
-    ShaderProgram postProcessShader{
-        VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
-        {SHADERS_PATH "/General/screenQuad.vert", SHADERS_PATH "/General/postProcess.frag"}};
-    Framebuffer internalFBO{WIDTH, HEIGHT, {{.internalFormat = GL_R11F_G11F_B10F}}, true};
-
     //const Cube cube{1.0f};
     //const Texture gridTexture{MISC_PATH "/GridTexture.png", true, false};
     //ShaderProgram simpleShader{
