@@ -41,6 +41,10 @@ class Framebuffer
         GLsizei width, GLsizei height,
         const std::initializer_list<std::pair<const GLTexture&, int>> texturesWithLevels,
         bool useDepthStencil);
+    Framebuffer(
+        GLsizei width, GLsizei height,
+        const std::initializer_list<std::pair<const GLTexture&, int>> texturesWithLevels,
+        std::pair<const GLTexture&, int> depthAttachment);
     Framebuffer(Framebuffer&& other) noexcept;            // Move constructor
     Framebuffer& operator=(Framebuffer&& other) noexcept; // Move assignment
     Framebuffer(const Framebuffer&) = delete;             // copy constr

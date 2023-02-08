@@ -38,6 +38,8 @@ int main()
 
     int WIDTH = 1200;
     int HEIGHT = 800;
+    int TRUE_WIDTH = 0;
+    int TRUE_HEIGHT = 0;
 
     GLFWwindow* window = initAndCreateGLFWWindow(WIDTH, HEIGHT, "Terrain", {{GLFW_MAXIMIZED, GLFW_TRUE}});
 
@@ -47,6 +49,11 @@ int main()
 
     // In case window was set to start maximized, retrieve size for framebuffer here
     glfwGetWindowSize(window, &WIDTH, &HEIGHT);
+
+    TRUE_WIDTH = WIDTH;
+    TRUE_HEIGHT = HEIGHT;
+    WIDTH /= 1;
+    HEIGHT /= 1;
 
     //----------------------- INIT OpenGL
     // init OpenGL context
@@ -58,7 +65,7 @@ int main()
 #ifndef NDEBUG
     setupOpenGLMessageCallback();
 #endif
-    glClearColor(0.3f, 0.7f, 1.0f, 1.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
@@ -83,7 +90,14 @@ int main()
 
     //----------------------- INIT REST
 
-    CBTGPU cbt(25);
+    FullscreenTri fullScreenTri;
+    ShaderProgram postProcessShader{
+        VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
+        {SHADERS_PATH "/General/screenQuad.vert", SHADERS_PATH "/General/postProcess.frag"}};
+    Framebuffer internalFBO{WIDTH, HEIGHT, {{.internalFormat = GL_R11F_G11F_B10F}}, true};
+    // Framebuffer internalFBO{WIDTH, HEIGHT, {{.internalFormat = GL_RGBA32F}}, true};
+
+    CBTGPU cbt(25, WIDTH, HEIGHT, internalFBO);
     cbt.setTargetEdgeLength(7.0f);
     const Texture terrainHeightmap{MISC_PATH "/CBT/TerrainHeight.png", false, false};
     glTextureParameteri(terrainHeightmap.getTextureID(), GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -385,7 +399,7 @@ int main()
         glBindTextureUnit(4, diffuseTextureArray);
         glBindTextureUnit(5, normalTextureArray);
         glBindTextureUnit(6, ordTextureArray);
-        cbt.draw(*cam.getView(), *cam.getProj() * *cam.getView());
+        cbt.draw(*cam.getView(), *cam.getProj(), *cam.getProj() * *cam.getView());
         if(cbt.getSettings().drawOutline)
         {
             cbt.drawOutline(*cam.getProj() * *cam.getView());
@@ -401,10 +415,12 @@ int main()
         // glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(*cam.getProj()));
         // cube.draw();
 
+        glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Post Processing");
         glDisable(GL_DEPTH_TEST);
         // Post Processing
         {
             // fog
+            glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "Fog");
             fogPassTimer.start();
             const auto& hdrColorTex =
                 applyFog
@@ -412,15 +428,17 @@ int main()
                     : internalFBO.getColorTextures()[0];
             fogPassTimer.end();
             fogPassTimer.evaluate();
+            glPopDebugGroup();
 
             // color management
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            // glViewport()?
+            glViewport(0, 0, TRUE_WIDTH, TRUE_HEIGHT);
             // overwriting full screen anyways, dont need to clear
             glBindTextureUnit(0, hdrColorTex.getTextureID());
             postProcessShader.useProgram();
             fullScreenTri.draw();
         }
+        glPopDebugGroup();
 
         // draw CBT overlay as part of UI
         cbt.drawOverlay(cam.getAspect());

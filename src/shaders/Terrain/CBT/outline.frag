@@ -2,8 +2,6 @@
 
 out vec4 fragmentColor;
 
-layout (location = 1) uniform bool isLinePass;
-
 layout(location = 0) in vec3 weight;
 
 //wireframe shader based on https://tchayen.github.io/posts/wireframes-with-barycentric-coordinates

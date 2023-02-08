@@ -26,14 +26,10 @@ layout (binding = 3) uniform sampler2DArray heightArray;
 layout (location = 0) uniform mat4 projectionViewMatrix;
 layout (location = 1) uniform float materialDisplacementIntensity = 0.0;
 layout (location = 2) uniform int materialDisplacementLodOffset = 2;
-layout (location = 4) uniform mat4 viewMatrix;
 uniform float triplanarSharpness = 0.5;
 
-layout (location = 0) flat out vec2 cornerPoint;
-layout (location = 1) out vec2 uv;
-layout (location = 2) out vec3 worldPosNoDisplacement;
-layout (location = 3) out vec3 worldPos;
-layout (location = 4) out vec3 viewPos;
+layout (location = 0) out vec3 worldPosNoDisplacement;
+layout (location = 1) out vec4 projPosNoDisplacement;
 
 layout(std430, binding = 3) buffer textureInfoBuffer
 {   
@@ -61,12 +57,13 @@ void main()
           xzPosition.x * (currentCorners[2]-currentCorners[1]) + 
           xzPosition.y * (currentCorners[0]-currentCorners[1]);
 
-    uv = vec2(1,-1) * flatPosition + 0.5;
+    vec2 uv = vec2(1,-1) * flatPosition + 0.5;
 
     vec4 worldPosition = transformFlatPointToWorldSpace(flatPosition);
     //pass the *non-displaced* position for triplanar projection in fragment shader
     worldPosNoDisplacement = worldPosition.xyz;
-
+    projPosNoDisplacement = projectionViewMatrix * worldPosition;
+    
     vec3 tangentNormal = 2.0*textureLod(macroNormal,uv,0).xyz-1.0;
     vec3 worldNormal = vec3(tangentNormal.x, tangentNormal.z, -tangentNormal.y);
 
@@ -85,10 +82,6 @@ void main()
     const float displacement = (height - 0.5) * materialDisplacementIntensity;
 
     worldPosition += vec4(worldNormal*displacement, 0.0);
-	viewPos = (viewMatrix * worldPosition).xyz;
-    worldPos = worldPosition.xyz;
-
-    cornerPoint = 0.3*(currentCorners[0]+currentCorners[1]+currentCorners[2]);
 
     gl_Position = projectionViewMatrix * worldPosition;
 }
