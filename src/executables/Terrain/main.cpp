@@ -317,6 +317,7 @@ int main()
     testObject2->setPosition(glm::vec3(10, 20, 10));
     testObject2->getMaterial()->setBaseColor(Color::White);
     testObject2->getMaterial()->setNormalIntensity(1.0f);
+    testObject2->setVisibility(false);
 
 	Entity* human = MainScene.createEntity();
     human->setMaterial(new Material(
@@ -347,6 +348,7 @@ int main()
 			sphere->getMaterial()->setMetallic(x);
 
 			pbrEntities.emplace_back(sphere);
+			sphere->setVisibility(false);
 		}
 	}
 
@@ -529,7 +531,7 @@ int main()
                         RealtimeReflection ? ReflectionProbeMode_Realtime : ReflectionProbeMode_Static);
                 }
 
-				static bool ShowShadingTest = true;
+				static bool ShowShadingTest = false;
                 if(ImGui::Checkbox("Show Shading Test", &ShowShadingTest))
                 {
                     for (auto& entity : pbrEntities)
