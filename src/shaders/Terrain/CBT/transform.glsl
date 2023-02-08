@@ -1,12 +1,15 @@
 #ifdef GLSLANGVALIDATOR
+    #ifndef ONLY_DEFINES
     #ifndef DISPLACEMENT_ALREADY_DEFINED
         uniform sampler2D displacementTex;
+    #endif
     #endif
 #endif
 
 #define TERRAIN_SIZE 500
 #define TERRAIN_HEIGHT 50
 
+#ifndef ONLY_DEFINES
 vec4 transformFlatPointToWorldSpace(inout vec2 flatPosition)
 {
     const vec2 uv = vec2(1,-1)*flatPosition + 0.5;
@@ -28,3 +31,4 @@ vec4[3] transformFlatCornersToWorldCorners(inout vec2[3] flatCorners)
         transformFlatPointToWorldSpace(flatCorners[2])
     );
 }
+#endif

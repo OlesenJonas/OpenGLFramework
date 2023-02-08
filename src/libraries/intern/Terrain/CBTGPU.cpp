@@ -7,7 +7,7 @@
 
 #include <array>
 
-CBTGPU::CBTGPU(uint32_t maxDepth)
+CBTGPU::CBTGPU(uint32_t maxDepth, int width, int height, Framebuffer& prevFBO)
     : maxDepth(maxDepth), //
       refineAroundPointSplitShader(
           COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/refineAroundPoint.comp"}, {{"PASS", "SPLIT"}}),
@@ -20,9 +20,16 @@ CBTGPU::CBTGPU(uint32_t maxDepth)
           COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/sumReductionLastDepths.comp"}),
       writeIndirectCommandsShader(
           COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/writeIndirectCommands.comp"}),
+      drawDepthOnlyShader(VERTEX_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/drawing.vert"}),
       drawShader(
           VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
           {SHADERS_PATH "/Terrain/CBT/drawing.vert", SHADERS_PATH "/Terrain/CBT/drawing.frag"}),
+      drawVisBufferShader(
+          VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
+          {SHADERS_PATH "/Terrain/CBT/Visbuffer.vert", SHADERS_PATH "/Terrain/CBT/Visbuffer.frag"}),
+      visbufferScreenPassShader(
+          VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
+          {SHADERS_PATH "/General/screenQuad.vert", SHADERS_PATH "/Terrain/CBT/VisbufferScreenPass.frag"}),
       outlineShader(
           VERTEX_SHADER_BIT | GEOMETRY_SHADER_BIT | FRAGMENT_SHADER_BIT,
           {SHADERS_PATH "/Terrain/CBT/drawing.vert",
@@ -32,7 +39,28 @@ CBTGPU::CBTGPU(uint32_t maxDepth)
           VERTEX_SHADER_BIT | GEOMETRY_SHADER_BIT | FRAGMENT_SHADER_BIT,
           {SHADERS_PATH "/Terrain/CBT/overlay.vert",
            SHADERS_PATH "/Terrain/CBT/overlay.geom",
-           SHADERS_PATH "/Terrain/CBT/overlay.frag"})
+           SHADERS_PATH "/Terrain/CBT/overlay.frag"}),
+      prevFramebuffer(prevFBO), //
+      visbufferTarget{
+          {.name = "Visbuffer RT",
+           .levels = 1,
+           .width = width,
+           .height = height,
+           .internalFormat = GL_RGBA32F,
+           .minFilter = GL_NEAREST,
+           .magFilter = GL_NEAREST,
+           .wrapS = GL_CLAMP_TO_EDGE,
+           .wrapT = GL_CLAMP_TO_EDGE}},
+      posTarget{
+          {.name = "Pos RT",
+           .levels = 1,
+           .width = width,
+           .height = height,
+           .internalFormat = GL_RGB32F,
+           .minFilter = GL_NEAREST,
+           .magFilter = GL_NEAREST,
+           .wrapS = GL_CLAMP_TO_EDGE,
+           .wrapT = GL_CLAMP_TO_EDGE}}
 {
     // im not actually sure what the max possible depth is when using uint32_ts for the bitheap
     // would need to check code, but I think 30 should be fine. That way 1 << (30+1) can still be represented
@@ -125,6 +153,9 @@ CBTGPU::CBTGPU(uint32_t maxDepth)
     doSumReduction();
     writeIndirectCommands();
     setTargetEdgeLength(20);
+
+    visbufferFramebuffer = Framebuffer{
+        width, height, {{visbufferTarget, 0}, {posTarget, 0}}, {*prevFramebuffer.getDepthTexture(), 0}};
 }
 
 CBTGPU::~CBTGPU()
@@ -249,21 +280,56 @@ void CBTGPU::writeIndirectCommands()
     glPopDebugGroup();
 }
 
-void CBTGPU::draw(const glm::mat4& viewMatrix, const glm::mat4& projViewMatrix)
+void CBTGPU::draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, const glm::mat4& projViewMatrix)
 {
     glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "CBT Draw");
     drawTimer.start();
-    drawShader.useProgram();
-    glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
-    glUniformMatrix4fv(4, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-    glBindVertexArray(triangleTemplates[settings.selectedSubdivLevel].getVAO());
 
-    // glDrawElementsInstancedBaseVertexBaseInstance(
-    // GL_TRIANGLES, triangleMesh.getIndexCount(), GL_UNSIGNED_INT, nullptr, leafNodeAmnt, 0, 0);
-    glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
+    if(settings.renderingMode == 0)
+    {
+        drawShader.useProgram();
+        glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
+        glUniformMatrix4fv(4, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+        glBindVertexArray(triangleTemplates[settings.selectedSubdivLevel].getVAO());
+        glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
+    }
+    else if(settings.renderingMode == 1)
+    {
+        visbufferFramebuffer.bind();
+        glClear(GL_COLOR_BUFFER_BIT);
+        drawVisBufferShader.useProgram();
+        // drawDepthOnlyShader.useProgram();
+        // glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+        glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
+        glBindVertexArray(triangleTemplates[settings.selectedSubdivLevel].getVAO());
+        glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
+        // glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        prevFramebuffer.bind();
+        glDisable(GL_DEPTH_TEST);
+        visbufferScreenPassShader.useProgram();
+        glUniformMatrix4fv(4, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+        const glm::mat4 invProjView = glm::inverse(projViewMatrix);
+        glUniformMatrix4fv(8, 1, GL_FALSE, glm::value_ptr(invProjView));
+        const glm::mat4 invProj = glm::inverse(projMatrix);
+        glUniformMatrix4fv(9, 1, GL_FALSE, glm::value_ptr(invProj));
+        glBindTextureUnit(7, visbufferTarget.getTextureID());
+        glBindTextureUnit(8, posTarget.getTextureID());
+        glBindTextureUnit(9, prevFramebuffer.getDepthTexture()->getTextureID());
+        fullScreenTri.draw();
+        glEnable(GL_DEPTH_TEST);
+    }
+
     drawTimer.end();
     drawTimer.evaluate();
     glPopDebugGroup();
+}
+
+void CBTGPU::drawDepthOnly(const glm::mat4& projViewMatrix)
+{
+    drawDepthOnlyShader.useProgram();
+    glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
+    glBindVertexArray(triangleTemplates[settings.selectedSubdivLevel].getVAO());
+    glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
 }
 
 void CBTGPU::drawOutline(const glm::mat4& projViewMatrix)
@@ -312,6 +378,7 @@ void CBTGPU::drawUI()
     {
         setTemplateLevel(globalSubdivLevel);
     }
+    ImGui::Combo("Rendering mode", &settings.renderingMode, "Basic\0UV Buffer\0");
     ImGui::Checkbox("Draw outline", &settings.drawOutline);
     ImGui::Checkbox("Freeze update", &settings.freezeUpdates);
     ImGui::Separator();
@@ -321,14 +388,28 @@ void CBTGPU::drawUI()
         glUniform1f(
             glGetUniformLocation(drawShader.getProgramID(), "triplanarSharpness"),
             settings.triplanarSharpness);
+        drawDepthOnlyShader.useProgram();
+        glUniform1f(
+            glGetUniformLocation(drawDepthOnlyShader.getProgramID(), "triplanarSharpness"),
+            settings.triplanarSharpness);
         outlineShader.useProgram();
         glUniform1f(
             glGetUniformLocation(outlineShader.getProgramID(), "triplanarSharpness"),
+            settings.triplanarSharpness);
+        drawVisBufferShader.useProgram();
+        glUniform1f(
+            glGetUniformLocation(drawVisBufferShader.getProgramID(), "triplanarSharpness"),
+            settings.triplanarSharpness);
+        visbufferScreenPassShader.useProgram();
+        glUniform1f(
+            glGetUniformLocation(visbufferScreenPassShader.getProgramID(), "triplanarSharpness"),
             settings.triplanarSharpness);
     }
     if(ImGui::SliderFloat("Material normal intensity", &settings.materialNormalIntensity, 0.0f, 1.0f))
     {
         drawShader.useProgram();
+        glUniform1f(3, settings.materialNormalIntensity);
+        visbufferScreenPassShader.useProgram();
         glUniform1f(3, settings.materialNormalIntensity);
     }
     if(ImGui::SliderFloat(
@@ -336,14 +417,22 @@ void CBTGPU::drawUI()
     {
         drawShader.useProgram();
         glUniform1f(1, settings.materialDisplacementIntensity);
+        drawDepthOnlyShader.useProgram();
+        glUniform1f(1, settings.materialDisplacementIntensity);
         outlineShader.useProgram();
+        glUniform1f(1, settings.materialDisplacementIntensity);
+        drawVisBufferShader.useProgram();
         glUniform1f(1, settings.materialDisplacementIntensity);
     }
     if(ImGui::SliderInt("Material displacement lod offset", &settings.materialDisplacementLodOffset, 0, 7))
     {
         drawShader.useProgram();
         glUniform1i(2, settings.materialDisplacementLodOffset);
+        drawDepthOnlyShader.useProgram();
+        glUniform1i(2, settings.materialDisplacementLodOffset);
         outlineShader.useProgram();
+        glUniform1i(2, settings.materialDisplacementLodOffset);
+        drawVisBufferShader.useProgram();
         glUniform1i(2, settings.materialDisplacementLodOffset);
     }
 }

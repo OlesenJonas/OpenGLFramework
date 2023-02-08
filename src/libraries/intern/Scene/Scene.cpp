@@ -172,7 +172,7 @@ void Scene::prepass(CBTGPU& cbt)
 	{
 		m_sunlight->renderShadow();
 
-		cbt.draw(m_sunlight->getLightView(), m_sunlight->getLightProjection() * m_sunlight->getLightView());
+		cbt.drawDepthOnly(m_sunlight->getLightProjection() * m_sunlight->getLightView());
 
 		m_shadowPass->useProgram();
 		for (const auto& entity : m_entities)

@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <vector>
 
+#include <intern/Framebuffer/Framebuffer.h>
+#include <intern/Mesh/FullscreenTri.h>
 #include <intern/Misc/GPUTimer.h>
 #include <intern/ShaderProgram/ShaderProgram.h>
 #include <intern/Terrain/TriangleTemplate.h>
@@ -20,7 +22,7 @@
 class CBTGPU
 {
   public:
-    explicit CBTGPU(uint32_t maxDepth);
+    explicit CBTGPU(uint32_t maxDepth, int width, int height, Framebuffer& prevFBO);
     ~CBTGPU();
 
     void update(const glm::mat4& projView, const glm::vec2 screenRes);
@@ -31,7 +33,8 @@ class CBTGPU
     void doSumReduction();
     void writeIndirectCommands();
 
-    void draw(const glm::mat4& viewMatrix, const glm::mat4& projViewMatrix);
+    void draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, const glm::mat4& projViewMatrix);
+    void drawDepthOnly(const glm::mat4& projViewMatrix);
     void drawOutline(const glm::mat4& projViewMatrix);
     void drawOverlay(float aspect);
     void drawUI();
@@ -77,7 +80,15 @@ class CBTGPU
         TriangleTemplate{5},
         TriangleTemplate{6},
         TriangleTemplate{7}};
+    ShaderProgram drawDepthOnlyShader;
     ShaderProgram drawShader;
+    ShaderProgram drawVisBufferShader;
+    FullscreenTri fullScreenTri;
+    ShaderProgram visbufferScreenPassShader;
+    Texture visbufferTarget;
+    Texture posTarget;
+    Framebuffer visbufferFramebuffer;
+    Framebuffer& prevFramebuffer;
     ShaderProgram outlineShader;
     ShaderProgram overlayShader;
 
@@ -99,6 +110,7 @@ class CBTGPU
 
     struct Settings
     {
+        int renderingMode = 0;
         bool drawOutline = false;
         bool freezeUpdates = false;
         int selectedSubdivLevel = 0;

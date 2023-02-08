@@ -98,6 +98,48 @@ Framebuffer::Framebuffer(
     }
 }
 
+Framebuffer::Framebuffer(
+    GLsizei width, GLsizei height,
+    const std::initializer_list<std::pair<const GLTexture&, int>> texturesWithLevels,
+    std::pair<const GLTexture&, int> depthAttachment)
+    : width(width), height(height), hasDepthStencilAttachment(true)
+{
+    glCreateFramebuffers(1, &handle);
+
+    int index = 0;
+    for(const auto& textureAndLevel : texturesWithLevels)
+    {
+        const GLTexture& texture = textureAndLevel.first;
+        const int mipLevel = textureAndLevel.second;
+        int w, h;
+        glGetTextureLevelParameteriv(texture.getTextureID(), mipLevel, GL_TEXTURE_WIDTH, &w);
+        glGetTextureLevelParameteriv(texture.getTextureID(), mipLevel, GL_TEXTURE_HEIGHT, &h);
+        // TODO: writing into just a portion of the texture could be desired, so just asserting here isnt
+        // optimal
+        assert(w == width && h == height);
+
+        glNamedFramebufferTexture(handle, GL_COLOR_ATTACHMENT0 + index, texture.getTextureID(), mipLevel);
+        index++;
+    }
+
+    glNamedFramebufferTexture(
+        handle, GL_DEPTH_ATTACHMENT, depthAttachment.first.getTextureID(), depthAttachment.second);
+
+    std::vector<GLenum> attachments(texturesWithLevels.size());
+    for(int i = 0; i < attachments.size(); i++)
+    {
+        attachments[i] = GL_COLOR_ATTACHMENT0 + i;
+    }
+    glNamedFramebufferDrawBuffers(handle, (int)attachments.size(), attachments.data());
+
+    if(glCheckNamedFramebufferStatus(handle, GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    {
+        printOpenGLErrors();
+        assert(false && "Framebuffer incomplete!");
+        // todo: also do something in non-debug builds!
+    }
+}
+
 Framebuffer::Framebuffer(Framebuffer&& other) noexcept
 {
     // if this texture was already initialized then somebody needs to delete the old content

@@ -90,7 +90,7 @@ void ReflectionProbe::render(CBTGPU& cbt)
 		const glm::mat4 skyProj = glm::inverse(projection * viewS);
 
 		m_scene->draw(view, projection, skyProj, m_textureSize, m_textureSize);
-		cbt.draw(view, projection * view);
+		cbt.drawDepthOnly(projection * view);
 
 		glGenerateTextureMipmap(m_reflectionMap->getTextureID());
 	}
