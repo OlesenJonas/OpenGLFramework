@@ -38,6 +38,8 @@ int main()
 
     int WIDTH = 1200;
     int HEIGHT = 800;
+    int TRUE_WIDTH = 0;
+    int TRUE_HEIGHT = 0;
 
     GLFWwindow* window = initAndCreateGLFWWindow(WIDTH, HEIGHT, "Terrain", {{GLFW_MAXIMIZED, GLFW_TRUE}});
 
@@ -47,6 +49,11 @@ int main()
 
     // In case window was set to start maximized, retrieve size for framebuffer here
     glfwGetWindowSize(window, &WIDTH, &HEIGHT);
+
+    TRUE_WIDTH = WIDTH;
+    TRUE_HEIGHT = HEIGHT;
+    WIDTH /= 1;
+    HEIGHT /= 1;
 
     //----------------------- INIT OpenGL
     // init OpenGL context
@@ -394,7 +401,7 @@ int main()
 
             // color management
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            // glViewport()?
+            glViewport(0, 0, TRUE_WIDTH, TRUE_HEIGHT);
             // overwriting full screen anyways, dont need to clear
             glBindTextureUnit(0, hdrColorTex.getTextureID());
             postProcessShader.useProgram();

@@ -54,8 +54,10 @@ vec3 ACESFitted(vec3 color)
 
 // ----
 
-void main() {
-    vec3 sceneCol = texelFetch(sceneColor, ivec2(gl_FragCoord), 0).rgb;
+void main()
+{
+    // vec3 sceneCol = texelFetch(sceneColor, ivec2(gl_FragCoord), 0).rgb;
+    vec3 sceneCol = textureLod(sceneColor,passTextureCoord, 0).rgb;
 
     sceneCol *= simpleExposure;
 
