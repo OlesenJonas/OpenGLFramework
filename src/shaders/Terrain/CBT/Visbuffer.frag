@@ -14,7 +14,7 @@ layout (location = 1) out vec3 nonDisplacedPos;
 layout (location = 0) uniform mat4 projectionViewMatrix;
 layout (location = 3) uniform float materialNormalIntensity = 0.7;
 layout (location = 4) uniform mat4 viewMatrix;
-uniform float triplanarSharpness = 0.5;
+uniform float triplanarSharpness = 3.0;
 
 layout (location = 0) in vec3 worldPosNoDisplacement;
 layout (location = 1) in vec4 projPosNoDisplacement;

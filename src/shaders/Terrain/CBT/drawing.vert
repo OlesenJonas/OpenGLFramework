@@ -27,7 +27,7 @@ layout (location = 0) uniform mat4 projectionViewMatrix;
 layout (location = 1) uniform float materialDisplacementIntensity = 0.0;
 layout (location = 2) uniform int materialDisplacementLodOffset = 2;
 layout (location = 4) uniform mat4 viewMatrix;
-uniform float triplanarSharpness = 0.5;
+uniform float triplanarSharpness = 3.0;
 
 layout (location = 0) flat out vec2 cornerPoint;
 layout (location = 1) out vec2 uv;

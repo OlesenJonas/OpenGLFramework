@@ -15,7 +15,7 @@ class FogEffect
 
   private:
     void changeRenderingMode();
-    int mode = 0;
+    int mode = 1;
     BasicFogEffect basicFogEffect;
     SSMSFogEffect ssmsFogEffect;
 };

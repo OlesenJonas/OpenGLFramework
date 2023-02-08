@@ -405,15 +405,14 @@ void CBTGPU::drawUI()
             glGetUniformLocation(visbufferScreenPassShader.getProgramID(), "triplanarSharpness"),
             settings.triplanarSharpness);
     }
-    if(ImGui::SliderFloat("Material normal intensity", &settings.materialNormalIntensity, 0.0f, 1.0f))
+    if(ImGui::SliderFloat("Normal intensity", &settings.materialNormalIntensity, 0.0f, 1.0f))
     {
         drawShader.useProgram();
         glUniform1f(3, settings.materialNormalIntensity);
         visbufferScreenPassShader.useProgram();
         glUniform1f(3, settings.materialNormalIntensity);
     }
-    if(ImGui::SliderFloat(
-           "Material displacement intensity", &settings.materialDisplacementIntensity, 0.0f, 1.0f))
+    if(ImGui::SliderFloat("Displacement intensity", &settings.materialDisplacementIntensity, 0.0f, 1.0f))
     {
         drawShader.useProgram();
         glUniform1f(1, settings.materialDisplacementIntensity);
@@ -424,7 +423,7 @@ void CBTGPU::drawUI()
         drawVisBufferShader.useProgram();
         glUniform1f(1, settings.materialDisplacementIntensity);
     }
-    if(ImGui::SliderInt("Material displacement lod offset", &settings.materialDisplacementLodOffset, 0, 7))
+    if(ImGui::SliderInt("Displacement lod offset", &settings.materialDisplacementLodOffset, 0, 7))
     {
         drawShader.useProgram();
         glUniform1i(2, settings.materialDisplacementLodOffset);
@@ -434,6 +433,11 @@ void CBTGPU::drawUI()
         glUniform1i(2, settings.materialDisplacementLodOffset);
         drawVisBufferShader.useProgram();
         glUniform1i(2, settings.materialDisplacementLodOffset);
+    }
+    if(ImGui::Combo("Vis mode", &settings.visMode, "Nearest Patch\0Interpolated Patches\0Shaded\0"))
+    {
+        drawShader.useProgram();
+        glUniform1i(10, settings.visMode);
     }
 }
 

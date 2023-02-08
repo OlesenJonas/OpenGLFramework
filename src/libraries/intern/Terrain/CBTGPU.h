@@ -114,10 +114,11 @@ class CBTGPU
         bool drawOutline = false;
         bool freezeUpdates = false;
         int selectedSubdivLevel = 0;
-        float triplanarSharpness = 0.5f;
+        float triplanarSharpness = 3.0f;
         float materialNormalIntensity = 0.7f;
         float materialDisplacementIntensity = 0.0f;
         int materialDisplacementLodOffset = 2;
+        int visMode = 2;
     } settings;
 
     struct DrawElementsIndirectCommand
