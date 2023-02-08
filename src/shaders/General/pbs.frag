@@ -57,6 +57,8 @@ void main()
 	directIllumination(viewMatrix, V, P, normal, Input.worldPos.xyz, LightColor.xyz, LightDirection, baseColor, attributes.x, diffuse, specular);
 	imageBasedLighting(viewMatrix, V, normal, worldNormal, reflect, attributes.y, baseColor, diffuse, specular, attributes.x, attributes.z);
 
+	diffuse = any(isnan(diffuse)) ? vec3(0.0) : diffuse;
+    specular = any(isnan(specular)) ? vec3(0.0) : specular;
 	const vec3 color = diffuse + specular;
     fragmentColor = vec4(color.xyz, 1);
 }

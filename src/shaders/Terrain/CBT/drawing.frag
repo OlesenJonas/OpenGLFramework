@@ -90,7 +90,7 @@ void main()
     //TBN columns would just be (1,0,0),(0,0,-1),(0,1,0), so no need for matrix mult here
     vec3 worldNormal = vec3(tangentNormal.x, tangentNormal.z, -tangentNormal.y);
 
-	// Lighting
+    // Lighting
 
 	vec3 diff = vec3(0,0,0);
 	vec3 spec = vec3(0,0,0);
@@ -105,6 +105,8 @@ void main()
 	directIllumination(viewMatrix, V, P, viewNormal, worldPos, LightColor.xyz, LightDirection, baseColor, roughness, diff, spec);
 	imageBasedLighting(viewMatrix, V, viewNormal, worldNormal, reflect, 0.0f, baseColor, diff, spec, roughness, ambientOcclusion);
 
+    diff = any(isnan(diff)) ? vec3(0.0) : diff;
+    spec = any(isnan(spec)) ? vec3(0.0) : spec;
 	const vec3 col = diff + spec;
     fragmentColor = vec4(col, 1);
 }
