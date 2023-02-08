@@ -40,6 +40,7 @@ public:
 
 	bool castShadows() const { return m_castShadows; }
 	bool shadowDirty() const { return m_shadowDirty; }
+	void markDirty() { m_shadowDirty = true; }
 
 	void init(bool castShadows);
 	void bind();

@@ -272,12 +272,11 @@ int main()
         {SHADERS_PATH "/General/screenQuad.vert", SHADERS_PATH "/General/postProcess.frag"}};
     Framebuffer internalFBO{WIDTH, HEIGHT, {{.internalFormat = GL_R11F_G11F_B10F}}, true};
 
-    const Cube cube{1.0f};
-    const Mesh referenceHuman{MISC_PATH "/HumanScaleReference.obj"};
-    const Texture gridTexture{MISC_PATH "/GridTexture.png", true, false};
-    ShaderProgram simpleShader{
-        VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
-        {SHADERS_PATH "/General/simpleTexture.vert", SHADERS_PATH "/General/simpleTexture.frag"}};
+    //const Cube cube{1.0f};
+    //const Texture gridTexture{MISC_PATH "/GridTexture.png", true, false};
+    //ShaderProgram simpleShader{
+    //    VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
+    //    {SHADERS_PATH "/General/simpleTexture.vert", SHADERS_PATH "/General/simpleTexture.frag"}};
 
     bool applyFog = true;
     FogEffect fogEffect(WIDTH, HEIGHT);
@@ -311,12 +310,15 @@ int main()
     testObject2->getMaterial()->setBaseColor(Color::White);
     testObject2->getMaterial()->setNormalIntensity(1.0f);
 
-    // Entity* testObject3 = MainScene.createEntity();
-    // testObject3->setMaterial(new Material(MISC_PATH "/Props_Bench2_basecolor.tga", MISC_PATH
-    // "/Props_Bench2_normal.tga", MISC_PATH "/Props_Bench2_attributes.tga")); testObject3->setMesh(new
-    // Mesh(MISC_PATH "/Meshes/Bench.obj")); testObject3->setPosition(glm::vec3(15,20,5));
-    // testObject3->getMaterial()->setBaseColor(Color::White);
-    // testObject3->getMaterial()->setNormalIntensity(1.0f);
+	Entity* human = MainScene.createEntity();
+    human->setMaterial(new Material(
+        MISC_PATH "/GridTexture.png",
+        MISC_PATH "/YellowBrick_normal.tga",
+        MISC_PATH "/GridTexture.png"));
+    human->setMesh(new Mesh(MISC_PATH "/HumanScaleReference.obj"));
+    human->setPosition(glm::vec3(5, 10.33, -11));
+    human->getMaterial()->setBaseColor(Color::White);
+    human->getMaterial()->setNormalIntensity(0.0f);
 
     //----------------------- RENDERLOOP
 
@@ -484,6 +486,7 @@ int main()
                 if(ImGui::Checkbox("Visible", &ShowReflectionProbes))
                 {
                     MainScene.reflectionProbe()->setVisibility(ShowReflectionProbes);
+					MainScene.sun()->markDirty();
                 }
                 static bool RealtimeReflection = false;
                 if(ImGui::Checkbox("Realtime Reflections", &RealtimeReflection))

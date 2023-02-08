@@ -70,7 +70,7 @@ void Light::bind()
 void Light::renderShadow()
 {
 	m_shadowDirty = false;
-	m_lightProjection = glm::ortho(-250.0f, 250.0f, -250.0f, 250.0f, 10.0f, 500.0f);
+	m_lightProjection = glm::ortho(-240.0f, 240.0f, -240.0f, 240.0f, 20.0f, 500.0f);
 
 	glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(m_lightView));
 	glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(m_lightProjection));
