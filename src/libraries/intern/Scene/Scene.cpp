@@ -205,7 +205,7 @@ void Scene::prepass(CBTGPU& cbt)
 
 void Scene::draw(const class Camera& camera, size_t viewportX, size_t viewportY, bool reflectionProbePass)
 {
-    draw(*camera.getView(), *camera.getProj(), camera.getSkyProj(), viewportX, viewportY, reflectionProbePass);
+    draw(camera.getView(), camera.getProj(), camera.getSkyProj(), viewportX, viewportY, reflectionProbePass);
 }
 
 void Scene::draw(

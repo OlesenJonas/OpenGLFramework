@@ -25,7 +25,7 @@ class Terrain
     void finalizeMaterials();
 
     void update();
-    void draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, Framebuffer& framebufferToWriteInto);
+    void draw(Framebuffer& framebufferToWriteInto);
 
     void drawSettings();
     void updateSettingsBuffer();

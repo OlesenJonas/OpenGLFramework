@@ -180,20 +180,19 @@ void Terrain::update()
     {
         const auto& cam = *ctx.camera;
         cbt.update(
-            *cam.getProj() * *cam.getView(),
-            {Context::globalContext->internalWidth, Context::globalContext->internalHeight});
+            cam.getProjView(), {Context::globalContext->internalWidth, Context::globalContext->internalHeight});
     }
     cbt.doSumReduction();
     cbt.writeIndirectCommands();
 }
 
-void Terrain::draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, Framebuffer& framebufferToWriteInto)
+void Terrain::draw(Framebuffer& framebufferToWriteInto)
 {
     const auto& cam = *Context::globalContext->camera;
-    cbt.draw(*cam.getView(), *cam.getProj(), framebufferToWriteInto);
+    cbt.draw(cam.getView(), cam.getProj(), framebufferToWriteInto);
     if(cbt.getSettings().drawOutline)
     {
-        cbt.drawOutline(*cam.getProj() * *cam.getView());
+        cbt.drawOutline(cam.getProjView());
     }
 }
 

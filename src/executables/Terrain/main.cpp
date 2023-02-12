@@ -2,6 +2,7 @@
 
 #include <GLFW/glfw3.h>
 
+#include <glm/gtx/string_cast.hpp>
 #include <glm/gtx/transform.hpp>
 
 #include <ImGui/imgui.h>
@@ -137,7 +138,7 @@ int main()
     terrain.finalizeMaterials();
     constexpr float groundOffsetAt00 = 12.0f;
 
-    Camera cam{ctx, static_cast<float>(ctx.internalWidth) / static_cast<float>(ctx.internalHeight), 0.1f, 1000.0f};
+    Camera cam{static_cast<float>(ctx.internalWidth) / static_cast<float>(ctx.internalHeight), 0.1f, 1000.0f};
     ctx.setCamera(&cam);
     cam.move({0.f, groundOffsetAt00, 0.f});
 
@@ -237,7 +238,7 @@ int main()
         glDepthFunc(GL_LESS);
         glEnable(GL_DEPTH_TEST);
 
-        terrain.draw(*cam.getView(), *cam.getProj(), internalFBO);
+        terrain.draw(internalFBO);
 
         MainScene.draw(cam, Context::globalContext->internalWidth, Context::globalContext->internalHeight);
 
@@ -295,6 +296,20 @@ int main()
             }
             if(ImGui::CollapsingHeader("Camera##settings", ImGuiTreeNodeFlags_DefaultOpen))
             {
+                // if(ImGui::Button("Write out position"))
+                // {
+                //     std::cout << glm::to_string(cam.getPosition()) << "\n";
+                //     std::cout << glm::to_string(cam.getRotation()) << std::endl;
+                // }
+                // ImGui::SameLine();
+                // if(ImGui::Button("Set cam position #1"))
+                // {
+                //     auto oldMode = cam.getMode();
+                //     cam.setMode(Camera::Mode::FLY);
+                //     cam.setPosition(glm::vec3(52.593220, 37.825119, -39.400352));
+                //     cam.setRotation(8.443182f, 1.155797f);
+                //     cam.setMode(oldMode);
+                // }
                 static float exposure = 1.0f;
                 if(ImGui::SliderFloat("Simple exposure", &exposure, 0.1f, 2.0f))
                 {

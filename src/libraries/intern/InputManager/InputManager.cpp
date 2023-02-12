@@ -10,8 +10,8 @@
 InputManager::InputManager(Context& ctx) : ctx(ctx)
 {
     glfwGetCursorPos(ctx.getWindow(), &mouseX, &mouseY);
-    oldMouseX = mouseX;
-    oldMouseY = mouseY;
+    oldMouseX = mouseX; // NOLINT
+    oldMouseY = mouseY; // NOLINT
 }
 
 void InputManager::resetTime(int64_t frameCount, double simulationTime)
@@ -47,7 +47,9 @@ void InputManager::update()
 }
 
 void InputManager::setupCallbacks(
-    GLFWkeyfun keyCallback, GLFWmousebuttonfun mousebuttonCallback, GLFWscrollfun scrollCallback,
+    GLFWkeyfun keyCallback,
+    GLFWmousebuttonfun mousebuttonCallback,
+    GLFWscrollfun scrollCallback,
     GLFWframebuffersizefun resizeCallback)
 {
     GLFWwindow* window = ctx.getWindow();
@@ -88,7 +90,7 @@ void InputManager::defaultMouseButtonCallback(GLFWwindow* window, int button, in
         return;
     }
 
-    Context& ctx = *static_cast<Context*>(glfwGetWindowUserPointer(window));
+    Context& ctx = *Context::globalContext;
     // if((button == GLFW_MOUSE_BUTTON_MIDDLE || button == GLFW_MOUSE_BUTTON_RIGHT) && action == GLFW_PRESS)
     // {
     //     glfwGetCursorPos(window, &cbStruct->mousePos->x, &cbStruct->mousePos->y);

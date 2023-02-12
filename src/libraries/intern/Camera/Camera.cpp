@@ -9,27 +9,25 @@
 #include <intern/Context/Context.h>
 #include <intern/Misc/Misc.h>
 
-Camera::Camera(Context& ctx, float aspect, float near, float far)
-    : ctx(ctx), cam_near(near), cam_far(far), aspect(aspect)
+Camera::Camera(float aspect, float near, float far) : cam_near(near), cam_far(far), aspect(aspect)
 {
-    init();
-}
+    // default mode is ORBIT
+    const glm::vec3 viewVec = posFromPolar(theta, phi);
+    setView(glm::lookAt(position + radius * viewVec, position, glm::vec3(0.f, 1.f, 0.f)));
+    setInvView(glm::inverse(getView()));
 
-void Camera::init()
-{
-    viewVec = posFromPolar(theta, phi);
-    center = glm::vec3(0.0f);
-    matrices[0] = glm::lookAt(center + radius * viewVec, center, glm::vec3(0.f, 1.f, 0.f));
-    position = center + radius * viewVec;
-    matrices[1] = glm::perspective(fov, aspect, cam_near, cam_far);
-    matrices[2] = glm::inverse(matrices[1]);
+    setProj(glm::perspective(fov, aspect, near, far));
+    setInvProj(glm::inverse(getProj()));
+
+    setProjView(getProj() * getView());
+    setInvProjView(glm::inverse(getProjView()));
 }
 
 void Camera::update()
 {
-    auto* window = ctx.getWindow();
-    auto* inputManager = ctx.getInputManager();
-    glm::vec2 mouseDelta = inputManager->getMouseDelta();
+    auto* window = Context::globalContext->getWindow();
+    auto* inputManager = Context::globalContext->getInputManager();
+    const glm::vec2 mouseDelta = inputManager->getMouseDelta();
 
     // todo: how much should be part of this, and how much should be inside InputManager?
     if(mode == Mode::ORBIT)
@@ -48,75 +46,77 @@ void Camera::update()
     }
     else if(mode == Mode::FLY)
     {
-        rotate(mouseDelta.x * 0.5f, -mouseDelta.y * 0.5f); // viewVector is flipped, angle diff reversed
+        rotate(mouseDelta.x * 0.5f, mouseDelta.y * 0.5f);
 
-        glm::vec3 cam_move = glm::vec3(
+        const glm::vec3 cam_move = glm::vec3(
             static_cast<float>(
-                (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) -
-                (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)),
+                int(glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) -
+                int(glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)),
             static_cast<float>(
-                (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) -
-                (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)),
+                int(glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) -
+                int(glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)),
             static_cast<float>(
-                (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) -
-                (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)));
+                int(glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) -
+                int(glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)));
         if(cam_move != glm::vec3(0.0f))
         {
-            float dt = inputManager->getRealDeltaTime();
-            move(2.0f * glm::normalize(cam_move) * dt);
+            const float dt = inputManager->getRealDeltaTime();
+            move(glm::normalize(cam_move) * dt);
         }
     }
-    updateView();
+    updateViewMatrices();
 }
 
-void Camera::setPosition(glm::vec3 newPosition)
+void Camera::updateViewMatrices()
 {
-    if(mode == Mode::FLY)
-    {
-        center = newPosition;
-        position = newPosition;
-    }
-    else if(mode == Mode::ORBIT)
-    {
-        position = newPosition;
-        radius = glm::distance(newPosition, center);
-        viewVec = glm::normalize(newPosition - center);
-        assert(false && "Also set angles!");
-    }
-}
-
-void Camera::setCenter(glm::vec3 newCenter)
-{
-    glm::vec3 offset = position - center;
-    center = newCenter;
-    position = center + offset;
-}
-
-void Camera::updateView()
-{
-    viewVec = posFromPolar(theta, phi);
-    glm::mat4& view = matrices[0];
     if(mode == Mode::ORBIT)
     {
-        glm::vec3 eye = center + radius * viewVec;
-        view = glm::lookAt(center + radius * viewVec, center, glm::vec3(0.f, 1.f, 0.f));
-        position = center + radius * viewVec;
+        const glm::vec3 viewVec = posFromPolar(theta, phi);
+        setView(glm::lookAt(position + radius * viewVec, position, glm::vec3(0.f, 1.f, 0.f)));
     }
     else if(mode == Mode::FLY)
     {
-        view = glm::lookAt(center, center + viewVec, glm::vec3(0.f, 1.f, 0.f));
-        position = center;
+        const glm::vec3 viewVec = posFromPolar(theta, phi);
+        setView(glm::lookAt(position, position - viewVec, glm::vec3(0.f, 1.f, 0.f)));
     }
+    setInvView(glm::inverse(getView()));
+    setProjView(getProj() * getView());
+    setInvProjView(glm::inverse(getProjView()));
 }
+
+// void Camera::setPosition(glm::vec3 newPosition)
+// {
+//     if(mode == Mode::FLY)
+//     {
+//         center = newPosition;
+//         position = newPosition;
+//     }
+//     else if(mode == Mode::ORBIT)
+//     {
+//         center = newPosition;
+//         // glm::vec3 offset = newPosition - center;
+//         // position = newPosition;
+//         // radius = glm::distance(newPosition, center);
+//         // viewVec = glm::normalize(newPosition - center);
+//         // assert(false && "Also set angles!");
+//     }
+// }
+
+// void Camera::setRotation(float phi, float theta)
+// {
+//     this->phi = phi;
+//     this->theta = theta;
+//     updateView();
+// }
 
 // move the camera along its local axis
 void Camera::move(glm::vec3 offset)
 {
-    glm::vec3 camx = glm::row(matrices[0], 0);
-    glm::vec3 camy = glm::row(matrices[0], 1);
-    glm::vec3 camz = glm::row(matrices[0], 2);
-    glm::vec3 offs = offset.x * camx + offset.y * camy + offset.z * camz;
-    center += (mode == Mode::FLY ? flySpeed : 1.0f) * offs;
+    const glm::vec3 camx = glm::row(getView(), 0);
+    const glm::vec3 camy = glm::row(getView(), 1);
+    const glm::vec3 camz = glm::row(getView(), 2);
+    const glm::vec3 offs = offset.x * camx + offset.y * camy + offset.z * camz;
+    position += (mode == Mode::FLY ? flySpeed : 1.0f) * offs;
 }
 
 void Camera::rotate(float dx, float dy)
@@ -125,39 +125,33 @@ void Camera::rotate(float dx, float dy)
     phi = phi - dx * 0.01f;
 }
 
+void Camera::setMode(Mode mode)
+{
+    this->mode = mode;
+
+    const glm::vec3 viewVec = posFromPolar(theta, phi);
+    if(mode == Mode::ORBIT)
+    {
+        // switching to orbit
+        // old target becomes oribiting center (position)
+        const glm::vec3 oldTarget = position - radius * viewVec;
+        position = oldTarget;
+    }
+    else if(mode == Mode::FLY)
+    {
+        // switching to fly
+        position = position + radius * viewVec;
+    }
+    updateViewMatrices();
+}
+
 void Camera::changeRadius(bool increase)
 {
     if(increase)
         radius /= 0.95f;
     else
         radius *= 0.95f;
-}
-
-void Camera::setFov(float _fov)
-{
-    fov = _fov;
-    matrices[1] = glm::perspective(fov, aspect, cam_near, cam_far);
-    matrices[2] = glm::inverse(matrices[1]);
-}
-
-void Camera::setAspect(float _aspect)
-{
-    aspect = _aspect;
-    matrices[1] = glm::perspective(fov, aspect, cam_near, cam_far);
-    matrices[2] = glm::inverse(matrices[1]);
-}
-
-void Camera::setMode(Mode mode)
-{
-    if(this->mode == mode)
-        return;
-    this->mode = mode;
-
-    // flip viewvecter and sawp center and target
-    theta = M_PI - theta;
-    phi = phi + M_PI;
-    center = center + radius * viewVec;
-    viewVec = -viewVec;
+    updateViewMatrices();
 }
 
 void Camera::setFlySpeed(float speed)
@@ -165,31 +159,18 @@ void Camera::setFlySpeed(float speed)
     flySpeed = speed;
 }
 
-const glm::mat4* Camera::getView() const
+const std::array<glm::mat4, 6>& Camera::getMatrices()
 {
-    return &matrices[0];
-}
-
-const glm::mat4* Camera::getProj() const
-{
-    return &matrices[1];
-}
-
-glm::mat4* Camera::getMatricesPointer()
-{
-    return &matrices[0];
-}
-
-glm::mat4 Camera::getSkyProj() const
-{
-    glm::mat4 view = matrices[0];
-    view[3] = glm::vec4(0, 0, 0, 1);
-    return glm::inverse(matrices[1] * view);
+    return matrices;
 }
 
 glm::vec3 Camera::getPosition() const
 {
     return position;
+}
+glm::vec2 Camera::getRotation() const
+{
+    return {phi, theta};
 }
 
 float Camera::getAspect() const

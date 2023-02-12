@@ -13,7 +13,9 @@
 #include <intern/PostProcessEffects/Fog/BasicFog.h>
 
 SSMSFogEffect::SSMSFogEffect(int width, int height, uint8_t levels)
-    : levels(levels), width(width), height(height),
+    : levels(levels),
+      width(width),
+      height(height),
       directLight{
           {.name = "Direct light",
            .levels = 1,
@@ -83,7 +85,6 @@ const Texture& SSMSFogEffect::execute(const Texture& colorInput, const Texture& 
     // glDisable(GL_DEPTH_TEST);
 
     const auto& cam = *Context::globalContext->getCamera();
-    const glm::mat4 invProjView = glm::inverse(*cam.getProj() * *cam.getView());
 
     const int steps = int(settings.steps);
 
@@ -93,7 +94,7 @@ const Texture& SSMSFogEffect::execute(const Texture& colorInput, const Texture& 
     glBindTextureUnit(1, depthInput.getTextureID());
     initialFogShader.useProgram();
     glUniform3fv(0, 1, glm::value_ptr(cam.getPosition()));
-    glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(invProjView));
+    glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(cam.getInvProjView()));
     fullScreenTri.draw();
     glPopDebugGroup();
 
@@ -162,9 +163,7 @@ void SSMSFogEffect::updateSettings()
     glUniform1f(glGetUniformLocation(initialFogShader.getProgramID(), "falloff"), settings.falloff);
     glUniform1f(glGetUniformLocation(initialFogShader.getProgramID(), "heightOffset"), settings.heightOffset);
     glUniform3fv(
-        glGetUniformLocation(initialFogShader.getProgramID(), "blurTint"),
-        1,
-        glm::value_ptr(settings.blurTint));
+        glGetUniformLocation(initialFogShader.getProgramID(), "blurTint"), 1, glm::value_ptr(settings.blurTint));
 
     const float fracSteps = glm::fract(settings.steps);
 
@@ -187,8 +186,7 @@ void SSMSFogEffect::drawUI()
 
     ImGui::Separator();
 
-    if(ImGui::ColorEdit3(
-           "Absorption coefficient", &settings.absorptionCoefficient.x, ImGuiColorEditFlags_Float))
+    if(ImGui::ColorEdit3("Absorption coefficient", &settings.absorptionCoefficient.x, ImGuiColorEditFlags_Float))
     {
         settings.absorptionCoefficient = glm::max(settings.absorptionCoefficient, .001f);
         changed = true;
@@ -197,8 +195,7 @@ void SSMSFogEffect::drawUI()
         ImGui::DragFloat("Multiplier##absorption", &settings.absorptionCoefficient.w, 0.05f, .001f, FLT_MAX);
 
     ImGui::Separator();
-    if(ImGui::ColorEdit3(
-           "Scattering coefficient", &settings.scatteringCoefficient.x, ImGuiColorEditFlags_Float))
+    if(ImGui::ColorEdit3("Scattering coefficient", &settings.scatteringCoefficient.x, ImGuiColorEditFlags_Float))
     {
         settings.scatteringCoefficient = glm::max(settings.scatteringCoefficient, .001f);
         changed = true;
@@ -209,8 +206,7 @@ void SSMSFogEffect::drawUI()
     ImGui::Separator();
     changed |= ImGui::ColorEdit3(
         "Inscattered Light / Fog Color", &settings.inscatteredLight.x, ImGuiColorEditFlags_Float);
-    changed |=
-        ImGui::DragFloat("Multiplier##inscattering", &settings.inscatteredLight.w, 0.05f, .0f, FLT_MAX);
+    changed |= ImGui::DragFloat("Multiplier##inscattering", &settings.inscatteredLight.w, 0.05f, .0f, FLT_MAX);
 
     // SSMS settings
     ImGui::Separator();

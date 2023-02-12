@@ -28,8 +28,7 @@ const Texture& BasicFogEffect::execute(const Texture& colorInput, const Texture&
     shader.useProgram();
     const auto& cam = *Context::globalContext->getCamera();
     glUniform3fv(0, 1, glm::value_ptr(cam.getPosition()));
-    const glm::mat4 invProjView = glm::inverse(*cam.getProj() * *cam.getView());
-    glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(invProjView));
+    glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(cam.getInvProjView()));
     fullScreenTri.draw();
 
     return framebuffer.getColorTextures()[0];
@@ -66,8 +65,7 @@ void BasicFogEffect::drawUI()
 
     ImGui::Separator();
 
-    if(ImGui::ColorEdit3(
-           "Absorption coefficient", &settings.absorptionCoefficient.x, ImGuiColorEditFlags_Float))
+    if(ImGui::ColorEdit3("Absorption coefficient", &settings.absorptionCoefficient.x, ImGuiColorEditFlags_Float))
     {
         settings.absorptionCoefficient = glm::max(settings.absorptionCoefficient, .001f);
         changed = true;
@@ -76,8 +74,7 @@ void BasicFogEffect::drawUI()
         ImGui::DragFloat("Multiplier##absorption", &settings.absorptionCoefficient.w, 0.05f, .001f, FLT_MAX);
 
     ImGui::Separator();
-    if(ImGui::ColorEdit3(
-           "Scattering coefficient", &settings.scatteringCoefficient.x, ImGuiColorEditFlags_Float))
+    if(ImGui::ColorEdit3("Scattering coefficient", &settings.scatteringCoefficient.x, ImGuiColorEditFlags_Float))
     {
         settings.scatteringCoefficient = glm::max(settings.scatteringCoefficient, .001f);
         changed = true;
@@ -88,8 +85,7 @@ void BasicFogEffect::drawUI()
     ImGui::Separator();
     changed |= ImGui::ColorEdit3(
         "Inscattered Light / Fog Color", &settings.inscatteredLight.x, ImGuiColorEditFlags_Float);
-    changed |=
-        ImGui::DragFloat("Multiplier##inscattering", &settings.inscatteredLight.w, 0.05f, .0f, FLT_MAX);
+    changed |= ImGui::DragFloat("Multiplier##inscattering", &settings.inscatteredLight.w, 0.05f, .0f, FLT_MAX);
 
     if(changed)
     {

@@ -20,8 +20,10 @@ class InputManager
     void disableFixedTimestep();
     void enableFixedTimestep(double timestep);
     void setupCallbacks(
-        GLFWkeyfun keyCallback = nullptr, GLFWmousebuttonfun mousebuttonCallback = nullptr,
-        GLFWscrollfun scrollCallback = nullptr, GLFWframebuffersizefun resizeCallback = nullptr);
+        GLFWkeyfun keyCallback = nullptr,
+        GLFWmousebuttonfun mousebuttonCallback = nullptr,
+        GLFWscrollfun scrollCallback = nullptr,
+        GLFWframebuffersizefun resizeCallback = nullptr);
 
     inline glm::vec2 getMouseDelta() const
     {
