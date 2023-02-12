@@ -24,16 +24,19 @@ layout (binding = 2) uniform usampler2D materialIDTex;
 layout (binding = 3) uniform sampler2DArray heightArray;
 
 layout (location = 0) uniform mat4 projectionViewMatrix;
-layout (location = 1) uniform float materialDisplacementIntensity = 0.0;
-layout (location = 2) uniform int materialDisplacementLodOffset = 2;
 layout (location = 4) uniform mat4 viewMatrix;
-uniform float triplanarSharpness = 3.0;
 
 layout (location = 0) flat out vec2 cornerPoint;
 layout (location = 1) out vec2 uv;
 layout (location = 2) out vec3 worldPosNoDisplacement;
 layout (location = 3) out vec3 worldPos;
 layout (location = 4) out vec3 viewPos;
+
+#include "../SettingsStruct.glsl"
+layout(binding = 4) uniform terrainSettingsBuffer
+{
+    TerrainSettings terrainSettings;
+};
 
 layout(std430, binding = 3) buffer textureInfoBuffer
 {   
@@ -82,7 +85,7 @@ void main()
     const float heightC = mix(heightCF, heightCC, weights.y);
     const float height = mix(heightF, heightC, weights.x);
 
-    const float displacement = (height - 0.5) * materialDisplacementIntensity;
+    const float displacement = (height - 0.5) * terrainSettings.materialDisplacementIntensity;
 
     worldPosition += vec4(worldNormal*displacement, 0.0);
 	viewPos = (viewMatrix * worldPosition).xyz;

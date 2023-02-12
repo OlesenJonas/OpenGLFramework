@@ -16,10 +16,7 @@ layout (binding = 5) uniform sampler2DArray normalArray;
 layout (binding = 6) uniform sampler2DArray ordArray;
 
 layout (location = 0) uniform mat4 projectionViewMatrix;
-layout (location = 3) uniform float materialNormalIntensity = 0.7;
 layout (location = 4) uniform mat4 viewMatrix;
-layout (location = 10) uniform int visMode = 2;
-uniform float triplanarSharpness = 3.0;
 
 layout (location = 0) flat in vec2 cornerPoint;
 layout (location = 1) in vec2 uv;
@@ -27,6 +24,11 @@ layout (location = 2) in vec3 worldPosNoDisplacement;
 layout (location = 3) in vec3 worldPos;
 layout (location = 4) in vec3 viewPos;
 
+#include "../SettingsStruct.glsl"
+layout(binding = 4) uniform terrainSettingsBuffer
+{
+    TerrainSettings terrainSettings;
+};
 
 layout(std430, binding = 3) buffer textureInfoBuffer
 {   
@@ -91,12 +93,12 @@ void main()
     //TBN columns would just be (1,0,0),(0,0,-1),(0,1,0), so no need for matrix mult here
     vec3 worldNormal = vec3(tangentNormal.x, tangentNormal.z, -tangentNormal.y);
 
-    if(visMode == 0)
+    if(terrainSettings.visMode == 0)
     {
         fragmentColor.rgb = getMaterialAttributesFromTexelAndWorldPos(ivec2(round(scaledUVs)), worldPosNoDisplacement, dPdx, dPdy, macroNormal).diffuseRoughness.rgb;
         return;
     }
-    else if (visMode == 1)
+    else if(terrainSettings.visMode == 1)
     {
         fragmentColor.rgb = diffuse;
         return;

@@ -1,14 +1,18 @@
 #include "CBTGPU.h"
+#include "Framebuffer/Framebuffer.h"
 #include "Misc/Misc.h"
 #include "ShaderProgram/ShaderProgram.h"
+#include "Terrain.h"
 #include "TriangleTemplate.h"
+#include <intern/Context/Context.h>
 
 #include <ImGui/imgui.h>
 
 #include <array>
 
-CBTGPU::CBTGPU(uint32_t maxDepth, int width, int height, Framebuffer& prevFBO)
-    : maxDepth(maxDepth), //
+CBTGPU::CBTGPU(Terrain& terrain, uint32_t maxDepth, Texture& sceneDepthBuffer)
+    : terrain(terrain),
+      maxDepth(maxDepth),
       refineAroundPointSplitShader(
           COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/refineAroundPoint.comp"}, {{"PASS", "SPLIT"}}),
       refineAroundPointMergeShader(
@@ -16,10 +20,8 @@ CBTGPU::CBTGPU(uint32_t maxDepth, int width, int height, Framebuffer& prevFBO)
       updateSplitShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/update.comp"}, {{"PASS", "SPLIT"}}),
       updateMergeShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/update.comp"}, {{"PASS", "MERGE"}}),
       sumReductionPassShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/sumReduction.comp"}),
-      sumReductionLastDepthsShader(
-          COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/sumReductionLastDepths.comp"}),
-      writeIndirectCommandsShader(
-          COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/writeIndirectCommands.comp"}),
+      sumReductionLastDepthsShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/sumReductionLastDepths.comp"}),
+      writeIndirectCommandsShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/writeIndirectCommands.comp"}),
       drawDepthOnlyShader(VERTEX_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/drawing.vert"}),
       drawShader(
           VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
@@ -40,12 +42,29 @@ CBTGPU::CBTGPU(uint32_t maxDepth, int width, int height, Framebuffer& prevFBO)
           {SHADERS_PATH "/Terrain/CBT/overlay.vert",
            SHADERS_PATH "/Terrain/CBT/overlay.geom",
            SHADERS_PATH "/Terrain/CBT/overlay.frag"}),
-      prevFramebuffer(prevFBO), //
+      pixelCountingShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/PixelCounting.comp"}),
+      pixelCountPrefixSumShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/PixelCountPrefixSum.comp"}),
+      pixelSortingShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/PixelSorting.comp"}),
+      renderUVBufferGroup0Shader(
+          COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup0.comp"}),
+      renderUVBufferGroup1Shader(
+          COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup1.comp"}),
+      renderUVBufferGroup2Shader(
+          COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup2.comp"}),
+      renderUVBufferGroup3Shader(
+          COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup3.comp"}),
+      renderUVBufferGroup4Shader(
+          COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup4.comp"}),
+      renderUVBufferGroup5Shader(
+          COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup5.comp"}),
+      renderUVBufferGroup6Shader(
+          COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup6.comp"}),
+      sceneDepth(sceneDepthBuffer), //
       visbufferTarget{
           {.name = "Visbuffer RT",
            .levels = 1,
-           .width = width,
-           .height = height,
+           .width = Context::globalContext->internalWidth,
+           .height = Context::globalContext->internalHeight,
            .internalFormat = GL_RGBA32F,
            .minFilter = GL_NEAREST,
            .magFilter = GL_NEAREST,
@@ -54,8 +73,8 @@ CBTGPU::CBTGPU(uint32_t maxDepth, int width, int height, Framebuffer& prevFBO)
       posTarget{
           {.name = "Pos RT",
            .levels = 1,
-           .width = width,
-           .height = height,
+           .width = Context::globalContext->internalWidth,
+           .height = Context::globalContext->internalHeight,
            .internalFormat = GL_RGB32F,
            .minFilter = GL_NEAREST,
            .magFilter = GL_NEAREST,
@@ -123,10 +142,19 @@ CBTGPU::CBTGPU(uint32_t maxDepth, int width, int height, Framebuffer& prevFBO)
     }
 
     {
-        const DispatchIndirectCommand temp{1, 1, 1};
+        std::vector<DispatchIndirectCommand> indirectDispatchCommands;
+        // 1st indirect dispatch is for updating the CBT triangles, the other 7 are for rendering the resulting
+        // groups of pixels
+        indirectDispatchCommands.resize(1 + 7);
+        std::fill(
+            indirectDispatchCommands.begin(), indirectDispatchCommands.end(), DispatchIndirectCommand{1, 1, 1});
 
         glCreateBuffers(1, &indirectDispatchCommandBuffer);
-        glNamedBufferStorage(indirectDispatchCommandBuffer, sizeof(DispatchIndirectCommand), &temp, 0);
+        glNamedBufferStorage(
+            indirectDispatchCommandBuffer,
+            indirectDispatchCommands.size() * sizeof(indirectDispatchCommands[0]),
+            indirectDispatchCommands.data(),
+            0);
         glObjectLabel(GL_BUFFER, indirectDispatchCommandBuffer, -1, "Indirect Dispatch Command Buffer");
         glBindBuffer(GL_DISPATCH_INDIRECT_BUFFER, indirectDispatchCommandBuffer);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, indirectDispatchCommandBuffer);
@@ -155,7 +183,16 @@ CBTGPU::CBTGPU(uint32_t maxDepth, int width, int height, Framebuffer& prevFBO)
     setTargetEdgeLength(20);
 
     visbufferFramebuffer = Framebuffer{
-        width, height, {{visbufferTarget, 0}, {posTarget, 0}}, {*prevFramebuffer.getDepthTexture(), 0}};
+        Context::globalContext->internalWidth,
+        Context::globalContext->internalHeight,
+        {{visbufferTarget, 0}, {posTarget, 0}},
+        {sceneDepthBuffer, 0}};
+
+    const int pixelAmount = Context::globalContext->internalWidth * Context::globalContext->internalHeight;
+    glCreateBuffers(1, &pixelBufferSSBO);
+    glObjectLabel(GL_BUFFER, pixelBufferSSBO, -1, "Pixel buffer SSBO");
+    glNamedBufferStorage(pixelBufferSSBO, sizeof(uint32_t) * (7 * 2 + pixelAmount), nullptr, 0);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, pixelBufferSSBO);
 }
 
 CBTGPU::~CBTGPU()
@@ -280,13 +317,24 @@ void CBTGPU::writeIndirectCommands()
     glPopDebugGroup();
 }
 
-void CBTGPU::draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, const glm::mat4& projViewMatrix)
+void CBTGPU::draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, Framebuffer& framebufferToWriteInto)
 {
     glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "CBT Draw");
     drawTimer.start();
 
+    const glm::mat4 invProjMatrix = glm::inverse(projMatrix);
+    const glm::mat4 projViewMatrix = projMatrix * viewMatrix;
+    const glm::mat4 invProjViewMatrix = glm::inverse(projViewMatrix);
+
     if(settings.renderingMode == 0)
     {
+        glBindTextureUnit(0, terrain.heightmap.getTextureID());
+        glBindTextureUnit(1, terrain.normalmap.getTextureID());
+        glBindTextureUnit(2, terrain.materialIDmap.getTextureID());
+        glBindTextureUnit(3, terrain.heightTextureArray);
+        glBindTextureUnit(4, terrain.diffuseTextureArray);
+        glBindTextureUnit(5, terrain.normalTextureArray);
+        glBindTextureUnit(6, terrain.ordTextureArray);
         drawShader.useProgram();
         glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
         glUniformMatrix4fv(4, 1, GL_FALSE, glm::value_ptr(viewMatrix));
@@ -295,6 +343,14 @@ void CBTGPU::draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, cons
     }
     else if(settings.renderingMode == 1)
     {
+        glBindTextureUnit(0, terrain.heightmap.getTextureID());
+        glBindTextureUnit(1, terrain.normalmap.getTextureID());
+        glBindTextureUnit(2, terrain.materialIDmap.getTextureID());
+        glBindTextureUnit(3, terrain.heightTextureArray);
+        glBindTextureUnit(4, terrain.diffuseTextureArray);
+        glBindTextureUnit(5, terrain.normalTextureArray);
+        glBindTextureUnit(6, terrain.ordTextureArray);
+
         visbufferFramebuffer.bind();
         glClear(GL_COLOR_BUFFER_BIT);
         drawVisBufferShader.useProgram();
@@ -304,19 +360,139 @@ void CBTGPU::draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, cons
         glBindVertexArray(triangleTemplates[settings.selectedSubdivLevel].getVAO());
         glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
         // glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-        prevFramebuffer.bind();
+        framebufferToWriteInto.bind();
         glDisable(GL_DEPTH_TEST);
         visbufferScreenPassShader.useProgram();
         glUniformMatrix4fv(4, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-        const glm::mat4 invProjView = glm::inverse(projViewMatrix);
-        glUniformMatrix4fv(8, 1, GL_FALSE, glm::value_ptr(invProjView));
-        const glm::mat4 invProj = glm::inverse(projMatrix);
-        glUniformMatrix4fv(9, 1, GL_FALSE, glm::value_ptr(invProj));
+        glUniformMatrix4fv(8, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
+        glUniformMatrix4fv(9, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
         glBindTextureUnit(7, visbufferTarget.getTextureID());
         glBindTextureUnit(8, posTarget.getTextureID());
-        glBindTextureUnit(9, prevFramebuffer.getDepthTexture()->getTextureID());
+        glBindTextureUnit(9, framebufferToWriteInto.getDepthTexture()->getTextureID());
         fullScreenTri.draw();
         glEnable(GL_DEPTH_TEST);
+    }
+    else if(settings.renderingMode == 2)
+    {
+        glBindTextureUnit(0, terrain.heightmap.getTextureID());
+        glBindTextureUnit(1, terrain.normalmap.getTextureID());
+        glBindTextureUnit(2, terrain.materialIDmap.getTextureID());
+        glBindTextureUnit(3, terrain.heightTextureArray);
+        glBindTextureUnit(4, terrain.diffuseTextureArray);
+        glBindTextureUnit(5, terrain.normalTextureArray);
+        glBindTextureUnit(6, terrain.ordTextureArray);
+
+        const GLuint zero = 0u;
+        glClearNamedBufferSubData(
+            pixelBufferSSBO, GL_R32UI, 0, (7 * 2) * sizeof(uint32_t), GL_RED, GL_UNSIGNED_INT, &zero);
+
+        visbufferFramebuffer.bind();
+        glClear(GL_COLOR_BUFFER_BIT);
+        drawVisBufferShader.useProgram();
+        glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
+        glBindTextureUnit(0, terrain.heightmap.getTextureID());
+        glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
+
+        pixelCountingShader.useProgram();
+        glBindTextureUnit(0, visbufferTarget.getTextureID());
+        glBindTextureUnit(1, posTarget.getTextureID());
+        glBindTextureUnit(2, terrain.materialIDmap.getTextureID());
+        const Context& ctx = *Context::globalContext;
+        glDispatchCompute(UintDivAndCeil(ctx.internalWidth, 16), UintDivAndCeil(ctx.internalHeight, 16), 1);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+        pixelCountPrefixSumShader.useProgram();
+        glDispatchCompute(1, 1, 1);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_COMMAND_BARRIER_BIT);
+
+        pixelSortingShader.useProgram();
+        glDispatchCompute(UintDivAndCeil(ctx.internalWidth, 16), UintDivAndCeil(ctx.internalHeight, 16), 1);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+        glBindImageTexture(
+            0,
+            framebufferToWriteInto.getColorTextures()[0].getTextureID(),
+            0,
+            GL_FALSE,
+            0,
+            GL_WRITE_ONLY,
+            GL_R11F_G11F_B10F);
+        glBindTextureUnit(1, terrain.normalmap.getTextureID());
+        glBindTextureUnit(2, terrain.materialIDmap.getTextureID());
+        glBindTextureUnit(4, terrain.diffuseTextureArray);
+        glBindTextureUnit(5, terrain.normalTextureArray);
+        glBindTextureUnit(6, terrain.ordTextureArray);
+        glBindTextureUnit(7, visbufferTarget.getTextureID());
+        glBindTextureUnit(8, posTarget.getTextureID());
+        glBindTextureUnit(9, framebufferToWriteInto.getDepthTexture()->getTextureID());
+
+        // TODO: UBO for all matrices, instead of rebinding
+        //       can also use that globally then, in all other shaders!
+        renderUVBufferGroup0Shader.useProgram();
+        glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
+        glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+        glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
+        glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
+        glDispatchComputeIndirect(1 * sizeof(DispatchIndirectCommand));
+
+        renderUVBufferGroup1Shader.useProgram();
+        glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
+        glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+        glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
+        glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
+        glDispatchComputeIndirect(2 * sizeof(DispatchIndirectCommand));
+
+        renderUVBufferGroup2Shader.useProgram();
+        glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
+        glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+        glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
+        glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
+        glDispatchComputeIndirect(3 * sizeof(DispatchIndirectCommand));
+
+        renderUVBufferGroup3Shader.useProgram();
+        glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
+        glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+        glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
+        glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
+        glDispatchComputeIndirect(4 * sizeof(DispatchIndirectCommand));
+
+        renderUVBufferGroup4Shader.useProgram();
+        glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
+        glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+        glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
+        glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
+        glDispatchComputeIndirect(5 * sizeof(DispatchIndirectCommand));
+
+        renderUVBufferGroup5Shader.useProgram();
+        glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
+        glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+        glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
+        glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
+        glDispatchComputeIndirect(6 * sizeof(DispatchIndirectCommand));
+
+        renderUVBufferGroup6Shader.useProgram();
+        glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
+        glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+        glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
+        glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
+        glDispatchComputeIndirect(7 * sizeof(DispatchIndirectCommand));
+
+        glMemoryBarrier(GL_FRAMEBUFFER_BARRIER_BIT);
+        framebufferToWriteInto.bind();
+
+        // prevFramebuffer.bind();
+        // glDisable(GL_DEPTH_TEST);
+        // visbufferScreenPassShader.useProgram();
+        // glUniformMatrix4fv(4, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+        // const glm::mat4 invProjView = glm::inverse(projViewMatrix);
+        // glUniformMatrix4fv(8, 1, GL_FALSE, glm::value_ptr(invProjView));
+        // const glm::mat4 invProj = glm::inverse(projMatrix);
+        // glUniformMatrix4fv(9, 1, GL_FALSE, glm::value_ptr(invProj));
+        // glBindTextureUnit(7, visbufferTarget.getTextureID());
+        // glBindTextureUnit(8, posTarget.getTextureID());
+        // glBindTextureUnit(9, prevFramebuffer.getDepthTexture()->getTextureID());
+        // fullScreenTri.draw();
+        // glEnable(GL_DEPTH_TEST);
     }
 
     drawTimer.end();
@@ -335,6 +511,7 @@ void CBTGPU::drawDepthOnly(const glm::mat4& projViewMatrix)
 void CBTGPU::drawOutline(const glm::mat4& projViewMatrix)
 {
     glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "CBT Draw outline");
+    glBindTextureUnit(0, terrain.heightmap.getTextureID());
     // with the current depth range (0.01 to 1000) using just a depth offset
     // doesnt work anymore. Either its too small or too large
     // so just render without depth test and do masking in fragment shader
@@ -378,67 +555,9 @@ void CBTGPU::drawUI()
     {
         setTemplateLevel(globalSubdivLevel);
     }
-    ImGui::Combo("Rendering mode", &settings.renderingMode, "Basic\0UV Buffer\0");
+    ImGui::Combo("Rendering mode", &settings.renderingMode, "Basic\0UV Buffer\0UV Buffer with sorting\0");
     ImGui::Checkbox("Draw outline", &settings.drawOutline);
     ImGui::Checkbox("Freeze update", &settings.freezeUpdates);
-    ImGui::Separator();
-    if(ImGui::DragFloat("Triplanar blending sharpness", &settings.triplanarSharpness, 0.05f, 0.0f, 10.0f))
-    {
-        drawShader.useProgram();
-        glUniform1f(
-            glGetUniformLocation(drawShader.getProgramID(), "triplanarSharpness"),
-            settings.triplanarSharpness);
-        drawDepthOnlyShader.useProgram();
-        glUniform1f(
-            glGetUniformLocation(drawDepthOnlyShader.getProgramID(), "triplanarSharpness"),
-            settings.triplanarSharpness);
-        outlineShader.useProgram();
-        glUniform1f(
-            glGetUniformLocation(outlineShader.getProgramID(), "triplanarSharpness"),
-            settings.triplanarSharpness);
-        drawVisBufferShader.useProgram();
-        glUniform1f(
-            glGetUniformLocation(drawVisBufferShader.getProgramID(), "triplanarSharpness"),
-            settings.triplanarSharpness);
-        visbufferScreenPassShader.useProgram();
-        glUniform1f(
-            glGetUniformLocation(visbufferScreenPassShader.getProgramID(), "triplanarSharpness"),
-            settings.triplanarSharpness);
-    }
-    if(ImGui::SliderFloat("Normal intensity", &settings.materialNormalIntensity, 0.0f, 1.0f))
-    {
-        drawShader.useProgram();
-        glUniform1f(3, settings.materialNormalIntensity);
-        visbufferScreenPassShader.useProgram();
-        glUniform1f(3, settings.materialNormalIntensity);
-    }
-    if(ImGui::SliderFloat("Displacement intensity", &settings.materialDisplacementIntensity, 0.0f, 1.0f))
-    {
-        drawShader.useProgram();
-        glUniform1f(1, settings.materialDisplacementIntensity);
-        drawDepthOnlyShader.useProgram();
-        glUniform1f(1, settings.materialDisplacementIntensity);
-        outlineShader.useProgram();
-        glUniform1f(1, settings.materialDisplacementIntensity);
-        drawVisBufferShader.useProgram();
-        glUniform1f(1, settings.materialDisplacementIntensity);
-    }
-    if(ImGui::SliderInt("Displacement lod offset", &settings.materialDisplacementLodOffset, 0, 7))
-    {
-        drawShader.useProgram();
-        glUniform1i(2, settings.materialDisplacementLodOffset);
-        drawDepthOnlyShader.useProgram();
-        glUniform1i(2, settings.materialDisplacementLodOffset);
-        outlineShader.useProgram();
-        glUniform1i(2, settings.materialDisplacementLodOffset);
-        drawVisBufferShader.useProgram();
-        glUniform1i(2, settings.materialDisplacementLodOffset);
-    }
-    if(ImGui::Combo("Vis mode", &settings.visMode, "Nearest Patch\0Interpolated Patches\0Shaded\0"))
-    {
-        drawShader.useProgram();
-        glUniform1i(10, settings.visMode);
-    }
 }
 
 void CBTGPU::setTemplateLevel(int newLevel)

@@ -24,12 +24,15 @@ layout (binding = 2) uniform usampler2D materialIDTex;
 layout (binding = 3) uniform sampler2DArray heightArray;
 
 layout (location = 0) uniform mat4 projectionViewMatrix;
-layout (location = 1) uniform float materialDisplacementIntensity = 0.0;
-layout (location = 2) uniform int materialDisplacementLodOffset = 2;
-uniform float triplanarSharpness = 3.0;
 
 layout (location = 0) out vec3 worldPosNoDisplacement;
-layout (location = 1) out vec4 projPosNoDisplacement;
+// layout (location = 1) out vec4 projPosNoDisplacement;
+
+#include "../SettingsStruct.glsl"
+layout(binding = 4) uniform terrainSettingsBuffer
+{
+    TerrainSettings terrainSettings;
+};
 
 layout(std430, binding = 3) buffer textureInfoBuffer
 {   
@@ -62,7 +65,7 @@ void main()
     vec4 worldPosition = transformFlatPointToWorldSpace(flatPosition);
     //pass the *non-displaced* position for triplanar projection in fragment shader
     worldPosNoDisplacement = worldPosition.xyz;
-    projPosNoDisplacement = projectionViewMatrix * worldPosition;
+    // projPosNoDisplacement = projectionViewMatrix * worldPosition;
     
     vec3 tangentNormal = 2.0*textureLod(macroNormal,uv,0).xyz-1.0;
     vec3 worldNormal = vec3(tangentNormal.x, tangentNormal.z, -tangentNormal.y);
@@ -79,7 +82,7 @@ void main()
     const float heightC = mix(heightCF, heightCC, weights.y);
     const float height = mix(heightF, heightC, weights.x);
 
-    const float displacement = (height - 0.5) * materialDisplacementIntensity;
+    const float displacement = (height - 0.5) * terrainSettings.materialDisplacementIntensity;
 
     worldPosition += vec4(worldNormal*displacement, 0.0);
 

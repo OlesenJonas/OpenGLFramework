@@ -19,10 +19,12 @@
     by Jonathan Dupuy
 */
 
+class Terrain;
+
 class CBTGPU
 {
   public:
-    explicit CBTGPU(uint32_t maxDepth, int width, int height, Framebuffer& prevFBO);
+    explicit CBTGPU(Terrain& terrain, uint32_t maxDepth, Texture& sceneDepthBuffer);
     ~CBTGPU();
 
     void update(const glm::mat4& projView, const glm::vec2 screenRes);
@@ -33,7 +35,7 @@ class CBTGPU
     void doSumReduction();
     void writeIndirectCommands();
 
-    void draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, const glm::mat4& projViewMatrix);
+    void draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, Framebuffer& framebufferToWriteInto);
     void drawDepthOnly(const glm::mat4& projViewMatrix);
     void drawOutline(const glm::mat4& projViewMatrix);
     void drawOverlay(float aspect);
@@ -57,6 +59,8 @@ class CBTGPU
     uint32_t getAmountOfLeafNodes();
 
   private:
+    Terrain& terrain;
+
     uint32_t maxDepth = 0xFFFFFFFF;
     GLuint cbtBuffer = 0xFFFFFFFF;
     uint64_t heapSizeInUint32s = 0;
@@ -85,10 +89,21 @@ class CBTGPU
     ShaderProgram drawVisBufferShader;
     FullscreenTri fullScreenTri;
     ShaderProgram visbufferScreenPassShader;
+    ShaderProgram pixelCountingShader;
+    GLuint pixelBufferSSBO;
+    ShaderProgram pixelCountPrefixSumShader;
+    ShaderProgram pixelSortingShader;
+    ShaderProgram renderUVBufferGroup0Shader;
+    ShaderProgram renderUVBufferGroup1Shader;
+    ShaderProgram renderUVBufferGroup2Shader;
+    ShaderProgram renderUVBufferGroup3Shader;
+    ShaderProgram renderUVBufferGroup4Shader;
+    ShaderProgram renderUVBufferGroup5Shader;
+    ShaderProgram renderUVBufferGroup6Shader;
     Texture visbufferTarget;
     Texture posTarget;
     Framebuffer visbufferFramebuffer;
-    Framebuffer& prevFramebuffer;
+    Texture& sceneDepth;
     ShaderProgram outlineShader;
     ShaderProgram overlayShader;
 
@@ -114,11 +129,6 @@ class CBTGPU
         bool drawOutline = false;
         bool freezeUpdates = false;
         int selectedSubdivLevel = 0;
-        float triplanarSharpness = 3.0f;
-        float materialNormalIntensity = 0.7f;
-        float materialDisplacementIntensity = 0.0f;
-        int materialDisplacementLodOffset = 2;
-        int visMode = 2;
     } settings;
 
     struct DrawElementsIndirectCommand
@@ -131,8 +141,8 @@ class CBTGPU
     };
     struct DispatchIndirectCommand
     {
-        uint32_t num_groups_x;
-        uint32_t num_groups_y;
-        uint32_t num_groups_z;
+        uint32_t num_groups_x = 1;
+        uint32_t num_groups_y = 1;
+        uint32_t num_groups_z = 1;
     };
 };

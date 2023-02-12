@@ -18,11 +18,15 @@ layout (binding = 8) uniform sampler2D posTex;
 layout (binding = 9) uniform sampler2D trueDepthBuffer;
 
 layout (location = 0) uniform mat4 projectionViewMatrix;
-layout (location = 3) uniform float materialNormalIntensity = 0.7;
 layout (location = 4) uniform mat4 viewMatrix;
 layout (location = 8) uniform mat4 invProjView;
 layout (location = 9) uniform mat4 invProj;
-uniform float triplanarSharpness = 0.5;
+
+#include "../SettingsStruct.glsl"
+layout(binding = 4) uniform terrainSettingsBuffer
+{
+    TerrainSettings terrainSettings;
+};
 
 layout(std430, binding = 3) buffer textureInfoBuffer
 {   
@@ -73,8 +77,8 @@ void main()
     vec3 worldPosNoDisplacement = texelFetch(posTex, ivec2(gl_FragCoord.xy), 0).rgb;
 
     float trueDepth = texelFetch(trueDepthBuffer, ivec2(gl_FragCoord.xy), 0).r;
-    vec3 viewPos = viewPositionFromDepth(screenUV, nonDisplacedDepth);
-    vec3 worldPos = worldPositionFromDepth(screenUV, nonDisplacedDepth);
+    vec3 viewPos = viewPositionFromDepth(screenUV, trueDepth);
+    vec3 worldPos = worldPositionFromDepth(screenUV, trueDepth);
 
     vec2 dX = unpackHalf2x16(floatBitsToUint(visBuffer.r));
     vec2 dY = unpackHalf2x16(floatBitsToUint(visBuffer.g));

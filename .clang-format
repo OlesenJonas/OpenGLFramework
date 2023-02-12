@@ -1,9 +1,11 @@
 # sorted alphabetically
 AlignAfterOpenBracket: AlwaysBreak
+AllowAllParametersOfDeclarationOnNextLine: true
 AllowShortFunctionsOnASingleLine: None
 AllowShortLambdasOnASingleLine: Empty
 AlwaysBreakTemplateDeclarations: 'Yes'
 BinPackArguments: false
+BinPackParameters: false
 BraceWrapping:
   AfterClass: true
   AfterControlStatement: true
@@ -15,7 +17,7 @@ BraceWrapping:
   BeforeLambdaBody: true
   BeforeWhile: true
 BreakBeforeBraces: Custom
-ColumnLimit: 110
+ColumnLimit: 115
 DerivePointerAlignment: false
 FixNamespaceComments: true
 IncludeBlocks: Preserve
@@ -23,6 +25,7 @@ IndentPPDirectives: BeforeHash
 IndentRequiresClause: true
 IndentWidth: 4
 NamespaceIndentation: All
+PackConstructorInitializers: NextLine
 PPIndentWidth: -1
 PointerAlignment: Left
 RequiresClausePosition: OwnLine

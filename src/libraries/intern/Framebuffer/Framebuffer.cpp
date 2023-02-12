@@ -1,5 +1,6 @@
 #include "Framebuffer.h"
 #include "Texture/GLTexture.h"
+#include "Texture/Texture.h"
 
 #include <Misc/OpenGLErrorHandler.h>
 
@@ -185,7 +186,7 @@ const std::vector<Texture>& Framebuffer::getColorTextures() const
     return textures;
 }
 
-const Texture* Framebuffer::getDepthTexture() const
+Texture* Framebuffer::getDepthTexture()
 {
     if(!hasDepthStencilAttachment)
     {

@@ -11,7 +11,7 @@ float getFlatHeightFromTexelAndWorldPos(const uint materialID, const ivec2 texel
 {
     const float texScale = textureScales[materialID];
     worldPos = worldPos/texScale;
-    return textureLod(heightArray, vec3(worldPos.xz, materialID), materialDisplacementLodOffset).r;
+    return textureLod(heightArray, vec3(worldPos.xz, materialID), terrainSettings.materialDisplacementLodOffset).r;
 }
 
 float getBiplanarHeightFromTexelAndWorldPos(const uint materialID, const ivec2 texelPos, vec3 worldPos, const vec3 macroNormalTS)
@@ -24,10 +24,10 @@ float getBiplanarHeightFromTexelAndWorldPos(const uint materialID, const ivec2 t
     const vec2 uvXY = worldPos.xy*flipFactorXY/ texScale;
     const vec2 uvZY = worldPos.zy*flipFactorZY/ texScale;
 
-    const float displacementXY = textureLod(heightArray, vec3(uvXY, materialID), materialDisplacementLodOffset).r;
-    const float displacementZY = textureLod(heightArray, vec3(uvZY, materialID), materialDisplacementLodOffset).r;
+    const float displacementXY = textureLod(heightArray, vec3(uvXY, materialID), terrainSettings.materialDisplacementLodOffset).r;
+    const float displacementZY = textureLod(heightArray, vec3(uvZY, materialID), terrainSettings.materialDisplacementLodOffset).r;
 
-    vec2 weights = pow(abs(macroNormalTS.xy),vec2(triplanarSharpness));
+    vec2 weights = pow(abs(macroNormalTS.xy),vec2(terrainSettings.triplanarSharpness));
     weights /= weights.x+weights.y;
 
     return mix(displacementXY, displacementZY, weights.x);

@@ -4,6 +4,7 @@
 
 #include <intern/Camera/Camera.h>
 #include <intern/InputManager/InputManager.h>
+#include <intern/Scene/Scene.h>
 
 // very simple context struct to pass "global" objects around
 class Context
@@ -22,10 +23,14 @@ class Context
     void* getUserPointer();
     void setUserPointer(void* ptr);
 
-  private:
-    // todo: window abstraction object that stores width/height etc
+    int outputWidth = 0;
+    int outputHeight = 0;
+    int internalWidth = 0;
+    int internalHeight = 0;
     GLFWwindow* window;
     InputManager* inputManager;
     Camera* camera;
+    Scene* scene;
+
     void* userPointer;
 };

@@ -55,7 +55,7 @@ class Framebuffer
 
     [[nodiscard]] const std::vector<Texture>& getColorTextures() const;
     // todo: Unsure about optional refernces so just return raw pointer instead
-    [[nodiscard]] const Texture* getDepthTexture() const;
+    [[nodiscard]] Texture* getDepthTexture();
 
   private:
     GLsizei width = -1;

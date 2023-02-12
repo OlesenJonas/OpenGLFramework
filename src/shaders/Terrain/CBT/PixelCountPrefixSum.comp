@@ -1,0 +1,41 @@
+#version 460
+
+#ifdef GLSLANGVALIDATOR
+    // otherwise glslangValidator complains about #include
+    //for OpenGL they will be replaced when shader is loaded
+    #extension GL_GOOGLE_include_directive : require
+#endif
+
+#extension GL_KHR_shader_subgroup_basic : require
+#extension GL_KHR_shader_subgroup_arithmetic : require
+
+layout(local_size_x = 7, local_size_y = 1, local_size_z = 1) in;
+
+#include "indirectCommandStructs.glsl"
+layout(std430, binding = 1) writeonly restrict buffer computeCommand
+{
+    DispatchIndirectCommand compCmd[8];
+};
+
+layout(std430, binding = 4) buffer pixelBuffer
+{   
+    uint perGroupStartIndex[7];
+    uint perGroupCurrentIndex[7];
+    uint pixels[];
+};
+
+void main()
+{
+    //we only start a single subgroup and use subgroup intrinsics to perform prefix sum
+    //  possible because values to sum (just 7) is less than (at least NV and AMD) subgroup size 
+    uint groupAmount = perGroupStartIndex[gl_SubgroupInvocationID];
+    
+    //0th dispatch command contains count for CBT update, so write from 1 onwards
+    compCmd[1 + gl_SubgroupInvocationID].num_groups_x = ((groupAmount + 64 - 1) / 64);
+
+    uint exclusiveScan = subgroupExclusiveAdd(groupAmount);
+    subgroupBarrier(); //Dont think this is even needed
+    perGroupStartIndex[gl_SubgroupInvocationID] = exclusiveScan;
+    perGroupCurrentIndex[gl_SubgroupInvocationID] = exclusiveScan;
+
+}

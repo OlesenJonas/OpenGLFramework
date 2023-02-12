@@ -10,14 +10,14 @@
 #include "../../General/MaterialAttributes.glsl"
 #include "../../General/Blending.glsl"
 
-MaterialAttributes getFlatMaterialAttributesFromTexelAndWorldPos(const uint materialID, const ivec2 texelPos, vec3 worldPos, vec3 dPdx, vec3 dPdy, const vec3 macroNormalTS)
+MaterialAttributes getFlatMaterialAttributesFromIndexAndWorldPos(const uint materialID, vec3 worldPos, vec3 dPdx, vec3 dPdy, const vec3 macroNormalTS)
 {
     const float texScale = textureScales[materialID];
     worldPos = worldPos/texScale;
     dPdx = dPdx/texScale;
     dPdy = dPdy/texScale;
     vec3 nrm = 2*textureGrad(normalArray, vec3(worldPos.xz,materialID), dPdx.xz, dPdy.xz).rgb-1;
-    nrm = normalize(mix(vec3(0,0,1),nrm,materialNormalIntensity));
+    nrm = normalize(mix(vec3(0,0,1),nrm,terrainSettings.materialNormalIntensity));
     nrm = reorientNormalBlend(macroNormalTS, nrm);
     return CreateMaterialAttributes(
         textureGrad(diffuseArray, vec3(worldPos.xz,materialID), dPdx.xz, dPdy.xz).rgb,
@@ -25,7 +25,7 @@ MaterialAttributes getFlatMaterialAttributesFromTexelAndWorldPos(const uint mate
         textureGrad(ordArray, vec3(worldPos.xz,materialID), dPdx.xz, dPdy.xz).rgb
     );
 }
-MaterialAttributes getBiplanarMaterialAttributesFromTexelAndWorldPos(const uint materialID, const ivec2 texelPos, vec3 worldPos, vec3 dPdx, vec3 dPdy, const vec3 macroNormalTS)
+MaterialAttributes getBiplanarMaterialAttributesFromIndexAndWorldPos(const uint materialID, vec3 worldPos, vec3 dPdx, vec3 dPdy, const vec3 macroNormalTS)
 {
     const float texScale = textureScales[materialID];
     
@@ -44,13 +44,13 @@ MaterialAttributes getBiplanarMaterialAttributesFromTexelAndWorldPos(const uint 
             mix(
                 vec3(0,0,1),
                 2*textureGrad(normalArray, vec3(uvXY,materialID), dPdxXY, dPdyXY).rgb-1,
-                materialNormalIntensity
+                terrainSettings.materialNormalIntensity
             ));
     vec3 nrmZY = normalize(
             mix(
                 vec3(0,0,1),
                 2*textureGrad(normalArray, vec3(uvZY,materialID), dPdxZY, dPdyZY).rgb-1,
-                materialNormalIntensity
+                terrainSettings.materialNormalIntensity
             ));
     nrmXY.xy *= flipFactorXY.x;
     nrmZY.xy  = nrmZY.yx;
@@ -70,7 +70,7 @@ MaterialAttributes getBiplanarMaterialAttributesFromTexelAndWorldPos(const uint 
         textureGrad(ordArray, vec3(uvZY,materialID), dPdxZY, dPdyZY).rgb
     );
 
-    vec2 weights = pow(abs(macroNormalTS.xy),vec2(triplanarSharpness));
+    vec2 weights = pow(abs(macroNormalTS.xy),vec2(terrainSettings.triplanarSharpness));
     weights /= weights.x+weights.y;
 
     return lerp(materialAttributesXY, materialAttributesZY, weights.x);
@@ -81,9 +81,22 @@ MaterialAttributes getMaterialAttributesFromTexelAndWorldPos(const ivec2 texelPo
     bool isTriplanar = (materialID & 0x80) > 0;
     materialID = materialID & 0x7F;
     if(isTriplanar)
-        return getBiplanarMaterialAttributesFromTexelAndWorldPos(materialID, texelPos, worldPos, dPdx, dPdy, macroNormalTS);
+        return getBiplanarMaterialAttributesFromIndexAndWorldPos(materialID, worldPos, dPdx, dPdy, macroNormalTS);
     else
-        return getFlatMaterialAttributesFromTexelAndWorldPos(materialID, texelPos, worldPos, dPdx, dPdy, macroNormalTS);
+        return getFlatMaterialAttributesFromIndexAndWorldPos(materialID, worldPos, dPdx, dPdy, macroNormalTS);
 }
-
+MaterialAttributes getFlatMaterialAttributesFromTexelAndWorldPos(const ivec2 texelPos, const vec3 worldPos, const vec3 dPdx, const vec3 dPdy, const vec3 macroNormalTS)
+{
+    uint materialID = texelFetch(materialIDTex, texelPos, 0).r;
+    bool isTriplanar = (materialID & 0x80) > 0;
+    materialID = materialID & 0x7F;
+    return getFlatMaterialAttributesFromIndexAndWorldPos(materialID, worldPos, dPdx, dPdy, macroNormalTS);
+}
+MaterialAttributes getBiplanarMaterialAttributesFromTexelAndWorldPos(const ivec2 texelPos, const vec3 worldPos, const vec3 dPdx, const vec3 dPdy, const vec3 macroNormalTS)
+{
+    uint materialID = texelFetch(materialIDTex, texelPos, 0).r;
+    bool isTriplanar = (materialID & 0x80) > 0;
+    materialID = materialID & 0x7F;
+    return getBiplanarMaterialAttributesFromIndexAndWorldPos(materialID, worldPos, dPdx, dPdy, macroNormalTS);
+}
 #endif
