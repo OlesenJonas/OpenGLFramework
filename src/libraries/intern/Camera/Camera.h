@@ -32,14 +32,16 @@ class Camera
 
     void move(glm::vec3 offset);
     void rotate(float dx, float dy);
-    // void setPosition(glm::vec3 newPosition);
-    // void setRotation(float phi, float theta);
+    void setPosition(glm::vec3 newPosition);
+    void setRotation(float phi, float theta);
+    void setRadius(float radius);
     void changeRadius(bool increase);
     void setMode(Mode mode);
     void setFlySpeed(float speed);
 
     glm::vec3 getPosition() const;
     glm::vec2 getRotation() const;
+    float getRadius() const;
     const std::array<glm::mat4, 6>& getMatrices();
 
     float getAspect() const;

@@ -1,4 +1,5 @@
 #include "Camera.h"
+#include "Camera/Camera.h"
 
 #include <glm/gtc/matrix_access.hpp>
 #include <glm/gtx/dual_quaternion.hpp>
@@ -84,30 +85,24 @@ void Camera::updateViewMatrices()
     setInvProjView(glm::inverse(getProjView()));
 }
 
-// void Camera::setPosition(glm::vec3 newPosition)
-// {
-//     if(mode == Mode::FLY)
-//     {
-//         center = newPosition;
-//         position = newPosition;
-//     }
-//     else if(mode == Mode::ORBIT)
-//     {
-//         center = newPosition;
-//         // glm::vec3 offset = newPosition - center;
-//         // position = newPosition;
-//         // radius = glm::distance(newPosition, center);
-//         // viewVec = glm::normalize(newPosition - center);
-//         // assert(false && "Also set angles!");
-//     }
-// }
+void Camera::setPosition(glm::vec3 newPosition)
+{
+    position = newPosition;
+    updateViewMatrices();
+}
 
-// void Camera::setRotation(float phi, float theta)
-// {
-//     this->phi = phi;
-//     this->theta = theta;
-//     updateView();
-// }
+void Camera::setRotation(float phi, float theta)
+{
+    this->phi = phi;
+    this->theta = theta;
+    updateViewMatrices();
+}
+
+void Camera::setRadius(float radius)
+{
+    this->radius = radius;
+    updateViewMatrices();
+}
 
 // move the camera along its local axis
 void Camera::move(glm::vec3 offset)
@@ -171,6 +166,10 @@ glm::vec3 Camera::getPosition() const
 glm::vec2 Camera::getRotation() const
 {
     return {phi, theta};
+}
+float Camera::getRadius() const
+{
+    return radius;
 }
 
 float Camera::getAspect() const

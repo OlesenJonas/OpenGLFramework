@@ -299,17 +299,31 @@ int main()
                 // if(ImGui::Button("Write out position"))
                 // {
                 //     std::cout << glm::to_string(cam.getPosition()) << "\n";
-                //     std::cout << glm::to_string(cam.getRotation()) << std::endl;
+                //     std::cout << glm::to_string(cam.getRotation()) << "\n";
+                //     std::cout << cam.getRadius() << std::endl;
                 // }
                 // ImGui::SameLine();
-                // if(ImGui::Button("Set cam position #1"))
-                // {
-                //     auto oldMode = cam.getMode();
-                //     cam.setMode(Camera::Mode::FLY);
-                //     cam.setPosition(glm::vec3(52.593220, 37.825119, -39.400352));
-                //     cam.setRotation(8.443182f, 1.155797f);
-                //     cam.setMode(oldMode);
-                // }
+                ImGui::TextUnformatted("Load camera position");
+                if(ImGui::Button("#1"))
+                {
+                    cam.setPosition(glm::vec3(75.703384, 38.853016, -45.770397));
+                    cam.setRotation(2.285002f, 1.215797f);
+                    cam.setRadius(1.0f);
+                }
+                ImGui::SameLine();
+                if(ImGui::Button("#2"))
+                {
+                    cam.setPosition(glm::vec3(-1.504049, 12.790466, -4.082536));
+                    cam.setRotation(3.334999f, 1.900796f);
+                    cam.setRadius(1.0f);
+                }
+                ImGui::SameLine();
+                if(ImGui::Button("#3"))
+                {
+                    cam.setPosition(glm::vec3(31.238586, 13.624129, -42.391911));
+                    cam.setRotation(4.814977f, 1.210797f);
+                    cam.setRadius(1.0f);
+                }
                 static float exposure = 1.0f;
                 if(ImGui::SliderFloat("Simple exposure", &exposure, 0.1f, 2.0f))
                 {
