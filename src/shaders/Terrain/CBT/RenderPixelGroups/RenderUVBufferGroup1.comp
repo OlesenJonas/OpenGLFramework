@@ -121,7 +121,7 @@ void main()
 
         uint materialID = texelFetch(materialIDTex, idsStartTexel, 0).r;
         materialID = materialID & 0x7F;
-        const MaterialAttributes attributes = getBiplanarMaterialAttributesFromIndexAndWorldPos(materialID, worldPos, dPdx, dPdy, macroNormal);
+        const MaterialAttributes attributes = getBiplanarMaterialAttributesFromIndexAndWorldPos(materialID, worldPosNoDisplacement, dPdx, dPdy, macroNormal);
         const vec3 diffuse = attributes.diffuseRoughness.rgb;
         const float roughness = attributes.diffuseRoughness.w;
         const float ambientOcclusion = attributes.aoHeight.x;
