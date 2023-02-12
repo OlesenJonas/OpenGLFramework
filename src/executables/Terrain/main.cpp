@@ -415,17 +415,9 @@ int main()
             const ImGuiIO& io = ImGui::GetIO(); // NOLINT
             ImGui::Text(
                 "Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, io.Framerate);
-            if(ImGui::CollapsingHeader("CBT", ImGuiTreeNodeFlags_DefaultOpen))
+            if(ImGui::CollapsingHeader("Terrain##timers", ImGuiTreeNodeFlags_DefaultOpen))
             {
-                ImGui::TextUnformatted("Update");
-                ImGui::Indent(5.0f);
-                ImGui::Text("Split: %.3f ms", terrain.cbt.getSplitTimer().timeMilliseconds());
-                ImGui::Text("Merge: %.3f ms", terrain.cbt.getMergeTimer().timeMilliseconds());
-                ImGui::Indent(-5.0f);
-                ImGui::Text("Sum reduction : %.3f ms", terrain.cbt.getSumReductionTimer().timeMilliseconds());
-                ImGui::Text("Indirect write: %.3f ms", terrain.cbt.getIndirectWriteTimer().timeMilliseconds());
-                ImGui::Text("Drawing       : %.3f ms", terrain.cbt.getDrawTimer().timeMilliseconds());
-                ImGui::Text("Additional subdiv level: %d", terrain.cbt.getTemplateLevel());
+                terrain.drawTimers();
             }
             if(ImGui::CollapsingHeader("Fog", ImGuiTreeNodeFlags_DefaultOpen))
             {

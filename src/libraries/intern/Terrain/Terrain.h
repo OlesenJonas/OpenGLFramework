@@ -29,6 +29,7 @@ class Terrain
 
     void drawSettings();
     void updateSettingsBuffer();
+    void drawTimers();
 
     struct Settings
     {

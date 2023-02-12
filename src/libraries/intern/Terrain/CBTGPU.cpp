@@ -3,6 +3,7 @@
 #include "Misc/Misc.h"
 #include "ShaderProgram/ShaderProgram.h"
 #include "Terrain.h"
+#include "Terrain/CBTGPU.h"
 #include "TriangleTemplate.h"
 #include <intern/Context/Context.h>
 
@@ -343,6 +344,7 @@ void CBTGPU::draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, Fram
     }
     else if(settings.renderingMode == 1)
     {
+        uvBufferPassTimer.start();
         glBindTextureUnit(0, terrain.heightmap.getTextureID());
         glBindTextureUnit(1, terrain.normalmap.getTextureID());
         glBindTextureUnit(2, terrain.materialIDmap.getTextureID());
@@ -354,12 +356,13 @@ void CBTGPU::draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, Fram
         visbufferFramebuffer.bind();
         glClear(GL_COLOR_BUFFER_BIT);
         drawVisBufferShader.useProgram();
-        // drawDepthOnlyShader.useProgram();
-        // glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
         glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
         glBindVertexArray(triangleTemplates[settings.selectedSubdivLevel].getVAO());
         glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
-        // glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        uvBufferPassTimer.end();
+        uvBufferPassTimer.evaluate();
+
+        shadingPassTimer.start();
         framebufferToWriteInto.bind();
         glDisable(GL_DEPTH_TEST);
         visbufferScreenPassShader.useProgram();
@@ -371,128 +374,161 @@ void CBTGPU::draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, Fram
         glBindTextureUnit(9, framebufferToWriteInto.getDepthTexture()->getTextureID());
         fullScreenTri.draw();
         glEnable(GL_DEPTH_TEST);
+        shadingPassTimer.end();
+        shadingPassTimer.evaluate();
     }
     else if(settings.renderingMode == 2)
     {
-        glBindTextureUnit(0, terrain.heightmap.getTextureID());
-        glBindTextureUnit(1, terrain.normalmap.getTextureID());
-        glBindTextureUnit(2, terrain.materialIDmap.getTextureID());
-        glBindTextureUnit(3, terrain.heightTextureArray);
-        glBindTextureUnit(4, terrain.diffuseTextureArray);
-        glBindTextureUnit(5, terrain.normalTextureArray);
-        glBindTextureUnit(6, terrain.ordTextureArray);
+        uvBufferPassTimer.start();
+        {
+            glBindTextureUnit(0, terrain.heightmap.getTextureID());
+            glBindTextureUnit(1, terrain.normalmap.getTextureID());
+            glBindTextureUnit(2, terrain.materialIDmap.getTextureID());
+            glBindTextureUnit(3, terrain.heightTextureArray);
+            glBindTextureUnit(4, terrain.diffuseTextureArray);
+            glBindTextureUnit(5, terrain.normalTextureArray);
+            glBindTextureUnit(6, terrain.ordTextureArray);
 
-        const GLuint zero = 0u;
-        glClearNamedBufferSubData(
-            pixelBufferSSBO, GL_R32UI, 0, (7 * 2) * sizeof(uint32_t), GL_RED, GL_UNSIGNED_INT, &zero);
+            const GLuint zero = 0u;
+            glClearNamedBufferSubData(
+                pixelBufferSSBO, GL_R32UI, 0, (7 * 2) * sizeof(uint32_t), GL_RED, GL_UNSIGNED_INT, &zero);
 
-        visbufferFramebuffer.bind();
-        glClear(GL_COLOR_BUFFER_BIT);
-        drawVisBufferShader.useProgram();
-        glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
-        glBindTextureUnit(0, terrain.heightmap.getTextureID());
-        glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
+            visbufferFramebuffer.bind();
+            glClear(GL_COLOR_BUFFER_BIT);
+            drawVisBufferShader.useProgram();
+            glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
+            glBindTextureUnit(0, terrain.heightmap.getTextureID());
+            glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
+        }
+        uvBufferPassTimer.end();
+        uvBufferPassTimer.evaluate();
 
-        pixelCountingShader.useProgram();
-        glBindTextureUnit(0, visbufferTarget.getTextureID());
-        glBindTextureUnit(1, posTarget.getTextureID());
-        glBindTextureUnit(2, terrain.materialIDmap.getTextureID());
-        const Context& ctx = *Context::globalContext;
-        glDispatchCompute(UintDivAndCeil(ctx.internalWidth, 16), UintDivAndCeil(ctx.internalHeight, 16), 1);
-        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        pixelGroupingPassTimer.start();
+        {
+            pixelCountingTimer.start();
+            pixelCountingShader.useProgram();
+            glBindTextureUnit(0, visbufferTarget.getTextureID());
+            glBindTextureUnit(1, posTarget.getTextureID());
+            glBindTextureUnit(2, terrain.materialIDmap.getTextureID());
+            const Context& ctx = *Context::globalContext;
+            glDispatchCompute(UintDivAndCeil(ctx.internalWidth, 16), UintDivAndCeil(ctx.internalHeight, 16), 1);
+            glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+            pixelCountingTimer.end();
+            pixelCountingTimer.evaluate();
 
-        pixelCountPrefixSumShader.useProgram();
-        glDispatchCompute(1, 1, 1);
-        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_COMMAND_BARRIER_BIT);
+            pixelPrefixSumTimer.start();
+            pixelCountPrefixSumShader.useProgram();
+            glDispatchCompute(1, 1, 1);
+            glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_COMMAND_BARRIER_BIT);
+            pixelPrefixSumTimer.end();
+            pixelPrefixSumTimer.evaluate();
 
-        pixelSortingShader.useProgram();
-        glDispatchCompute(UintDivAndCeil(ctx.internalWidth, 16), UintDivAndCeil(ctx.internalHeight, 16), 1);
-        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+            pixelPosWriteTimer.start();
+            pixelSortingShader.useProgram();
+            glDispatchCompute(UintDivAndCeil(ctx.internalWidth, 16), UintDivAndCeil(ctx.internalHeight, 16), 1);
+            glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+            pixelPosWriteTimer.end();
+            pixelPosWriteTimer.evaluate();
+        }
+        pixelGroupingPassTimer.end();
+        pixelGroupingPassTimer.evaluate();
 
-        glBindImageTexture(
-            0,
-            framebufferToWriteInto.getColorTextures()[0].getTextureID(),
-            0,
-            GL_FALSE,
-            0,
-            GL_WRITE_ONLY,
-            GL_R11F_G11F_B10F);
-        glBindTextureUnit(1, terrain.normalmap.getTextureID());
-        glBindTextureUnit(2, terrain.materialIDmap.getTextureID());
-        glBindTextureUnit(4, terrain.diffuseTextureArray);
-        glBindTextureUnit(5, terrain.normalTextureArray);
-        glBindTextureUnit(6, terrain.ordTextureArray);
-        glBindTextureUnit(7, visbufferTarget.getTextureID());
-        glBindTextureUnit(8, posTarget.getTextureID());
-        glBindTextureUnit(9, framebufferToWriteInto.getDepthTexture()->getTextureID());
+        shadingPassTimer.start();
+        {
+            glBindImageTexture(
+                0,
+                framebufferToWriteInto.getColorTextures()[0].getTextureID(),
+                0,
+                GL_FALSE,
+                0,
+                GL_WRITE_ONLY,
+                GL_R11F_G11F_B10F);
+            glBindTextureUnit(1, terrain.normalmap.getTextureID());
+            glBindTextureUnit(2, terrain.materialIDmap.getTextureID());
+            glBindTextureUnit(4, terrain.diffuseTextureArray);
+            glBindTextureUnit(5, terrain.normalTextureArray);
+            glBindTextureUnit(6, terrain.ordTextureArray);
+            glBindTextureUnit(7, visbufferTarget.getTextureID());
+            glBindTextureUnit(8, posTarget.getTextureID());
+            glBindTextureUnit(9, framebufferToWriteInto.getDepthTexture()->getTextureID());
 
-        // TODO: UBO for all matrices, instead of rebinding
-        //       can also use that globally then, in all other shaders!
-        renderUVBufferGroup0Shader.useProgram();
-        glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
-        glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-        glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
-        glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
-        glDispatchComputeIndirect(1 * sizeof(DispatchIndirectCommand));
+            // TODO: UBO for all matrices, instead of rebinding
+            //       can also use that globally then, in all other shaders!
+            shadingGroupTimers[0].start();
+            renderUVBufferGroup0Shader.useProgram();
+            glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
+            glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+            glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
+            glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
+            glDispatchComputeIndirect(1 * sizeof(DispatchIndirectCommand));
+            shadingGroupTimers[0].end();
+            shadingGroupTimers[0].evaluate();
 
-        renderUVBufferGroup1Shader.useProgram();
-        glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
-        glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-        glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
-        glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
-        glDispatchComputeIndirect(2 * sizeof(DispatchIndirectCommand));
+            shadingGroupTimers[1].start();
+            renderUVBufferGroup1Shader.useProgram();
+            glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
+            glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+            glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
+            glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
+            glDispatchComputeIndirect(2 * sizeof(DispatchIndirectCommand));
+            shadingGroupTimers[1].end();
+            shadingGroupTimers[1].evaluate();
 
-        renderUVBufferGroup2Shader.useProgram();
-        glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
-        glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-        glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
-        glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
-        glDispatchComputeIndirect(3 * sizeof(DispatchIndirectCommand));
+            shadingGroupTimers[2].start();
+            renderUVBufferGroup2Shader.useProgram();
+            glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
+            glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+            glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
+            glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
+            glDispatchComputeIndirect(3 * sizeof(DispatchIndirectCommand));
+            shadingGroupTimers[2].end();
+            shadingGroupTimers[2].evaluate();
 
-        renderUVBufferGroup3Shader.useProgram();
-        glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
-        glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-        glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
-        glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
-        glDispatchComputeIndirect(4 * sizeof(DispatchIndirectCommand));
+            shadingGroupTimers[3].start();
+            renderUVBufferGroup3Shader.useProgram();
+            glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
+            glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+            glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
+            glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
+            glDispatchComputeIndirect(4 * sizeof(DispatchIndirectCommand));
+            shadingGroupTimers[3].end();
+            shadingGroupTimers[3].evaluate();
 
-        renderUVBufferGroup4Shader.useProgram();
-        glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
-        glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-        glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
-        glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
-        glDispatchComputeIndirect(5 * sizeof(DispatchIndirectCommand));
+            shadingGroupTimers[4].start();
+            renderUVBufferGroup4Shader.useProgram();
+            glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
+            glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+            glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
+            glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
+            glDispatchComputeIndirect(5 * sizeof(DispatchIndirectCommand));
+            shadingGroupTimers[4].end();
+            shadingGroupTimers[4].evaluate();
 
-        renderUVBufferGroup5Shader.useProgram();
-        glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
-        glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-        glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
-        glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
-        glDispatchComputeIndirect(6 * sizeof(DispatchIndirectCommand));
+            shadingGroupTimers[5].start();
+            renderUVBufferGroup5Shader.useProgram();
+            glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
+            glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+            glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
+            glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
+            glDispatchComputeIndirect(6 * sizeof(DispatchIndirectCommand));
+            shadingGroupTimers[5].end();
+            shadingGroupTimers[5].evaluate();
 
-        renderUVBufferGroup6Shader.useProgram();
-        glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
-        glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-        glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
-        glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
-        glDispatchComputeIndirect(7 * sizeof(DispatchIndirectCommand));
+            shadingGroupTimers[6].start();
+            renderUVBufferGroup6Shader.useProgram();
+            glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
+            glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+            glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
+            glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
+            glDispatchComputeIndirect(7 * sizeof(DispatchIndirectCommand));
+            shadingGroupTimers[6].end();
+            shadingGroupTimers[6].evaluate();
 
-        glMemoryBarrier(GL_FRAMEBUFFER_BARRIER_BIT);
-        framebufferToWriteInto.bind();
-
-        // prevFramebuffer.bind();
-        // glDisable(GL_DEPTH_TEST);
-        // visbufferScreenPassShader.useProgram();
-        // glUniformMatrix4fv(4, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-        // const glm::mat4 invProjView = glm::inverse(projViewMatrix);
-        // glUniformMatrix4fv(8, 1, GL_FALSE, glm::value_ptr(invProjView));
-        // const glm::mat4 invProj = glm::inverse(projMatrix);
-        // glUniformMatrix4fv(9, 1, GL_FALSE, glm::value_ptr(invProj));
-        // glBindTextureUnit(7, visbufferTarget.getTextureID());
-        // glBindTextureUnit(8, posTarget.getTextureID());
-        // glBindTextureUnit(9, prevFramebuffer.getDepthTexture()->getTextureID());
-        // fullScreenTri.draw();
-        // glEnable(GL_DEPTH_TEST);
+            glMemoryBarrier(GL_FRAMEBUFFER_BARRIER_BIT);
+            framebufferToWriteInto.bind();
+        }
+        shadingPassTimer.end();
+        shadingPassTimer.evaluate();
     }
 
     drawTimer.end();
@@ -558,6 +594,44 @@ void CBTGPU::drawUI()
     ImGui::Combo("Rendering mode", &settings.renderingMode, "Basic\0UV Buffer\0UV Buffer with sorting\0");
     ImGui::Checkbox("Draw outline", &settings.drawOutline);
     ImGui::Checkbox("Freeze update", &settings.freezeUpdates);
+}
+
+void CBTGPU::drawTimers()
+{
+    ImGui::Text("Additional subdiv level: %d", getTemplateLevel());
+    ImGui::TextUnformatted("Update");
+    ImGui::Indent(5.0f);
+    ImGui::Text("Split: %.3f ms", splitTimer.timeMilliseconds());
+    ImGui::Text("Merge: %.3f ms", mergeTimer.timeMilliseconds());
+    ImGui::Indent(-5.0f);
+    ImGui::Text("Sum reduction : %.3f ms", sumReductionTimer.timeMilliseconds());
+    ImGui::Text("Indirect write: %.3f ms", indirectWriteTimer.timeMilliseconds());
+    ImGui::Text("Drawing: %.3f ms", drawTimer.timeMilliseconds());
+    ImGui::Indent(10.0f);
+    if(settings.renderingMode == 0)
+    {
+    }
+    else if(settings.renderingMode == 1)
+    {
+        ImGui::Text("UVBuffer: %.3f ms", uvBufferPassTimer.timeMilliseconds());
+        ImGui::Text("Shading : %.3f ms", shadingPassTimer.timeMilliseconds());
+    }
+    else if(settings.renderingMode == 2)
+    {
+        ImGui::Text("UVBuffer: %.3f ms", uvBufferPassTimer.timeMilliseconds());
+        ImGui::Text("Pixel Grouping : %.3f ms", pixelGroupingPassTimer.timeMilliseconds());
+        ImGui::Indent(10.0f);
+        ImGui::Text("Counting      : %.3f ms", pixelCountingTimer.timeMilliseconds());
+        ImGui::Text("Prefix Sum    : %.3f ms", pixelPrefixSumTimer.timeMilliseconds());
+        ImGui::Text("Write position: %.3f ms", pixelPosWriteTimer.timeMilliseconds());
+        ImGui::Indent(-10.0f);
+        ImGui::Text("Shading : %.3f ms", shadingPassTimer.timeMilliseconds());
+        ImGui::Indent(10.0f);
+        for(int i = 0; i < 7; i++)
+            ImGui::Text("Group %d : %.3f ms", i, shadingGroupTimers[i].timeMilliseconds());
+        ImGui::Indent(-10.0f);
+    }
+    ImGui::Indent(-10.0f);
 }
 
 void CBTGPU::setTemplateLevel(int newLevel)

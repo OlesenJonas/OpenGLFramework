@@ -218,3 +218,11 @@ void Terrain::updateSettingsBuffer()
 {
     glNamedBufferSubData(settingsBuffer, 0, sizeof(settings), &settings);
 }
+
+void Terrain::drawTimers()
+{
+    ImGui::TextUnformatted("CBT");
+    ImGui::Indent(15.0f);
+    cbt.drawTimers();
+    ImGui::Indent(-15.0f);
+}

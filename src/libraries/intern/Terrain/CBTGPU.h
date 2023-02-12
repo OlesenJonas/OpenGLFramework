@@ -40,6 +40,7 @@ class CBTGPU
     void drawOutline(const glm::mat4& projViewMatrix);
     void drawOverlay(float aspect);
     void drawUI();
+    void drawTimers();
 
     void setTemplateLevel(int newLevel);
     [[nodiscard]] int getTemplateLevel() const;
@@ -112,6 +113,13 @@ class CBTGPU
     GPUTimer<128> sumReductionTimer{"Sum reduction"};
     GPUTimer<128> indirectWriteTimer{"Indirect command write"};
     GPUTimer<128> drawTimer{"Draw"};
+    GPUTimer<128> uvBufferPassTimer{"uvBufferPass"};
+    GPUTimer<128> pixelGroupingPassTimer{"pixelGroupingPass"};
+    GPUTimer<128> pixelCountingTimer{"pixelCounting"};
+    GPUTimer<128> pixelPrefixSumTimer{"pixelPrefixSum"};
+    GPUTimer<128> pixelPosWriteTimer{"pixelPosWrite"};
+    GPUTimer<128> shadingPassTimer{"shadingPass"};
+    std::array<GPUTimer<128>, 7> shadingGroupTimers;
 
   public:
     /* clang-format off */
