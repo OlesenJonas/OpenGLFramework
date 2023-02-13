@@ -45,22 +45,39 @@ CBTGPU::CBTGPU(Terrain& terrain, uint32_t maxDepth, Texture& sceneDepthBuffer)
            SHADERS_PATH "/Terrain/CBT/overlay.geom",
            SHADERS_PATH "/Terrain/CBT/overlay.frag"}),
       pixelCountingShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/PixelCounting.comp"}),
-      pixelCountPrefixSumShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/PixelCountPrefixSum.comp"}),
+      pixelCountPrefixSumShader(
+          COMPUTE_SHADER_BIT,
+          {SHADERS_PATH "/Terrain/CBT/PixelCountPrefixSum.comp"},
+          {{"SHADING_GROUP_SIZE", std::to_string(SHADING_GROUP_SIZE)}}),
       pixelSortingShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/PixelSorting.comp"}),
       renderUVBufferGroup0Shader(
-          COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup0.comp"}),
+          COMPUTE_SHADER_BIT,
+          {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup0.comp"},
+          {{"SHADING_GROUP_SIZE", std::to_string(SHADING_GROUP_SIZE)}}),
       renderUVBufferGroup1Shader(
-          COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup1.comp"}),
+          COMPUTE_SHADER_BIT,
+          {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup1.comp"},
+          {{"SHADING_GROUP_SIZE", std::to_string(SHADING_GROUP_SIZE)}}),
       renderUVBufferGroup2Shader(
-          COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup2.comp"}),
+          COMPUTE_SHADER_BIT,
+          {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup2.comp"},
+          {{"SHADING_GROUP_SIZE", std::to_string(SHADING_GROUP_SIZE)}}),
       renderUVBufferGroup3Shader(
-          COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup3.comp"}),
+          COMPUTE_SHADER_BIT,
+          {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup3.comp"},
+          {{"SHADING_GROUP_SIZE", std::to_string(SHADING_GROUP_SIZE)}}),
       renderUVBufferGroup4Shader(
-          COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup4.comp"}),
+          COMPUTE_SHADER_BIT,
+          {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup4.comp"},
+          {{"SHADING_GROUP_SIZE", std::to_string(SHADING_GROUP_SIZE)}}),
       renderUVBufferGroup5Shader(
-          COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup5.comp"}),
+          COMPUTE_SHADER_BIT,
+          {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup5.comp"},
+          {{"SHADING_GROUP_SIZE", std::to_string(SHADING_GROUP_SIZE)}}),
       renderUVBufferGroup6Shader(
-          COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup6.comp"}),
+          COMPUTE_SHADER_BIT,
+          {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup6.comp"},
+          {{"SHADING_GROUP_SIZE", std::to_string(SHADING_GROUP_SIZE)}}),
       sceneDepth(sceneDepthBuffer), //
       visbufferTarget{
           {.name = "Visbuffer RT",

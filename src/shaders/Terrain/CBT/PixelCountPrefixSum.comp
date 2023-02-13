@@ -4,6 +4,10 @@
     // otherwise glslangValidator complains about #include
     //for OpenGL they will be replaced when shader is loaded
     #extension GL_GOOGLE_include_directive : require
+
+    #ifndef SHADING_GROUP_SIZE
+        #define SHADING_GROUP_SIZE 0
+    #endif
 #endif
 
 #extension GL_KHR_shader_subgroup_basic : require
@@ -31,7 +35,7 @@ void main()
     uint groupAmount = perGroupStartIndex[gl_SubgroupInvocationID];
     
     //0th dispatch command contains count for CBT update, so write from 1 onwards
-    compCmd[1 + gl_SubgroupInvocationID].num_groups_x = ((groupAmount + 64 - 1) / 64);
+    compCmd[1 + gl_SubgroupInvocationID].num_groups_x = ((groupAmount + SHADING_GROUP_SIZE - 1) / SHADING_GROUP_SIZE);
 
     uint exclusiveScan = subgroupExclusiveAdd(groupAmount);
     subgroupBarrier(); //Dont think this is even needed

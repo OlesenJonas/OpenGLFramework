@@ -94,6 +94,7 @@ class CBTGPU
     GLuint pixelBufferSSBO;
     ShaderProgram pixelCountPrefixSumShader;
     ShaderProgram pixelSortingShader;
+    static constexpr int SHADING_GROUP_SIZE = 64;
     ShaderProgram renderUVBufferGroup0Shader;
     ShaderProgram renderUVBufferGroup1Shader;
     ShaderProgram renderUVBufferGroup2Shader;
