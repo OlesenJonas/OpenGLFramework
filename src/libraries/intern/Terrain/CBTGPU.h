@@ -29,8 +29,6 @@ class CBTGPU
 
     void update(const glm::mat4& projView, const glm::vec2 screenRes);
     void setTargetEdgeLength(float newLength);
-    /* specific update function for tests replicating the CPU version */
-    void refineAroundPoint(glm::vec2 point);
 
     void doSumReduction();
     void writeIndirectCommands();
@@ -68,13 +66,15 @@ class CBTGPU
     GLuint indirectDispatchCommandBuffer = 0xFFFFFFFF;
     GLuint indirectDrawCommandBuffer = 0xFFFFFFFF;
 
-    ShaderProgram updateSplitShader;
-    ShaderProgram updateMergeShader;
-    ShaderProgram refineAroundPointSplitShader;
-    ShaderProgram refineAroundPointMergeShader;
-    ShaderProgram sumReductionPassShader;
-    ShaderProgram sumReductionLastDepthsShader;
-    ShaderProgram writeIndirectCommandsShader;
+    ShaderProgram updateSplitShader{
+        COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/update.comp"}, {{"PASS", "SPLIT"}}};
+    ShaderProgram updateMergeShader{
+        COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/update.comp"}, {{"PASS", "MERGE"}}};
+    ShaderProgram sumReductionPassShader{COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/sumReduction.comp"}};
+    ShaderProgram sumReductionLastDepthsShader{
+        COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/sumReductionLastDepths.comp"}};
+    ShaderProgram writeIndirectCommandsShader{
+        COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/writeIndirectCommands.comp"}};
 
     std::array<TriangleTemplate, 8> triangleTemplates = {
         TriangleTemplate{0},
@@ -85,29 +85,72 @@ class CBTGPU
         TriangleTemplate{5},
         TriangleTemplate{6},
         TriangleTemplate{7}};
-    ShaderProgram drawDepthOnlyShader;
-    ShaderProgram drawShader;
-    ShaderProgram drawVisBufferShader;
     FullscreenTri fullScreenTri;
-    ShaderProgram visbufferScreenPassShader;
-    ShaderProgram pixelCountingShader;
+
+    ShaderProgram drawDepthOnlyShader{
+        VERTEX_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/drawing.vert"}, {{"DEPTH_ONLY_PASS", "1"}}};
+
+    ShaderProgram outlineShader{
+        VERTEX_SHADER_BIT | GEOMETRY_SHADER_BIT | FRAGMENT_SHADER_BIT,
+        {SHADERS_PATH "/Terrain/CBT/drawing.vert",
+         SHADERS_PATH "/Terrain/CBT/outline.geom",
+         SHADERS_PATH "/Terrain/CBT/outline.frag"}};
+    ShaderProgram overlayShader{
+        VERTEX_SHADER_BIT | GEOMETRY_SHADER_BIT | FRAGMENT_SHADER_BIT,
+        {SHADERS_PATH "/Terrain/CBT/overlay.vert",
+         SHADERS_PATH "/Terrain/CBT/overlay.geom",
+         SHADERS_PATH "/Terrain/CBT/overlay.frag"}};
+
+    ShaderProgram drawShader{
+        VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
+        {SHADERS_PATH "/Terrain/CBT/drawing.vert", SHADERS_PATH "/Terrain/CBT/drawing.frag"}};
+
+    ShaderProgram drawVisBufferShader{
+        VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
+        {SHADERS_PATH "/Terrain/CBT/Visbuffer.vert", SHADERS_PATH "/Terrain/CBT/Visbuffer.frag"}};
+    ShaderProgram visbufferScreenPassShader{
+        VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
+        {SHADERS_PATH "/General/screenQuad.vert", SHADERS_PATH "/Terrain/CBT/VisbufferScreenPass.frag"}};
+    ShaderProgram pixelCountingShader{COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/PixelCounting.comp"}};
     GLuint pixelBufferSSBO;
-    ShaderProgram pixelCountPrefixSumShader;
-    ShaderProgram pixelSortingShader;
     static constexpr int SHADING_GROUP_SIZE = 64;
-    ShaderProgram renderUVBufferGroup0Shader;
-    ShaderProgram renderUVBufferGroup1Shader;
-    ShaderProgram renderUVBufferGroup2Shader;
-    ShaderProgram renderUVBufferGroup3Shader;
-    ShaderProgram renderUVBufferGroup4Shader;
-    ShaderProgram renderUVBufferGroup5Shader;
-    ShaderProgram renderUVBufferGroup6Shader;
+    ShaderProgram pixelCountPrefixSumShader{
+        COMPUTE_SHADER_BIT,
+        {SHADERS_PATH "/Terrain/CBT/PixelCountPrefixSum.comp"},
+        {{"SHADING_GROUP_SIZE", std::to_string(SHADING_GROUP_SIZE)}}};
+    ShaderProgram pixelSortingShader{COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/PixelSorting.comp"}};
+    ShaderProgram renderUVBufferGroup0Shader{
+        COMPUTE_SHADER_BIT,
+        {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup0.comp"},
+        {{"SHADING_GROUP_SIZE", std::to_string(SHADING_GROUP_SIZE)}}};
+    ShaderProgram renderUVBufferGroup1Shader{
+        COMPUTE_SHADER_BIT,
+        {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup1.comp"},
+        {{"SHADING_GROUP_SIZE", std::to_string(SHADING_GROUP_SIZE)}}};
+    ShaderProgram renderUVBufferGroup2Shader{
+        COMPUTE_SHADER_BIT,
+        {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup2.comp"},
+        {{"SHADING_GROUP_SIZE", std::to_string(SHADING_GROUP_SIZE)}}};
+    ShaderProgram renderUVBufferGroup3Shader{
+        COMPUTE_SHADER_BIT,
+        {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup3.comp"},
+        {{"SHADING_GROUP_SIZE", std::to_string(SHADING_GROUP_SIZE)}}};
+    ShaderProgram renderUVBufferGroup4Shader{
+        COMPUTE_SHADER_BIT,
+        {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup4.comp"},
+        {{"SHADING_GROUP_SIZE", std::to_string(SHADING_GROUP_SIZE)}}};
+    ShaderProgram renderUVBufferGroup5Shader{
+        COMPUTE_SHADER_BIT,
+        {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup5.comp"},
+        {{"SHADING_GROUP_SIZE", std::to_string(SHADING_GROUP_SIZE)}}};
+    ShaderProgram renderUVBufferGroup6Shader{
+        COMPUTE_SHADER_BIT,
+        {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup6.comp"},
+        {{"SHADING_GROUP_SIZE", std::to_string(SHADING_GROUP_SIZE)}}};
     Texture visbufferTarget;
     Texture posTarget;
     Framebuffer visbufferFramebuffer;
     Texture& sceneDepth;
-    ShaderProgram outlineShader;
-    ShaderProgram overlayShader;
 
     GPUTimer<128> mergeTimer{"Merge"};
     GPUTimer<128> splitTimer{"Split"};
@@ -123,7 +166,7 @@ class CBTGPU
     std::array<GPUTimer<128>, 7> shadingGroupTimers;
 
   public:
-    /* clang-format off */
+/* clang-format off */
 #define TIMER_RETURN [[nodiscard]] inline const GPUTimer<128>&
     TIMER_RETURN getMergeTimer() const {return mergeTimer;}
     TIMER_RETURN getSplitTimer() const {return splitTimer;}

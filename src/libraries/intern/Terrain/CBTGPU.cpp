@@ -14,70 +14,6 @@
 CBTGPU::CBTGPU(Terrain& terrain, uint32_t maxDepth, Texture& sceneDepthBuffer)
     : terrain(terrain),
       maxDepth(maxDepth),
-      refineAroundPointSplitShader(
-          COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/refineAroundPoint.comp"}, {{"PASS", "SPLIT"}}),
-      refineAroundPointMergeShader(
-          COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/refineAroundPoint.comp"}, {{"PASS", "MERGE"}}),
-      updateSplitShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/update.comp"}, {{"PASS", "SPLIT"}}),
-      updateMergeShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/update.comp"}, {{"PASS", "MERGE"}}),
-      sumReductionPassShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/sumReduction.comp"}),
-      sumReductionLastDepthsShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/sumReductionLastDepths.comp"}),
-      writeIndirectCommandsShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/writeIndirectCommands.comp"}),
-      drawDepthOnlyShader(
-          VERTEX_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/drawing.vert"}, {{"DEPTH_ONLY_PASS", "1"}}),
-      drawShader(
-          VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
-          {SHADERS_PATH "/Terrain/CBT/drawing.vert", SHADERS_PATH "/Terrain/CBT/drawing.frag"}),
-      drawVisBufferShader(
-          VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
-          {SHADERS_PATH "/Terrain/CBT/Visbuffer.vert", SHADERS_PATH "/Terrain/CBT/Visbuffer.frag"}),
-      visbufferScreenPassShader(
-          VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
-          {SHADERS_PATH "/General/screenQuad.vert", SHADERS_PATH "/Terrain/CBT/VisbufferScreenPass.frag"}),
-      outlineShader(
-          VERTEX_SHADER_BIT | GEOMETRY_SHADER_BIT | FRAGMENT_SHADER_BIT,
-          {SHADERS_PATH "/Terrain/CBT/drawing.vert",
-           SHADERS_PATH "/Terrain/CBT/outline.geom",
-           SHADERS_PATH "/Terrain/CBT/outline.frag"}),
-      overlayShader(
-          VERTEX_SHADER_BIT | GEOMETRY_SHADER_BIT | FRAGMENT_SHADER_BIT,
-          {SHADERS_PATH "/Terrain/CBT/overlay.vert",
-           SHADERS_PATH "/Terrain/CBT/overlay.geom",
-           SHADERS_PATH "/Terrain/CBT/overlay.frag"}),
-      pixelCountingShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/PixelCounting.comp"}),
-      pixelCountPrefixSumShader(
-          COMPUTE_SHADER_BIT,
-          {SHADERS_PATH "/Terrain/CBT/PixelCountPrefixSum.comp"},
-          {{"SHADING_GROUP_SIZE", std::to_string(SHADING_GROUP_SIZE)}}),
-      pixelSortingShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/PixelSorting.comp"}),
-      renderUVBufferGroup0Shader(
-          COMPUTE_SHADER_BIT,
-          {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup0.comp"},
-          {{"SHADING_GROUP_SIZE", std::to_string(SHADING_GROUP_SIZE)}}),
-      renderUVBufferGroup1Shader(
-          COMPUTE_SHADER_BIT,
-          {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup1.comp"},
-          {{"SHADING_GROUP_SIZE", std::to_string(SHADING_GROUP_SIZE)}}),
-      renderUVBufferGroup2Shader(
-          COMPUTE_SHADER_BIT,
-          {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup2.comp"},
-          {{"SHADING_GROUP_SIZE", std::to_string(SHADING_GROUP_SIZE)}}),
-      renderUVBufferGroup3Shader(
-          COMPUTE_SHADER_BIT,
-          {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup3.comp"},
-          {{"SHADING_GROUP_SIZE", std::to_string(SHADING_GROUP_SIZE)}}),
-      renderUVBufferGroup4Shader(
-          COMPUTE_SHADER_BIT,
-          {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup4.comp"},
-          {{"SHADING_GROUP_SIZE", std::to_string(SHADING_GROUP_SIZE)}}),
-      renderUVBufferGroup5Shader(
-          COMPUTE_SHADER_BIT,
-          {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup5.comp"},
-          {{"SHADING_GROUP_SIZE", std::to_string(SHADING_GROUP_SIZE)}}),
-      renderUVBufferGroup6Shader(
-          COMPUTE_SHADER_BIT,
-          {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup6.comp"},
-          {{"SHADING_GROUP_SIZE", std::to_string(SHADING_GROUP_SIZE)}}),
       sceneDepth(sceneDepthBuffer), //
       visbufferTarget{
           {.name = "Visbuffer RT",
@@ -257,32 +193,6 @@ void CBTGPU::setTargetEdgeLength(float newLength)
     glUniform1f(2, newLength);
     updateSplitShader.useProgram();
     glUniform1f(2, newLength);
-}
-
-void CBTGPU::refineAroundPoint(glm::vec2 point)
-{
-    static bool splitPass = true;
-    if(splitPass)
-    {
-        splitTimer.start();
-        refineAroundPointSplitShader.useProgram();
-        glUniform2fv(0, 1, glm::value_ptr(point));
-        glDispatchComputeIndirect(0);
-        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-        splitTimer.end();
-        splitTimer.evaluate();
-    }
-    else
-    {
-        mergeTimer.start();
-        refineAroundPointMergeShader.useProgram();
-        glUniform2fv(0, 1, glm::value_ptr(point));
-        glDispatchComputeIndirect(0);
-        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-        mergeTimer.end();
-        mergeTimer.evaluate();
-    }
-    splitPass = !splitPass;
 }
 
 void CBTGPU::doSumReduction()
