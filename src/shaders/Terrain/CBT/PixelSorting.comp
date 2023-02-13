@@ -25,6 +25,9 @@ layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
         Materials have different IDs and three samples uses biplanar projection
         Materials have different IDs and all samples uses biplanar projection
 */
+//First used as counter to count how many pixels in workgroup are part of each group
+//then used to reserve that many slots in the pixel array and store the start indices
+shared uint workgroupStartIndexInGroup[7];
 layout(std430, binding = 4) buffer pixelBuffer
 {   
     uint perGroupStartIndex[7];
@@ -34,12 +37,17 @@ layout(std430, binding = 4) buffer pixelBuffer
 
 void main()
 {
-    //TODO: *very* inefficient because of the amount of atomic accesses
-    //      will switch to per workGroup/subGroup atomics later
+    if(gl_LocalInvocationID.y == 0 && gl_LocalInvocationID.x < 7)
+    {
+        workgroupStartIndexInGroup[gl_LocalInvocationID.x] = 0;
+    }
+    barrier();
 
     uvec2 resolution = textureSize(visbufferTex, 0);
     const uvec2 threadID = gl_GlobalInvocationID.xy;
-
+    
+    uint group = 0xFFFFFFFF;
+    uint startIndexRelativeToWorkgroup = 0;
     if (threadID.x < resolution.x && threadID.y < resolution.y)
     {
         vec4 visBuffer = texelFetch(visbufferTex, ivec2(threadID), 0);
@@ -57,7 +65,6 @@ void main()
             const uint materialIDCF = texelFetchOffset(materialIDTex, idsStartTexel, 0, ivec2(1,0)).r;
             const uint materialIDCC = texelFetchOffset(materialIDTex, idsStartTexel, 0, ivec2(1,1)).r;
 
-            uint group = 0;
             if(materialIDFF == materialIDFC && materialIDFC == materialIDCF && materialIDCF == materialIDCC)
             {
                 if((materialIDFF & 128u) == 128u)
@@ -77,10 +84,25 @@ void main()
                 group += (materialIDCF & 128u) >> 7;
                 group += (materialIDCC & 128u) >> 7;
             }
-
-            uint packedPixelPos = ((threadID.x & 0x0000FFFF) << 16u) | (threadID.y & 0x0000FFFF);
-            uint indexToWriteAt = atomicAdd(perGroupCurrentIndex[group], 1u);
-            pixels[indexToWriteAt] = packedPixelPos;
+            startIndexRelativeToWorkgroup = atomicAdd(workgroupStartIndexInGroup[group], 1u);
         }
+    }
+
+    barrier();
+
+    if(gl_LocalInvocationID.y == 0 && gl_LocalInvocationID.x < 7)
+    {
+        workgroupStartIndexInGroup[gl_LocalInvocationID.x] =
+            atomicAdd(perGroupCurrentIndex[gl_LocalInvocationID.x],workgroupStartIndexInGroup[gl_LocalInvocationID.x]);
+    }
+
+    barrier();
+
+    if(group != 0xFFFFFFFF)
+    {
+        uint packedPixelPos = ((threadID.x & 0x0000FFFF) << 16u) | (threadID.y & 0x0000FFFF);
+
+        uint combinedIndex = startIndexRelativeToWorkgroup + workgroupStartIndexInGroup[group];
+        pixels[combinedIndex] = packedPixelPos;
     }
 }
