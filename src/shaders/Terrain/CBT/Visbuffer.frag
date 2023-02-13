@@ -11,9 +11,6 @@ layout(early_fragment_tests) in;
 layout (location = 0) out vec4 fragmentColor;
 layout (location = 1) out vec3 nonDisplacedPos;
 
-layout (location = 0) uniform mat4 projectionViewMatrix;
-layout (location = 4) uniform mat4 viewMatrix;
-
 layout (location = 0) in vec3 worldPosNoDisplacement;
 
 #include "../SettingsStruct.glsl"

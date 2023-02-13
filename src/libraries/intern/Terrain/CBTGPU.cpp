@@ -23,7 +23,8 @@ CBTGPU::CBTGPU(Terrain& terrain, uint32_t maxDepth, Texture& sceneDepthBuffer)
       sumReductionPassShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/sumReduction.comp"}),
       sumReductionLastDepthsShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/sumReductionLastDepths.comp"}),
       writeIndirectCommandsShader(COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/writeIndirectCommands.comp"}),
-      drawDepthOnlyShader(VERTEX_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/drawing.vert"}),
+      drawDepthOnlyShader(
+          VERTEX_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/drawing.vert"}, {{"DEPTH_ONLY_PASS", "1"}}),
       drawShader(
           VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
           {SHADERS_PATH "/Terrain/CBT/drawing.vert", SHADERS_PATH "/Terrain/CBT/drawing.frag"}),
@@ -323,10 +324,6 @@ void CBTGPU::draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, Fram
     glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, -1, "CBT Draw");
     drawTimer.start();
 
-    const glm::mat4 invProjMatrix = glm::inverse(projMatrix);
-    const glm::mat4 projViewMatrix = projMatrix * viewMatrix;
-    const glm::mat4 invProjViewMatrix = glm::inverse(projViewMatrix);
-
     if(settings.renderingMode == 0)
     {
         glBindTextureUnit(0, terrain.heightmap.getTextureID());
@@ -337,8 +334,6 @@ void CBTGPU::draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, Fram
         glBindTextureUnit(5, terrain.normalTextureArray);
         glBindTextureUnit(6, terrain.ordTextureArray);
         drawShader.useProgram();
-        glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
-        glUniformMatrix4fv(4, 1, GL_FALSE, glm::value_ptr(viewMatrix));
         glBindVertexArray(triangleTemplates[settings.selectedSubdivLevel].getVAO());
         glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
     }
@@ -349,14 +344,9 @@ void CBTGPU::draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, Fram
         glBindTextureUnit(1, terrain.normalmap.getTextureID());
         glBindTextureUnit(2, terrain.materialIDmap.getTextureID());
         glBindTextureUnit(3, terrain.heightTextureArray);
-        glBindTextureUnit(4, terrain.diffuseTextureArray);
-        glBindTextureUnit(5, terrain.normalTextureArray);
-        glBindTextureUnit(6, terrain.ordTextureArray);
-
         visbufferFramebuffer.bind();
         glClear(GL_COLOR_BUFFER_BIT);
         drawVisBufferShader.useProgram();
-        glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
         glBindVertexArray(triangleTemplates[settings.selectedSubdivLevel].getVAO());
         glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
         uvBufferPassTimer.end();
@@ -366,10 +356,10 @@ void CBTGPU::draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, Fram
         framebufferToWriteInto.bind();
         glDisable(GL_DEPTH_TEST);
         visbufferScreenPassShader.useProgram();
-        glUniformMatrix4fv(4, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-        glUniformMatrix4fv(8, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
-        glUniformMatrix4fv(9, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
         glBindTextureUnit(7, visbufferTarget.getTextureID());
+        glBindTextureUnit(4, terrain.diffuseTextureArray);
+        glBindTextureUnit(5, terrain.normalTextureArray);
+        glBindTextureUnit(6, terrain.ordTextureArray);
         glBindTextureUnit(8, posTarget.getTextureID());
         glBindTextureUnit(9, framebufferToWriteInto.getDepthTexture()->getTextureID());
         fullScreenTri.draw();
@@ -385,9 +375,6 @@ void CBTGPU::draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, Fram
             glBindTextureUnit(1, terrain.normalmap.getTextureID());
             glBindTextureUnit(2, terrain.materialIDmap.getTextureID());
             glBindTextureUnit(3, terrain.heightTextureArray);
-            glBindTextureUnit(4, terrain.diffuseTextureArray);
-            glBindTextureUnit(5, terrain.normalTextureArray);
-            glBindTextureUnit(6, terrain.ordTextureArray);
 
             const GLuint zero = 0u;
             glClearNamedBufferSubData(
@@ -396,7 +383,6 @@ void CBTGPU::draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, Fram
             visbufferFramebuffer.bind();
             glClear(GL_COLOR_BUFFER_BIT);
             drawVisBufferShader.useProgram();
-            glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
             glBindTextureUnit(0, terrain.heightmap.getTextureID());
             glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
         }
@@ -456,70 +442,42 @@ void CBTGPU::draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, Fram
             //       can also use that globally then, in all other shaders!
             shadingGroupTimers[0].start();
             renderUVBufferGroup0Shader.useProgram();
-            glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
-            glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-            glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
-            glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
             glDispatchComputeIndirect(1 * sizeof(DispatchIndirectCommand));
             shadingGroupTimers[0].end();
             shadingGroupTimers[0].evaluate();
 
             shadingGroupTimers[1].start();
             renderUVBufferGroup1Shader.useProgram();
-            glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
-            glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-            glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
-            glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
             glDispatchComputeIndirect(2 * sizeof(DispatchIndirectCommand));
             shadingGroupTimers[1].end();
             shadingGroupTimers[1].evaluate();
 
             shadingGroupTimers[2].start();
             renderUVBufferGroup2Shader.useProgram();
-            glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
-            glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-            glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
-            glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
             glDispatchComputeIndirect(3 * sizeof(DispatchIndirectCommand));
             shadingGroupTimers[2].end();
             shadingGroupTimers[2].evaluate();
 
             shadingGroupTimers[3].start();
             renderUVBufferGroup3Shader.useProgram();
-            glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
-            glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-            glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
-            glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
             glDispatchComputeIndirect(4 * sizeof(DispatchIndirectCommand));
             shadingGroupTimers[3].end();
             shadingGroupTimers[3].evaluate();
 
             shadingGroupTimers[4].start();
             renderUVBufferGroup4Shader.useProgram();
-            glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
-            glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-            glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
-            glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
             glDispatchComputeIndirect(5 * sizeof(DispatchIndirectCommand));
             shadingGroupTimers[4].end();
             shadingGroupTimers[4].evaluate();
 
             shadingGroupTimers[5].start();
             renderUVBufferGroup5Shader.useProgram();
-            glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
-            glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-            glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
-            glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
             glDispatchComputeIndirect(6 * sizeof(DispatchIndirectCommand));
             shadingGroupTimers[5].end();
             shadingGroupTimers[5].evaluate();
 
             shadingGroupTimers[6].start();
             renderUVBufferGroup6Shader.useProgram();
-            glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
-            glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(viewMatrix));
-            glUniformMatrix4fv(2, 1, GL_FALSE, glm::value_ptr(invProjViewMatrix));
-            glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(invProjMatrix));
             glDispatchComputeIndirect(7 * sizeof(DispatchIndirectCommand));
             shadingGroupTimers[6].end();
             shadingGroupTimers[6].evaluate();
@@ -556,7 +514,6 @@ void CBTGPU::drawOutline(const glm::mat4& projViewMatrix)
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     outlineShader.useProgram();
-    glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(projViewMatrix));
     glBindVertexArray(triangleTemplates[settings.selectedSubdivLevel].getVAO());
 
     // glDrawElementsInstancedBaseVertexBaseInstance(

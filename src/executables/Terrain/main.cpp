@@ -158,6 +158,17 @@ int main()
     Texture tNormal(MISC_PATH "/YellowBrick_normal.tga", false, true);
     Texture tAttributes(MISC_PATH "/YellowBrick_attributes.tga", false, true);
 
+    // TODO: move into camera class?
+    GLuint mainCameraMatricesUBO;
+    glCreateBuffers(1, &mainCameraMatricesUBO);
+    glObjectLabel(GL_BUFFER, mainCameraMatricesUBO, -1, "Main camera matrices buffer");
+    glNamedBufferStorage(
+        mainCameraMatricesUBO,
+        cam.getMatrices().size() * sizeof(cam.getMatrices()[0]),
+        cam.getMatrices().data(),
+        GL_DYNAMIC_STORAGE_BIT);
+    glBindBufferBase(GL_UNIFORM_BUFFER, 1, mainCameraMatricesUBO);
+
     //----------------------- INIT SCENE
 
     Scene MainScene;
@@ -225,6 +236,12 @@ int main()
         {
             cam.update();
         }
+        // TODO: only update when something actually changed?
+        glNamedBufferSubData(
+            mainCameraMatricesUBO,
+            0,
+            cam.getMatrices().size() * sizeof(cam.getMatrices()[0]),
+            cam.getMatrices().data());
 
         auto currentTime = static_cast<float>(input.getSimulationTime());
 

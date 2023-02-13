@@ -23,10 +23,14 @@ layout (binding = 1) uniform sampler2D macroNormal;
 layout (binding = 2) uniform usampler2D materialIDTex;
 layout (binding = 3) uniform sampler2DArray heightArray;
 
-layout (location = 0) uniform mat4 projectionViewMatrix;
-
 layout (location = 0) out vec3 worldPosNoDisplacement;
 // layout (location = 1) out vec4 projPosNoDisplacement;
+
+#include "../../General/CameraMatrices.glsl"
+layout(binding = 1) uniform PassMatricesBuffer
+{
+    CameraMatrices cameraMatrices;
+};
 
 #include "../SettingsStruct.glsl"
 layout(binding = 4) uniform terrainSettingsBuffer
@@ -86,5 +90,5 @@ void main()
 
     worldPosition += vec4(worldNormal*displacement, 0.0);
 
-    gl_Position = projectionViewMatrix * worldPosition;
+    gl_Position = cameraMatrices.ProjView * worldPosition;
 }

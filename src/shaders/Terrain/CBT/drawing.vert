@@ -23,14 +23,23 @@ layout (binding = 1) uniform sampler2D macroNormal;
 layout (binding = 2) uniform usampler2D materialIDTex;
 layout (binding = 3) uniform sampler2DArray heightArray;
 
+//Dont yet have matrix ubo for all passes, so just use basic uniforms in those cases
+#ifdef DEPTH_ONLY_PASS
 layout (location = 0) uniform mat4 projectionViewMatrix;
 layout (location = 4) uniform mat4 viewMatrix;
+#endif
 
 layout (location = 0) flat out vec2 cornerPoint;
 layout (location = 1) out vec2 uv;
 layout (location = 2) out vec3 worldPosNoDisplacement;
 layout (location = 3) out vec3 worldPos;
 layout (location = 4) out vec3 viewPos;
+
+#include "../../General/CameraMatrices.glsl"
+layout(binding = 1) uniform PassMatricesBuffer
+{
+    CameraMatrices cameraMatrices;
+};
 
 #include "../SettingsStruct.glsl"
 layout(binding = 4) uniform terrainSettingsBuffer
@@ -88,10 +97,14 @@ void main()
     const float displacement = (height - 0.5) * terrainSettings.materialDisplacementIntensity;
 
     worldPosition += vec4(worldNormal*displacement, 0.0);
-	viewPos = (viewMatrix * worldPosition).xyz;
+    viewPos = (cameraMatrices.View * worldPosition).xyz;
     worldPos = worldPosition.xyz;
 
     cornerPoint = 0.3*(currentCorners[0]+currentCorners[1]+currentCorners[2]);
 
-    gl_Position = projectionViewMatrix * worldPosition;
+    #ifdef DEPTH_ONLY_PASS
+        gl_Position = projectionViewMatrix * worldPosition;
+    #else
+        gl_Position = cameraMatrices.ProjView * worldPosition;
+    #endif
 }

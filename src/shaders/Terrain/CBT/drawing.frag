@@ -15,14 +15,17 @@ layout (binding = 4) uniform sampler2DArray diffuseArray;
 layout (binding = 5) uniform sampler2DArray normalArray;
 layout (binding = 6) uniform sampler2DArray ordArray;
 
-layout (location = 0) uniform mat4 projectionViewMatrix;
-layout (location = 4) uniform mat4 viewMatrix;
-
 layout (location = 0) flat in vec2 cornerPoint;
 layout (location = 1) in vec2 uv;
 layout (location = 2) in vec3 worldPosNoDisplacement;
 layout (location = 3) in vec3 worldPos;
 layout (location = 4) in vec3 viewPos;
+
+#include "../../General/CameraMatrices.glsl"
+layout(binding = 1) uniform PassMatricesBuffer
+{
+    CameraMatrices cameraMatrices;
+};
 
 #include "../SettingsStruct.glsl"
 layout(binding = 4) uniform terrainSettingsBuffer
@@ -111,13 +114,13 @@ void main()
 
 	const vec3 P = viewPos.xyz;
 	const vec3 V = normalize(-P);
-	const vec3 viewNormal = normalize(viewMatrix * vec4(worldNormal, 0)).xyz;
+	const vec3 viewNormal = normalize(cameraMatrices.View * vec4(worldNormal, 0)).xyz;
 
 	vec3 baseColor = diffuse;
 	const vec3 reflect = mix(vec3(0.04f, 0.04f, 0.04f), baseColor.xyz, 0.0f);
 
-	directIllumination(viewMatrix, V, P, viewNormal, worldPos, LightColor.xyz, LightDirection, baseColor, roughness, diff, spec);
-	imageBasedLighting(viewMatrix, V, viewNormal, worldNormal, reflect, 0.0f, baseColor, diff, spec, roughness, ambientOcclusion);
+	directIllumination(cameraMatrices.View, V, P, viewNormal, worldPos, LightColor.xyz, LightDirection, baseColor, roughness, diff, spec);
+	imageBasedLighting(cameraMatrices.View, V, viewNormal, worldNormal, reflect, 0.0f, baseColor, diff, spec, roughness, ambientOcclusion);
 
     diff = any(isnan(diff)) ? vec3(0.0) : diff;
     spec = any(isnan(spec)) ? vec3(0.0) : spec;
