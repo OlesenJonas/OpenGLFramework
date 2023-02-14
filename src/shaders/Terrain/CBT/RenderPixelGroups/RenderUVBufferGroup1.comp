@@ -75,10 +75,10 @@ vec3 viewPositionFromDepth(vec2 texCoord, float depthBufferDepth)
         Materials have different IDs and three samples uses biplanar projection
         Materials have different IDs and all samples uses biplanar projection
 */
-layout(std430, binding = 4) readonly buffer pixelBuffer
+layout(std430, binding = 4) buffer pixelBuffer
 {   
     uint perGroupStartIndex[7];
-    uint perGroupCurrentIndex[7];
+    uint perGroupAmount[7];
     uint pixels[];
 };
 
@@ -87,7 +87,7 @@ layout(local_size_x = SHADING_GROUP_SIZE, local_size_y = 1, local_size_z = 1) in
 void main()
 {
     const uint threadIndex = gl_GlobalInvocationID.x;
-    const uint amountInGroup = perGroupCurrentIndex[1] - perGroupStartIndex[1];
+    const uint amountInGroup = perGroupAmount[1];
 
     if (threadIndex < amountInGroup)
     {

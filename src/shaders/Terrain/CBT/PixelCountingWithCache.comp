@@ -10,10 +10,10 @@ layout (binding = 0) uniform sampler2D visbufferTex;
 layout (binding = 1) uniform sampler2D posTex;
 layout (binding = 2) uniform usampler2D materialIDTex;
 
+uniform layout(r32ui, binding = 0) writeonly restrict uimage2D indexCache;
+
 #define ONLY_DEFINES
 #include "transform.glsl"
-
-layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 
 /*
     Pixel groups are:
@@ -25,9 +25,7 @@ layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
         Materials have different IDs and three samples uses biplanar projection
         Materials have different IDs and all samples uses biplanar projection
 */
-//First used as counter to count how many pixels in workgroup are part of each group
-//then used to reserve that many slots in the pixel array and store the start indices
-shared uint workgroupStartIndexInGroup[7];
+shared uint localPerGroupAmounts[7];
 layout(std430, binding = 4) buffer pixelBuffer
 {   
     uint perGroupStartIndex[7];
@@ -35,17 +33,19 @@ layout(std430, binding = 4) buffer pixelBuffer
     uint pixels[];
 };
 
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
 void main()
 {
     if(gl_LocalInvocationID.y == 0 && gl_LocalInvocationID.x < 7)
     {
-        workgroupStartIndexInGroup[gl_LocalInvocationID.x] = 0;
+        localPerGroupAmounts[gl_LocalInvocationID.x] = 0;
     }
     barrier();
 
     uvec2 resolution = textureSize(visbufferTex, 0);
     const uvec2 threadID = gl_GlobalInvocationID.xy;
-    
+
     uint group = 0xFFFFFFFF;
     uint startIndexRelativeToWorkgroup = 0;
     if (threadID.x < resolution.x && threadID.y < resolution.y)
@@ -84,7 +84,7 @@ void main()
                 group += (materialIDCF & 128u) >> 7;
                 group += (materialIDCC & 128u) >> 7;
             }
-            startIndexRelativeToWorkgroup = atomicAdd(workgroupStartIndexInGroup[group], 1u);
+            startIndexRelativeToWorkgroup = atomicAdd(localPerGroupAmounts[group], 1u);
         }
     }
 
@@ -92,17 +92,16 @@ void main()
 
     if(gl_LocalInvocationID.y == 0 && gl_LocalInvocationID.x < 7)
     {
-        workgroupStartIndexInGroup[gl_LocalInvocationID.x] =
-            atomicAdd(perGroupAmount[gl_LocalInvocationID.x],workgroupStartIndexInGroup[gl_LocalInvocationID.x]);
+        localPerGroupAmounts[gl_LocalInvocationID.x] = 
+            atomicAdd(perGroupAmount[gl_LocalInvocationID.x],localPerGroupAmounts[gl_LocalInvocationID.x]);
     }
 
     barrier();
 
-    if(group != 0xFFFFFFFF)
+    if (threadID.x < resolution.x && threadID.y < resolution.y)
     {
-        uint packedPixelPos = ((threadID.x & 0x0000FFFF) << 16u) | (threadID.y & 0x0000FFFF);
-
-        uint combinedIndex = startIndexRelativeToWorkgroup + workgroupStartIndexInGroup[group] + perGroupStartIndex[group];
-        pixels[combinedIndex] = packedPixelPos;
+        uint combinedIndex = group == 0xFFFFFFFFu ? 0xFFFFFFFFu : startIndexRelativeToWorkgroup + localPerGroupAmounts[group];
+        uint cacheValue = (combinedIndex & 0x1FFFFFFFu) | ((group & 0x7u) << 29u); //use lowest 29bits to store final index, and upper 3 bits to store group
+        imageStore(indexCache, ivec2(threadID), uvec4(cacheValue));
     }
 }

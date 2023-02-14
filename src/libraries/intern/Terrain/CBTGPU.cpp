@@ -34,6 +34,16 @@ CBTGPU::CBTGPU(Terrain& terrain, uint32_t maxDepth, Texture& sceneDepthBuffer)
            .minFilter = GL_NEAREST,
            .magFilter = GL_NEAREST,
            .wrapS = GL_CLAMP_TO_EDGE,
+           .wrapT = GL_CLAMP_TO_EDGE}},
+      pixelIndexCache{
+          {.name = "Pixel grouping cache",
+           .levels = 1,
+           .width = Context::globalContext->internalWidth,
+           .height = Context::globalContext->internalHeight,
+           .internalFormat = GL_R32UI,
+           .minFilter = GL_NEAREST,
+           .magFilter = GL_NEAREST,
+           .wrapS = GL_CLAMP_TO_EDGE,
            .wrapT = GL_CLAMP_TO_EDGE}}
 {
     // im not actually sure what the max possible depth is when using uint32_ts for the bitheap
@@ -415,6 +425,129 @@ void CBTGPU::draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, Fram
         shadingPassTimer.end();
         shadingPassTimer.evaluate();
     }
+    else if(settings.renderingMode == 3)
+    {
+        uvBufferPassTimer.start();
+        {
+            glBindTextureUnit(0, terrain.heightmap.getTextureID());
+            glBindTextureUnit(1, terrain.normalmap.getTextureID());
+            glBindTextureUnit(2, terrain.materialIDmap.getTextureID());
+            glBindTextureUnit(3, terrain.heightTextureArray);
+
+            const GLuint zero = 0u;
+            glClearNamedBufferSubData(
+                pixelBufferSSBO, GL_R32UI, 0, (7 * 2) * sizeof(uint32_t), GL_RED, GL_UNSIGNED_INT, &zero);
+
+            visbufferFramebuffer.bind();
+            glClear(GL_COLOR_BUFFER_BIT);
+            drawVisBufferShader.useProgram();
+            glBindTextureUnit(0, terrain.heightmap.getTextureID());
+            glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
+        }
+        uvBufferPassTimer.end();
+        uvBufferPassTimer.evaluate();
+
+        pixelGroupingPassTimer.start();
+        {
+            pixelCountingTimer.start();
+            pixelCountingWithCacheShader.useProgram();
+            glBindTextureUnit(0, visbufferTarget.getTextureID());
+            glBindTextureUnit(1, posTarget.getTextureID());
+            glBindTextureUnit(2, terrain.materialIDmap.getTextureID());
+            glBindImageTexture(0, pixelIndexCache.getTextureID(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32UI);
+            const Context& ctx = *Context::globalContext;
+            glDispatchCompute(UintDivAndCeil(ctx.internalWidth, 16), UintDivAndCeil(ctx.internalHeight, 16), 1);
+            glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+            pixelCountingTimer.end();
+            pixelCountingTimer.evaluate();
+
+            pixelPrefixSumTimer.start();
+            pixelCountPrefixSumForCacheShader.useProgram();
+            glDispatchCompute(1, 1, 1);
+            glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_COMMAND_BARRIER_BIT);
+            pixelPrefixSumTimer.end();
+            pixelPrefixSumTimer.evaluate();
+
+            pixelPosWriteTimer.start();
+            pixelSortingFromCacheShader.useProgram();
+            glBindImageTexture(0, pixelIndexCache.getTextureID(), 0, GL_FALSE, 0, GL_READ_ONLY, GL_R32UI);
+            glDispatchCompute(UintDivAndCeil(ctx.internalWidth, 16), UintDivAndCeil(ctx.internalHeight, 16), 1);
+            glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+            pixelPosWriteTimer.end();
+            pixelPosWriteTimer.evaluate();
+        }
+        pixelGroupingPassTimer.end();
+        pixelGroupingPassTimer.evaluate();
+
+        shadingPassTimer.start();
+        {
+            glBindImageTexture(
+                0,
+                framebufferToWriteInto.getColorTextures()[0].getTextureID(),
+                0,
+                GL_FALSE,
+                0,
+                GL_WRITE_ONLY,
+                GL_R11F_G11F_B10F);
+            glBindTextureUnit(1, terrain.normalmap.getTextureID());
+            glBindTextureUnit(2, terrain.materialIDmap.getTextureID());
+            glBindTextureUnit(4, terrain.diffuseTextureArray);
+            glBindTextureUnit(5, terrain.normalTextureArray);
+            glBindTextureUnit(6, terrain.ordTextureArray);
+            glBindTextureUnit(7, visbufferTarget.getTextureID());
+            glBindTextureUnit(8, posTarget.getTextureID());
+            glBindTextureUnit(9, framebufferToWriteInto.getDepthTexture()->getTextureID());
+
+            // TODO: UBO for all matrices, instead of rebinding
+            //       can also use that globally then, in all other shaders!
+            shadingGroupTimers[0].start();
+            renderUVBufferGroup0Shader.useProgram();
+            glDispatchComputeIndirect(1 * sizeof(DispatchIndirectCommand));
+            shadingGroupTimers[0].end();
+            shadingGroupTimers[0].evaluate();
+
+            shadingGroupTimers[1].start();
+            renderUVBufferGroup1Shader.useProgram();
+            glDispatchComputeIndirect(2 * sizeof(DispatchIndirectCommand));
+            shadingGroupTimers[1].end();
+            shadingGroupTimers[1].evaluate();
+
+            shadingGroupTimers[2].start();
+            renderUVBufferGroup2Shader.useProgram();
+            glDispatchComputeIndirect(3 * sizeof(DispatchIndirectCommand));
+            shadingGroupTimers[2].end();
+            shadingGroupTimers[2].evaluate();
+
+            shadingGroupTimers[3].start();
+            renderUVBufferGroup3Shader.useProgram();
+            glDispatchComputeIndirect(4 * sizeof(DispatchIndirectCommand));
+            shadingGroupTimers[3].end();
+            shadingGroupTimers[3].evaluate();
+
+            shadingGroupTimers[4].start();
+            renderUVBufferGroup4Shader.useProgram();
+            glDispatchComputeIndirect(5 * sizeof(DispatchIndirectCommand));
+            shadingGroupTimers[4].end();
+            shadingGroupTimers[4].evaluate();
+
+            shadingGroupTimers[5].start();
+            renderUVBufferGroup5Shader.useProgram();
+            glDispatchComputeIndirect(6 * sizeof(DispatchIndirectCommand));
+            shadingGroupTimers[5].end();
+            shadingGroupTimers[5].evaluate();
+
+            shadingGroupTimers[6].start();
+            renderUVBufferGroup6Shader.useProgram();
+            glDispatchComputeIndirect(7 * sizeof(DispatchIndirectCommand));
+            shadingGroupTimers[6].end();
+            shadingGroupTimers[6].evaluate();
+
+            glMemoryBarrier(GL_FRAMEBUFFER_BARRIER_BIT);
+            framebufferToWriteInto.bind();
+        }
+        shadingPassTimer.end();
+        shadingPassTimer.evaluate();
+    }
 
     drawTimer.end();
     drawTimer.evaluate();
@@ -475,7 +608,10 @@ void CBTGPU::drawUI()
     {
         setTemplateLevel(globalSubdivLevel);
     }
-    ImGui::Combo("Rendering mode", &settings.renderingMode, "Basic\0UV Buffer\0UV Buffer with sorting\0");
+    ImGui::Combo(
+        "Rendering mode",
+        &settings.renderingMode,
+        "Basic\0UV Buffer\0UV Buffer with sorting\0UV Buffer with sorting with cache\0");
     ImGui::Checkbox("Draw outline", &settings.drawOutline);
     ImGui::Checkbox("Freeze update", &settings.freezeUpdates);
 }
@@ -500,7 +636,7 @@ void CBTGPU::drawTimers()
         ImGui::Text("UVBuffer: %.3f ms", uvBufferPassTimer.timeMilliseconds());
         ImGui::Text("Shading : %.3f ms", shadingPassTimer.timeMilliseconds());
     }
-    else if(settings.renderingMode == 2)
+    else if(settings.renderingMode == 2 || settings.renderingMode == 3)
     {
         ImGui::Text("UVBuffer: %.3f ms", uvBufferPassTimer.timeMilliseconds());
         ImGui::Text("Pixel Grouping : %.3f ms", pixelGroupingPassTimer.timeMilliseconds());

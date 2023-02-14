@@ -112,13 +112,21 @@ class CBTGPU
         VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
         {SHADERS_PATH "/General/screenQuad.vert", SHADERS_PATH "/Terrain/CBT/VisbufferScreenPass.frag"}};
     ShaderProgram pixelCountingShader{COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/PixelCounting.comp"}};
+    ShaderProgram pixelCountingWithCacheShader{
+        COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/PixelCountingWithCache.comp"}};
     GLuint pixelBufferSSBO;
     static constexpr int SHADING_GROUP_SIZE = 64;
     ShaderProgram pixelCountPrefixSumShader{
         COMPUTE_SHADER_BIT,
         {SHADERS_PATH "/Terrain/CBT/PixelCountPrefixSum.comp"},
+        {{"SHADING_GROUP_SIZE", std::to_string(SHADING_GROUP_SIZE)}, {"RESET_AMOUNT_COUNTER", "1"}}};
+    ShaderProgram pixelCountPrefixSumForCacheShader{
+        COMPUTE_SHADER_BIT,
+        {SHADERS_PATH "/Terrain/CBT/PixelCountPrefixSum.comp"},
         {{"SHADING_GROUP_SIZE", std::to_string(SHADING_GROUP_SIZE)}}};
     ShaderProgram pixelSortingShader{COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/PixelSorting.comp"}};
+    ShaderProgram pixelSortingFromCacheShader{
+        COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/PixelSortingFromCache.comp"}};
     ShaderProgram renderUVBufferGroup0Shader{
         COMPUTE_SHADER_BIT,
         {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup0.comp"},
@@ -149,6 +157,7 @@ class CBTGPU
         {{"SHADING_GROUP_SIZE", std::to_string(SHADING_GROUP_SIZE)}}};
     Texture visbufferTarget;
     Texture posTarget;
+    Texture pixelIndexCache;
     Framebuffer visbufferFramebuffer;
     Texture& sceneDepth;
 

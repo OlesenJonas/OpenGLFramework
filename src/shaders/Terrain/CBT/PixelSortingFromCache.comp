@@ -1,0 +1,51 @@
+#version 460
+
+#ifdef GLSLANGVALIDATOR
+    // otherwise glslangValidator complains about #include
+    //for OpenGL they will be replaced when shader is loaded
+    #extension GL_GOOGLE_include_directive : require
+#endif
+
+uniform layout(r32ui, binding = 0) readonly restrict uimage2D indexCache;
+
+#define ONLY_DEFINES
+#include "transform.glsl"
+
+/*
+    Pixel groups are:
+        All materials have same ID and use top-down projection
+        All materials have same ID and use biplanar projection
+        Materials have different IDs but all use top-down projection
+        Materials have different IDs and one sample uses biplanar projection
+        Materials have different IDs and two samples uses biplanar projection
+        Materials have different IDs and three samples uses biplanar projection
+        Materials have different IDs and all samples uses biplanar projection
+*/
+layout(std430, binding = 4) buffer pixelBuffer
+{   
+    uint perGroupStartIndex[7];
+    uint perGroupAmount[7];
+    uint pixels[];
+};
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+void main()
+{
+    uvec2 resolution = imageSize(indexCache);
+    const uvec2 threadID = gl_GlobalInvocationID.xy;
+    
+    if (threadID.x < resolution.x && threadID.y < resolution.y)
+    {
+        uint cachedValue = imageLoad(indexCache, ivec2(threadID)).r;
+        uint group = (cachedValue & 0xE0000000u) >> 29u;
+        if(group < 7)
+        {
+            uint index = cachedValue & 0x1FFFFFFFu;
+            index += perGroupStartIndex[group];
+
+            uint packedPixelPos = ((threadID.x & 0x0000FFFF) << 16u) | (threadID.y & 0x0000FFFF);
+            pixels[index] = packedPixelPos;
+        }
+    }
+}
