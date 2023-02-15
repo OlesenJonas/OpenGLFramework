@@ -5,7 +5,40 @@
     // otherwise glslangValidator complains about #include
     #extension GL_GOOGLE_include_directive : require
     //for OpenGL those will be parsed when shader is loaded
+    #ifndef ONLY_FUNCTIONS
+        uniform sampler2DArray heightArray;
+        uniform usampler2D materialIDTex;
+        layout(std430, binding = 3) buffer textureInfoBuffer
+        {   
+            float textureScales[];
+        };
+        #include "../SettingsStruct.glsl"
+        layout(binding = 4) uniform terrainSettingsBuffer
+        {
+            TerrainSettings terrainSettings;
+        };
+    #endif
 #endif
+
+float flatSampleOfHeightFromID(const uint materialID, vec2 uv)
+{
+    const float texScale = textureScales[materialID];
+    uv = uv/texScale;
+    return textureLod(heightArray, vec3(uv, materialID), terrainSettings.materialDisplacementLodOffset).r;
+}
+
+float biplanarSampleOfHeightFromID(const uint materialID, vec2 uvXY, vec2 uvZY, const float weight)
+{
+    const float texScale = textureScales[materialID];
+
+    uvXY /= texScale;
+    uvZY /= texScale;
+
+    const float displacementXY = textureLod(heightArray, vec3(uvXY, materialID), terrainSettings.materialDisplacementLodOffset).r;
+    const float displacementZY = textureLod(heightArray, vec3(uvZY, materialID), terrainSettings.materialDisplacementLodOffset).r;
+
+    return mix(displacementXY, displacementZY, weight);
+}
 
 float getFlatHeightFromTexelAndWorldPos(const uint materialID, const ivec2 texelPos, vec3 worldPos)
 {

@@ -54,7 +54,8 @@ layout(std430, binding = 3) buffer textureInfoBuffer
 
 #define DISPLACEMENT_ALREADY_DEFINED
 #include "transform.glsl"
-#include "FetchHeightFromID.glsl"
+#define ONLY_FUNCTIONS
+#include "FetchHeight.glsl"
 
 void main()
 {

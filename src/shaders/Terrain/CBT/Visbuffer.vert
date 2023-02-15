@@ -45,7 +45,8 @@ layout(std430, binding = 3) buffer textureInfoBuffer
 
 #define DISPLACEMENT_ALREADY_DEFINED
 #include "transform.glsl"
-#include "FetchHeightFromID.glsl"
+#define ONLY_FUNCTIONS
+#include "FetchHeight.glsl"
 
 void main()
 {
@@ -64,30 +65,72 @@ void main()
           xzPosition.x * (currentCorners[2]-currentCorners[1]) + 
           xzPosition.y * (currentCorners[0]-currentCorners[1]);
 
-    vec2 uv = vec2(1,-1) * flatPosition + 0.5;
+    vec2 flatUV = vec2(1,-1) * flatPosition + 0.5;
 
     vec4 worldPosition = transformFlatPointToWorldSpace(flatPosition);
     //pass the *non-displaced* position for triplanar projection in fragment shader
     worldPosNoDisplacement = worldPosition.xyz;
     // projPosNoDisplacement = projectionViewMatrix * worldPosition;
-    
-    vec3 tangentNormal = 2.0*textureLod(macroNormal,uv,0).xyz-1.0;
-    vec3 worldNormal = vec3(tangentNormal.x, tangentNormal.z, -tangentNormal.y);
 
-    const vec2 scaledUVs = uv*textureSize(materialIDTex,0);
+    const vec3 macroNormalTS = 2.0*textureLod(macroNormal, flatUV, 0).xyz-1.0;
+    vec2 biplanarWeights = pow(abs(macroNormalTS.xy),vec2(terrainSettings.triplanarSharpness));
+    biplanarWeights /= biplanarWeights.x + biplanarWeights.y;
+    float biplanarWeight = biplanarWeights.x;
+
+    const vec2 flipFactorXY = vec2(-sign(macroNormalTS.y), 1);
+    const vec2 flipFactorZY = vec2(-sign(macroNormalTS.x), 1);
+
+    vec2 uvXZ = worldPosNoDisplacement.xz;
+    vec2 uvXY = worldPosNoDisplacement.xy*flipFactorXY;
+    vec2 uvZY = worldPosNoDisplacement.zy*flipFactorZY;
+
+    const vec2 scaledUVs = flatUV*textureSize(materialIDTex,0);
     const ivec2 idsStartTexel = ivec2(scaledUVs);
     const vec2 weights = fract(scaledUVs);
 
-    const float heightFF = getHeightFromTexelAndWorldPos(idsStartTexel+ivec2(0,0), worldPosition.xyz, tangentNormal);
-    const float heightFC = getHeightFromTexelAndWorldPos(idsStartTexel+ivec2(0,1), worldPosition.xyz, tangentNormal);
-    const float heightCF = getHeightFromTexelAndWorldPos(idsStartTexel+ivec2(1,0), worldPosition.xyz, tangentNormal);
-    const float heightCC = getHeightFromTexelAndWorldPos(idsStartTexel+ivec2(1,1), worldPosition.xyz, tangentNormal);
-    const float heightF = mix(heightFF, heightFC, weights.y);
-    const float heightC = mix(heightCF, heightCC, weights.y);
-    const float height = mix(heightF, heightC, weights.x);
+    const uint materialIDs[4] = uint[4](
+        texelFetch(materialIDTex, idsStartTexel+ivec2(0,0), 0).r,
+        texelFetch(materialIDTex, idsStartTexel+ivec2(0,1), 0).r,
+        texelFetch(materialIDTex, idsStartTexel+ivec2(1,0), 0).r,
+        texelFetch(materialIDTex, idsStartTexel+ivec2(1,1), 0).r
+    );
+
+    float height;
+    //Check if vertex requires just a single material lookup
+    if(materialIDs[0] == materialIDs[1] && materialIDs[1] == materialIDs[2] && materialIDs[2] == materialIDs[3])
+    {
+        if((materialIDs[0] & 128u) == 128u)
+        {
+            height = biplanarSampleOfHeightFromID(materialIDs[0] & 0x7F, uvXY, uvZY, biplanarWeight);
+        }
+        else
+        {
+            height = flatSampleOfHeightFromID(materialIDs[0] & 0x7F, uvXZ);
+        }
+    }
+    else
+    {
+        float heights[4];
+        #pragma optionNV (unroll all)
+        for(int i=0; i<4; i++)
+        {
+            if((materialIDs[i] & 128u) > 0)
+            {
+                heights[i] = biplanarSampleOfHeightFromID(materialIDs[i] & 0x7F, uvXY, uvZY, biplanarWeight);
+            }
+            else
+            {
+                heights[i] = flatSampleOfHeightFromID(materialIDs[i] & 0x7F, uvXZ);
+            }
+        }
+        const float heightF = mix(heights[0], heights[1], weights.y);
+        const float heightC = mix(heights[2], heights[3], weights.y);
+        height = mix(heightF, heightC, weights.x);
+    }
 
     const float displacement = (height - 0.5) * terrainSettings.materialDisplacementIntensity;
 
+    vec3 worldNormal = vec3(macroNormalTS.x, macroNormalTS.z, -macroNormalTS.y);
     worldPosition += vec4(worldNormal*displacement, 0.0);
 
     gl_Position = cameraMatrices.ProjView * worldPosition;
