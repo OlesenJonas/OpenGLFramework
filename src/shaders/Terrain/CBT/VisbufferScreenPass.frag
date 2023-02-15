@@ -6,6 +6,10 @@
     //for OpenGL those will be parsed when shader is loaded  
 #endif
 
+#extension GL_KHR_shader_subgroup_basic : require
+#extension GL_KHR_shader_subgroup_arithmetic : require
+#extension GL_KHR_shader_subgroup_vote : require
+
 out vec4 fragmentColor;
 
 layout (binding = 1) uniform sampler2D macroNormal;
@@ -113,26 +117,98 @@ void main()
         texelFetch(materialIDTex, idsStartTexel+ivec2(1,1), 0).r
     );
 
-    MaterialAttributes matAttributes[4];
-    for(int i=0; i<4; i++)
+    MaterialAttributes attributes;
+    //Check if pixel requires just a single material lookup
+    if(materialIDs[0] == materialIDs[1] && materialIDs[1] == materialIDs[2] && materialIDs[2] == materialIDs[3])
     {
-        if((materialIDs[i] & 0x80) > 0)
+        if((materialIDs[0] & 128u) == 128u)
         {
-            matAttributes[i] = biplanarSampleOfMaterialAttributesFromID(
-                materialIDs[i] & 0x7F, uvXY, dPdxXY, dPdyXY, flipFactorXY, uvZY, dPdxZY, dPdyZY, flipFactorZY, biplanarWeight, macroNormalTS
+            attributes = biplanarSampleOfMaterialAttributesFromID(
+                materialIDs[0] & 0x7F, uvXY, dPdxXY, dPdyXY, flipFactorXY, uvZY, dPdxZY, dPdyZY, flipFactorZY, biplanarWeight, macroNormalTS
             );
         }
         else
         {
-            matAttributes[i] = flatSampleOfMaterialAttributesFromID(
-                materialIDs[i] & 0x7F, uvXZ, dPdxXZ, dPdyXZ, macroNormalTS
+            attributes = flatSampleOfMaterialAttributesFromID(
+                materialIDs[0] & 0x7F, uvXZ, dPdxXZ, dPdyXZ, macroNormalTS
             );
         }
     }
+    else
+    {
+        MaterialAttributes matAttributes[4];
+        //Fast paths for the cases that all pixels only need to take biplanar samples or they only need to take flat samples
+        bool allSamplesSameType =  (materialIDs[0] & 128u) == (materialIDs[1] & 128u) && (materialIDs[1] & 128u) == (materialIDs[2] & 128u) && (materialIDs[2] & 128u) == (materialIDs[3] & 128u);
+        if(subgroupAll(allSamplesSameType))
+        {
+            bool samplesAreBiplanar = (materialIDs[0] & 128u) == 128u;
+            if(samplesAreBiplanar)
+            {
+                for(int i=0; i<4; i++)
+                {
+                    matAttributes[i] = biplanarSampleOfMaterialAttributesFromID(
+                        materialIDs[i] & 0x7F, uvXY, dPdxXY, dPdyXY, flipFactorXY, uvZY, dPdxZY, dPdyZY, flipFactorZY, biplanarWeight, macroNormalTS
+                    );
+                }
+            }
+            else
+            {   
+                for(int i=0; i<4; i++)
+                {
+                    matAttributes[i] = flatSampleOfMaterialAttributesFromID(
+                        materialIDs[i] & 0x7F, uvXZ, dPdxXZ, dPdyXZ, macroNormalTS
+                    );
+                }
+            }
+            const MaterialAttributes maF = lerp(matAttributes[0], matAttributes[1], weights.y);
+            const MaterialAttributes maC = lerp(matAttributes[2], matAttributes[3], weights.y);
+            attributes = lerp(maF, maC, weights.x);
+        }
+        else
+        {
+            //All samples need to take different amounts of biplanar/flat samples
+            //to reduce divergence as much as possible, sort the samples by their type first
 
-    const MaterialAttributes maF = lerp(matAttributes[0], matAttributes[1], weights.y);
-    const MaterialAttributes maC = lerp(matAttributes[2], matAttributes[3], weights.y);
-    const MaterialAttributes attributes = lerp(maF, maC, weights.x);
+            uint sampleIndices[4];
+            uint inverseIndices[4];
+            int biplanarIndex = 0;
+            int flatIndex = 3;
+            for(int i=0; i<4; i++)
+            {
+                if((materialIDs[i] & 128u) == 128u)
+                {
+                    sampleIndices[biplanarIndex] = i;
+                    inverseIndices[i] = biplanarIndex;
+                    biplanarIndex++;
+                }
+                else
+                {
+                    sampleIndices[flatIndex] = i;
+                    inverseIndices[i] = flatIndex;
+                    flatIndex--;
+                }
+            }
+            for(int i=0; i<4; i++)
+            {
+                if((materialIDs[sampleIndices[i]] & 128u) > 0)
+                {
+                    matAttributes[i] = biplanarSampleOfMaterialAttributesFromID(
+                        materialIDs[sampleIndices[i]] & 0x7F, uvXY, dPdxXY, dPdyXY, flipFactorXY, uvZY, dPdxZY, dPdyZY, flipFactorZY, biplanarWeight, macroNormalTS
+                    );
+                }
+                else
+                {
+                    matAttributes[i] = flatSampleOfMaterialAttributesFromID(
+                        materialIDs[sampleIndices[i]] & 0x7F, uvXZ, dPdxXZ, dPdyXZ, macroNormalTS
+                    );
+                }
+            }
+            const MaterialAttributes maF = lerp(matAttributes[inverseIndices[0]], matAttributes[inverseIndices[1]], weights.y);
+            const MaterialAttributes maC = lerp(matAttributes[inverseIndices[2]], matAttributes[inverseIndices[3]], weights.y);
+            attributes = lerp(maF, maC, weights.x);
+        }
+    }
+
     const vec3 diffuse = attributes.diffuseRoughness.rgb;
     const float roughness = attributes.diffuseRoughness.w;
     const float ambientOcclusion = attributes.aoHeight.x;

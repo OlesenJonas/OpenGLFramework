@@ -611,7 +611,7 @@ void CBTGPU::drawUI()
     ImGui::Combo(
         "Rendering mode",
         &settings.renderingMode,
-        "Basic\0UV Buffer\0UV Buffer with sorting\0UV Buffer with sorting with cache\0");
+        "Basic\0UV Buffer (subgroup optimized)\0UV Buffer with sorting\0UV Buffer with sorting with cache\0");
     ImGui::Checkbox("Draw outline", &settings.drawOutline);
     ImGui::Checkbox("Freeze update", &settings.freezeUpdates);
 }
