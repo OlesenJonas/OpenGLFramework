@@ -137,6 +137,59 @@ void main()
     else
     {
         MaterialAttributes matAttributes[4];
+        for(int i=0; i<4; i++)
+        {
+            if((materialIDs[i] & 128u) > 0)
+            {
+                matAttributes[i] = biplanarSampleOfMaterialAttributesFromID(
+                    materialIDs[i] & 0x7F, uvXY, dPdxXY, dPdyXY, flipFactorXY, uvZY, dPdxZY, dPdyZY, flipFactorZY, biplanarWeight, macroNormalTS
+                );
+            }
+            else
+            {
+                matAttributes[i] = flatSampleOfMaterialAttributesFromID(
+                    materialIDs[i] & 0x7F, uvXZ, dPdxXZ, dPdyXZ, macroNormalTS
+                );
+            }
+        }
+        const MaterialAttributes maF = lerp(matAttributes[0], matAttributes[1], weights.y);
+        const MaterialAttributes maC = lerp(matAttributes[2], matAttributes[3], weights.y);
+        attributes = lerp(maF, maC, weights.x);
+    }
+
+    const vec3 diffuse = attributes.diffuseRoughness.rgb;
+    const float roughness = attributes.diffuseRoughness.w;
+    const float ambientOcclusion = attributes.aoHeight.x;
+    vec3 tangentNormal = attributes.normalMetallic.xyz;
+    //TBN columns would just be (1,0,0),(0,0,-1),(0,1,0), so no need for matrix mult here
+    vec3 worldNormal = vec3(tangentNormal.x, tangentNormal.z, -tangentNormal.y);
+
+    // Lighting
+
+	vec3 diff = vec3(0,0,0);
+	vec3 spec = vec3(0,0,0);
+
+	const vec3 P = viewPos.xyz;
+	const vec3 V = normalize(-P);
+	const vec3 viewNormal = normalize(cameraMatrices.View * vec4(worldNormal, 0)).xyz;
+
+	vec3 baseColor = diffuse;
+	const vec3 reflect = mix(vec3(0.04f, 0.04f, 0.04f), baseColor.xyz, 0.0f);
+
+	directIllumination(cameraMatrices.View, V, P, viewNormal, worldPos, LightColor.xyz, LightDirection, baseColor, roughness, diff, spec);
+	imageBasedLighting(cameraMatrices.View, V, viewNormal, worldNormal, reflect, 0.0f, baseColor, diff, spec, roughness, ambientOcclusion);
+
+    diff = any(isnan(diff)) ? vec3(0.0) : diff;
+    spec = any(isnan(spec)) ? vec3(0.0) : spec;
+	const vec3 col = diff + spec;
+    fragmentColor = vec4(col, 1);
+}
+
+/*
+
+        Backup of older version that includes subgroup ops, doesnt seem to make a difference here though
+
+        MaterialAttributes matAttributes[4];
         //Fast paths for the cases that all pixels only need to take biplanar samples or they only need to take flat samples
         bool allSamplesSameType =  (materialIDs[0] & 128u) == (materialIDs[1] & 128u) && (materialIDs[1] & 128u) == (materialIDs[2] & 128u) && (materialIDs[2] & 128u) == (materialIDs[3] & 128u);
         if(subgroupAll(allSamplesSameType))
@@ -207,32 +260,5 @@ void main()
             const MaterialAttributes maC = lerp(matAttributes[inverseIndices[2]], matAttributes[inverseIndices[3]], weights.y);
             attributes = lerp(maF, maC, weights.x);
         }
-    }
 
-    const vec3 diffuse = attributes.diffuseRoughness.rgb;
-    const float roughness = attributes.diffuseRoughness.w;
-    const float ambientOcclusion = attributes.aoHeight.x;
-    vec3 tangentNormal = attributes.normalMetallic.xyz;
-    //TBN columns would just be (1,0,0),(0,0,-1),(0,1,0), so no need for matrix mult here
-    vec3 worldNormal = vec3(tangentNormal.x, tangentNormal.z, -tangentNormal.y);
-
-    // Lighting
-
-	vec3 diff = vec3(0,0,0);
-	vec3 spec = vec3(0,0,0);
-
-	const vec3 P = viewPos.xyz;
-	const vec3 V = normalize(-P);
-	const vec3 viewNormal = normalize(cameraMatrices.View * vec4(worldNormal, 0)).xyz;
-
-	vec3 baseColor = diffuse;
-	const vec3 reflect = mix(vec3(0.04f, 0.04f, 0.04f), baseColor.xyz, 0.0f);
-
-	directIllumination(cameraMatrices.View, V, P, viewNormal, worldPos, LightColor.xyz, LightDirection, baseColor, roughness, diff, spec);
-	imageBasedLighting(cameraMatrices.View, V, viewNormal, worldNormal, reflect, 0.0f, baseColor, diff, spec, roughness, ambientOcclusion);
-
-    diff = any(isnan(diff)) ? vec3(0.0) : diff;
-    spec = any(isnan(spec)) ? vec3(0.0) : spec;
-	const vec3 col = diff + spec;
-    fragmentColor = vec4(col, 1);
-}
+*/
