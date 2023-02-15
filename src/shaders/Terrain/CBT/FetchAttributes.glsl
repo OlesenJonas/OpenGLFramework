@@ -11,7 +11,7 @@
         layout (binding = 4) uniform sampler2DArray diffuseArray;
         layout (binding = 5) uniform sampler2DArray normalArray;
         layout (binding = 6) uniform sampler2DArray ordArray;
-        layout (binding = 7) uniform sampler2D visbufferTex;
+        layout (binding = 7) uniform sampler2D uvbufferTex;
         layout (binding = 8) uniform sampler2D posTex;
         layout (binding = 9) uniform sampler2D trueDepthBuffer;
         layout(std430, binding = 3) buffer textureInfoBuffer

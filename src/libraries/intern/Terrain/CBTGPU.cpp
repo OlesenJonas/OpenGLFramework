@@ -15,8 +15,8 @@ CBTGPU::CBTGPU(Terrain& terrain, uint32_t maxDepth, Texture& sceneDepthBuffer)
     : terrain(terrain),
       maxDepth(maxDepth),
       sceneDepth(sceneDepthBuffer), //
-      visbufferTarget{
-          {.name = "Visbuffer RT",
+      uvbufferRT{
+          {.name = "UVBuffer RT",
            .levels = 1,
            .width = Context::globalContext->internalWidth,
            .height = Context::globalContext->internalHeight,
@@ -25,7 +25,7 @@ CBTGPU::CBTGPU(Terrain& terrain, uint32_t maxDepth, Texture& sceneDepthBuffer)
            .magFilter = GL_NEAREST,
            .wrapS = GL_CLAMP_TO_EDGE,
            .wrapT = GL_CLAMP_TO_EDGE}},
-      posTarget{
+      posRT{
           {.name = "Pos RT",
            .levels = 1,
            .width = Context::globalContext->internalWidth,
@@ -147,10 +147,10 @@ CBTGPU::CBTGPU(Terrain& terrain, uint32_t maxDepth, Texture& sceneDepthBuffer)
     writeIndirectCommands();
     setTargetEdgeLength(20);
 
-    visbufferFramebuffer = Framebuffer{
+    uvbufferFramebuffer = Framebuffer{
         Context::globalContext->internalWidth,
         Context::globalContext->internalHeight,
-        {{visbufferTarget, 0}, {posTarget, 0}},
+        {{uvbufferRT, 0}, {posRT, 0}},
         {sceneDepthBuffer, 0}};
 
     const int pixelAmount = Context::globalContext->internalWidth * Context::globalContext->internalHeight;
@@ -281,9 +281,9 @@ void CBTGPU::draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, Fram
         glBindTextureUnit(1, terrain.normalmap.getTextureID());
         glBindTextureUnit(2, terrain.materialIDmap.getTextureID());
         glBindTextureUnit(3, terrain.heightTextureArray);
-        visbufferFramebuffer.bind();
+        uvbufferFramebuffer.bind();
         glClear(GL_COLOR_BUFFER_BIT);
-        drawVisBufferShader.useProgram();
+        drawUVBufferShader.useProgram();
         glBindVertexArray(triangleTemplates[settings.selectedSubdivLevel].getVAO());
         glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
         uvBufferPassTimer.end();
@@ -292,12 +292,12 @@ void CBTGPU::draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, Fram
         shadingPassTimer.start();
         framebufferToWriteInto.bind();
         glDisable(GL_DEPTH_TEST);
-        visbufferScreenPassShader.useProgram();
-        glBindTextureUnit(7, visbufferTarget.getTextureID());
+        uvbufferScreenPassShader.useProgram();
+        glBindTextureUnit(7, uvbufferRT.getTextureID());
         glBindTextureUnit(4, terrain.diffuseTextureArray);
         glBindTextureUnit(5, terrain.normalTextureArray);
         glBindTextureUnit(6, terrain.ordTextureArray);
-        glBindTextureUnit(8, posTarget.getTextureID());
+        glBindTextureUnit(8, posRT.getTextureID());
         glBindTextureUnit(9, framebufferToWriteInto.getDepthTexture()->getTextureID());
         fullScreenTri.draw();
         glEnable(GL_DEPTH_TEST);
@@ -317,9 +317,9 @@ void CBTGPU::draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, Fram
             glClearNamedBufferSubData(
                 pixelBufferSSBO, GL_R32UI, 0, (7 * 2) * sizeof(uint32_t), GL_RED, GL_UNSIGNED_INT, &zero);
 
-            visbufferFramebuffer.bind();
+            uvbufferFramebuffer.bind();
             glClear(GL_COLOR_BUFFER_BIT);
-            drawVisBufferShader.useProgram();
+            drawUVBufferShader.useProgram();
             glBindTextureUnit(0, terrain.heightmap.getTextureID());
             glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
         }
@@ -330,8 +330,8 @@ void CBTGPU::draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, Fram
         {
             pixelCountingTimer.start();
             pixelCountingShader.useProgram();
-            glBindTextureUnit(0, visbufferTarget.getTextureID());
-            glBindTextureUnit(1, posTarget.getTextureID());
+            glBindTextureUnit(0, uvbufferRT.getTextureID());
+            glBindTextureUnit(1, posRT.getTextureID());
             glBindTextureUnit(2, terrain.materialIDmap.getTextureID());
             const Context& ctx = *Context::globalContext;
             glDispatchCompute(UintDivAndCeil(ctx.internalWidth, 16), UintDivAndCeil(ctx.internalHeight, 16), 1);
@@ -371,8 +371,8 @@ void CBTGPU::draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, Fram
             glBindTextureUnit(4, terrain.diffuseTextureArray);
             glBindTextureUnit(5, terrain.normalTextureArray);
             glBindTextureUnit(6, terrain.ordTextureArray);
-            glBindTextureUnit(7, visbufferTarget.getTextureID());
-            glBindTextureUnit(8, posTarget.getTextureID());
+            glBindTextureUnit(7, uvbufferRT.getTextureID());
+            glBindTextureUnit(8, posRT.getTextureID());
             glBindTextureUnit(9, framebufferToWriteInto.getDepthTexture()->getTextureID());
 
             // TODO: UBO for all matrices, instead of rebinding
@@ -438,9 +438,9 @@ void CBTGPU::draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, Fram
             glClearNamedBufferSubData(
                 pixelBufferSSBO, GL_R32UI, 0, (7 * 2) * sizeof(uint32_t), GL_RED, GL_UNSIGNED_INT, &zero);
 
-            visbufferFramebuffer.bind();
+            uvbufferFramebuffer.bind();
             glClear(GL_COLOR_BUFFER_BIT);
-            drawVisBufferShader.useProgram();
+            drawUVBufferShader.useProgram();
             glBindTextureUnit(0, terrain.heightmap.getTextureID());
             glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
         }
@@ -451,8 +451,8 @@ void CBTGPU::draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, Fram
         {
             pixelCountingTimer.start();
             pixelCountingWithCacheShader.useProgram();
-            glBindTextureUnit(0, visbufferTarget.getTextureID());
-            glBindTextureUnit(1, posTarget.getTextureID());
+            glBindTextureUnit(0, uvbufferRT.getTextureID());
+            glBindTextureUnit(1, posRT.getTextureID());
             glBindTextureUnit(2, terrain.materialIDmap.getTextureID());
             glBindImageTexture(0, pixelIndexCache.getTextureID(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32UI);
             const Context& ctx = *Context::globalContext;
@@ -494,8 +494,8 @@ void CBTGPU::draw(const glm::mat4& viewMatrix, const glm::mat4& projMatrix, Fram
             glBindTextureUnit(4, terrain.diffuseTextureArray);
             glBindTextureUnit(5, terrain.normalTextureArray);
             glBindTextureUnit(6, terrain.ordTextureArray);
-            glBindTextureUnit(7, visbufferTarget.getTextureID());
-            glBindTextureUnit(8, posTarget.getTextureID());
+            glBindTextureUnit(7, uvbufferRT.getTextureID());
+            glBindTextureUnit(8, posRT.getTextureID());
             glBindTextureUnit(9, framebufferToWriteInto.getDepthTexture()->getTextureID());
 
             // TODO: UBO for all matrices, instead of rebinding

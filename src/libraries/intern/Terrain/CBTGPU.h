@@ -105,12 +105,12 @@ class CBTGPU
         VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
         {SHADERS_PATH "/Terrain/CBT/drawing.vert", SHADERS_PATH "/Terrain/CBT/drawing.frag"}};
 
-    ShaderProgram drawVisBufferShader{
+    ShaderProgram drawUVBufferShader{
         VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
-        {SHADERS_PATH "/Terrain/CBT/Visbuffer.vert", SHADERS_PATH "/Terrain/CBT/Visbuffer.frag"}};
-    ShaderProgram visbufferScreenPassShader{
+        {SHADERS_PATH "/Terrain/CBT/uvbuffer.vert", SHADERS_PATH "/Terrain/CBT/uvbuffer.frag"}};
+    ShaderProgram uvbufferScreenPassShader{
         VERTEX_SHADER_BIT | FRAGMENT_SHADER_BIT,
-        {SHADERS_PATH "/General/screenQuad.vert", SHADERS_PATH "/Terrain/CBT/VisbufferScreenPass.frag"}};
+        {SHADERS_PATH "/General/screenQuad.vert", SHADERS_PATH "/Terrain/CBT/uvbufferScreenPass.frag"}};
     ShaderProgram pixelCountingShader{COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/PixelCounting.comp"}};
     ShaderProgram pixelCountingWithCacheShader{
         COMPUTE_SHADER_BIT, {SHADERS_PATH "/Terrain/CBT/PixelCountingWithCache.comp"}};
@@ -155,10 +155,10 @@ class CBTGPU
         COMPUTE_SHADER_BIT,
         {SHADERS_PATH "/Terrain/CBT/RenderPixelGroups/RenderUVBufferGroup6.comp"},
         {{"SHADING_GROUP_SIZE", std::to_string(SHADING_GROUP_SIZE)}}};
-    Texture visbufferTarget;
-    Texture posTarget;
+    Texture uvbufferRT;
+    Texture posRT;
     Texture pixelIndexCache;
-    Framebuffer visbufferFramebuffer;
+    Framebuffer uvbufferFramebuffer;
     Texture& sceneDepth;
 
     GPUTimer<128> mergeTimer{"Merge"};

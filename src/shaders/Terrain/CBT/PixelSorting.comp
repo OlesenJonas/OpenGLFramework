@@ -6,7 +6,7 @@
     #extension GL_GOOGLE_include_directive : require
 #endif
 
-layout (binding = 0) uniform sampler2D visbufferTex;
+layout (binding = 0) uniform sampler2D uvbufferTex;
 layout (binding = 1) uniform sampler2D posTex;
 layout (binding = 2) uniform usampler2D materialIDTex;
 
@@ -43,15 +43,15 @@ void main()
     }
     barrier();
 
-    uvec2 resolution = textureSize(visbufferTex, 0);
+    uvec2 resolution = textureSize(uvbufferTex, 0);
     const uvec2 threadID = gl_GlobalInvocationID.xy;
     
     uint group = 0xFFFFFFFF;
     uint startIndexRelativeToWorkgroup = 0;
     if (threadID.x < resolution.x && threadID.y < resolution.y)
     {
-        vec4 visBuffer = texelFetch(visbufferTex, ivec2(threadID), 0);
-        if(visBuffer.w < 1)
+        vec4 uvbuffer = texelFetch(uvbufferTex, ivec2(threadID), 0);
+        if(uvbuffer.w < 1)
         {
             vec3 worldPosNoDisplacement = texelFetch(posTex, ivec2(threadID), 0).rgb;
             vec2 flatPosition = worldPosNoDisplacement.xz/TERRAIN_SIZE;
