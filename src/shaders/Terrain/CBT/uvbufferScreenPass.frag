@@ -17,7 +17,7 @@ layout (binding = 2) uniform usampler2D materialIDTex;
 layout (binding = 4) uniform sampler2DArray diffuseArray;
 layout (binding = 5) uniform sampler2DArray normalArray;
 layout (binding = 6) uniform sampler2DArray ordArray;
-layout (binding = 7) uniform sampler2D visbufferTex;
+layout (binding = 7) uniform sampler2D uvbufferTex;
 layout (binding = 8) uniform sampler2D posTex;
 layout (binding = 9) uniform sampler2D trueDepthBuffer;
 
@@ -60,24 +60,24 @@ vec3 viewPositionFromDepth(vec2 texCoord, float depthBufferDepth)
 
 void main()
 {
-    vec4 visBuffer = texelFetch(visbufferTex, ivec2(gl_FragCoord.xy), 0);
+    vec4 uvbuffer = texelFetch(uvbufferTex, ivec2(gl_FragCoord.xy), 0);
     // vec2 uv = texelFetch(flatUVTex, ivec2(gl_FragCoord.xy), 0).rg;
 
-    if(visBuffer.w == 1)
+    if(uvbuffer.w == 1)
     {
         discard;
     }
 
-    vec2 screenUV = gl_FragCoord.xy/vec2(textureSize(visbufferTex,0));
+    vec2 screenUV = gl_FragCoord.xy/vec2(textureSize(uvbufferTex,0));
     vec3 worldPosNoDisplacement = texelFetch(posTex, ivec2(gl_FragCoord.xy), 0).rgb;
 
     float trueDepth = texelFetch(trueDepthBuffer, ivec2(gl_FragCoord.xy), 0).r;
     vec3 viewPos = viewPositionFromDepth(screenUV, trueDepth);
     vec3 worldPos = worldPositionFromDepth(screenUV, trueDepth);
 
-    vec2 dX = unpackHalf2x16(floatBitsToUint(visBuffer.r));
-    vec2 dY = unpackHalf2x16(floatBitsToUint(visBuffer.g));
-    vec2 dZ = unpackHalf2x16(floatBitsToUint(visBuffer.b));
+    vec2 dX = unpackHalf2x16(floatBitsToUint(uvbuffer.r));
+    vec2 dY = unpackHalf2x16(floatBitsToUint(uvbuffer.g));
+    vec2 dZ = unpackHalf2x16(floatBitsToUint(uvbuffer.b));
     vec3 dPdx = vec3(dX.x, dY.x, dZ.x);
     vec3 dPdy = vec3(dX.y, dY.y, dZ.y);
 
