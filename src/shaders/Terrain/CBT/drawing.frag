@@ -50,18 +50,9 @@ float fast(vec2 v)
 
 #include "../../General/lighting.glsl"
 
-// Reorient normal blending for blending material normal maps and terrain normal:
-// https://blog.selfshadow.com/publications/blending-in-detail/
-vec3 reorientNormalBlend(vec3 t, vec3 u)
-{
-    t += vec3(0,0,1);
-    u *= vec3(-1,-1,1);
-    return normalize(t*dot(t, u) - u*t.z);
-}
-
 //  KEEP BRANCHING IN MIND! see https://666uille.files.wordpress.com/2017/03/gdc2017_ghostreconwildlands_terrainandtechnologytools-onlinevideos1.pdf
-
-#include "FetchAttributesFromID.glsl"
+#define ONLY_FUNCTIONS
+#include "FetchAttributes.glsl"
 
 void main()
 {

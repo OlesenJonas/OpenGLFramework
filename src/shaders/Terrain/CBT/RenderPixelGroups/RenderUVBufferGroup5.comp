@@ -38,18 +38,10 @@ layout(std430, binding = 3) buffer textureInfoBuffer
     float textureScales[];
 };
 
-// Reorient normal blending for blending material normal maps and terrain normal:
-// https://blog.selfshadow.com/publications/blending-in-detail/
-vec3 reorientNormalBlend(vec3 t, vec3 u)
-{
-    t += vec3(0,0,1);
-    u *= vec3(-1,-1,1);
-    return normalize(t*dot(t, u) - u*t.z);
-}
-
 #define ONLY_DEFINES
 #include "../transform.glsl"
-#include "../FetchAttributesFromID.glsl"
+#define ONLY_FUNCTIONS
+#include "../FetchAttributes.glsl"
 #include "../../../General/lighting.glsl"
 
 vec3 worldPositionFromDepth(vec2 texCoord, float depthBufferDepth)
@@ -121,13 +113,31 @@ void main()
         vec3 dPdy = vec3(dX.y, dY.y, dZ.y);
 
         vec2 flatPosition = worldPosNoDisplacement.xz/TERRAIN_SIZE;
-        vec2 uv = vec2(1,-1) * flatPosition + 0.5;
+        vec2 flatUV = vec2(1,-1) * flatPosition + 0.5;
         vec2 duvdx = vec2(1,-1)*dPdx.xz/TERRAIN_SIZE;
         vec2 duvdy = vec2(1,-1)*dPdy.xz/TERRAIN_SIZE;
 
-        vec3 macroNormal = 2.0*textureLod(macroNormal, uv, 0).xyz-1.0;
+        const vec3 macroNormalTS = 2.0*textureLod(macroNormal, flatUV, 0).xyz-1.0;
+        vec2 biplanarWeights = pow(abs(macroNormalTS.xy),vec2(terrainSettings.triplanarSharpness));
+        biplanarWeights /= biplanarWeights.x + biplanarWeights.y;
+        float biplanarWeight = biplanarWeights.x;
 
-        const vec2 scaledUVs = uv*textureSize(materialIDTex,0);
+        const vec2 flipFactorXY = vec2(-sign(macroNormalTS.y), 1);
+        const vec2 flipFactorZY = vec2(-sign(macroNormalTS.x), 1);
+
+        vec2 uvXZ = worldPosNoDisplacement.xz;
+        vec2 dPdxXZ = dPdx.xz;
+        vec2 dPdyXZ = dPdy.xz;
+        
+        vec2 uvXY = worldPosNoDisplacement.xy*flipFactorXY;
+        vec2 dPdxXY = dPdx.xy*flipFactorXY;
+        vec2 dPdyXY = dPdy.xy*flipFactorXY;
+
+        vec2 uvZY = worldPosNoDisplacement.zy*flipFactorZY;
+        vec2 dPdxZY = dPdx.zy*flipFactorZY;
+        vec2 dPdyZY = dPdy.zy*flipFactorZY;
+
+        const vec2 scaledUVs = flatUV*textureSize(materialIDTex,0);
         const ivec2 idsStartTexel = ivec2(scaledUVs);
         const vec2 weights = fract(scaledUVs);
 
@@ -150,10 +160,18 @@ void main()
         }
         //Take all samples
         const MaterialAttributes matAttributes[4] = MaterialAttributes[4](
-            getFlatMaterialAttributesFromIndexAndWorldPos(materialIDs[sampleIndices[0]] & 0x7F, worldPosNoDisplacement, dPdx, dPdy, macroNormal),
-            getBiplanarMaterialAttributesFromIndexAndWorldPos(materialIDs[sampleIndices[1]] & 0x7F, worldPosNoDisplacement, dPdx, dPdy, macroNormal),
-            getBiplanarMaterialAttributesFromIndexAndWorldPos(materialIDs[sampleIndices[2]] & 0x7F, worldPosNoDisplacement, dPdx, dPdy, macroNormal),
-            getBiplanarMaterialAttributesFromIndexAndWorldPos(materialIDs[sampleIndices[3]] & 0x7F, worldPosNoDisplacement, dPdx, dPdy, macroNormal)
+            flatSampleOfMaterialAttributesFromID(
+                materialIDs[sampleIndices[0]] & 0x7F, uvXZ, dPdxXZ, dPdyXZ, macroNormalTS
+            ),
+            biplanarSampleOfMaterialAttributesFromID(
+                materialIDs[sampleIndices[1]] & 0x7F, uvXY, dPdxXY, dPdyXY, flipFactorXY, uvZY, dPdxZY, dPdyZY, flipFactorZY, biplanarWeight, macroNormalTS
+            ),
+            biplanarSampleOfMaterialAttributesFromID(
+                materialIDs[sampleIndices[2]] & 0x7F, uvXY, dPdxXY, dPdyXY, flipFactorXY, uvZY, dPdxZY, dPdyZY, flipFactorZY, biplanarWeight, macroNormalTS
+            ),
+            biplanarSampleOfMaterialAttributesFromID(
+                materialIDs[sampleIndices[3]] & 0x7F, uvXY, dPdxXY, dPdyXY, flipFactorXY, uvZY, dPdxZY, dPdyZY, flipFactorZY, biplanarWeight, macroNormalTS
+            )
         );
 
         const MaterialAttributes maF = lerp(matAttributes[sampleIndices[0]], matAttributes[sampleIndices[1]], weights.y);

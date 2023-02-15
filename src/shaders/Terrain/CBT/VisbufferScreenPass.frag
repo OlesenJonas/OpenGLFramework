@@ -34,18 +34,11 @@ layout(std430, binding = 3) buffer textureInfoBuffer
     float textureScales[];
 };
 
-// Reorient normal blending for blending material normal maps and terrain normal:
-// https://blog.selfshadow.com/publications/blending-in-detail/
-vec3 reorientNormalBlend(vec3 t, vec3 u)
-{
-    t += vec3(0,0,1);
-    u *= vec3(-1,-1,1);
-    return normalize(t*dot(t, u) - u*t.z);
-}
-
+#include "../../General/rnm.glsl"
 #define ONLY_DEFINES
 #include "transform.glsl"
-#include "FetchAttributesFromID.glsl"
+#define ONLY_FUNCTIONS
+#include "FetchAttributes.glsl"
 #include "../../General/lighting.glsl"
 
 vec3 worldPositionFromDepth(vec2 texCoord, float depthBufferDepth)
@@ -71,10 +64,7 @@ void main()
         discard;
     }
 
-    //TODO: could store linear depth and then use frustum corners for cheaper world space conversion!
     vec2 screenUV = gl_FragCoord.xy/vec2(textureSize(visbufferTex,0));
-    float nonDisplacedDepth = visBuffer.a;
-    // vec3 worldPosNoDisplacement = worldPositionFromDepth(screenUV, nonDisplacedDepth);
     vec3 worldPosNoDisplacement = texelFetch(posTex, ivec2(gl_FragCoord.xy), 0).rgb;
 
     float trueDepth = texelFetch(trueDepthBuffer, ivec2(gl_FragCoord.xy), 0).r;
@@ -88,26 +78,60 @@ void main()
     vec3 dPdy = vec3(dX.y, dY.y, dZ.y);
 
     vec2 flatPosition = worldPosNoDisplacement.xz/TERRAIN_SIZE;
-    vec2 uv = vec2(1,-1) * flatPosition + 0.5;
-    vec2 duvdx = vec2(1,-1)*dPdx.xz/TERRAIN_SIZE;
-    vec2 duvdy = vec2(1,-1)*dPdy.xz/TERRAIN_SIZE;
-
-    const uint closestMaterialID = textureLod(materialIDTex, uv, 0).r;
-    const float materialIDVis = (closestMaterialID & 0x7F)/6.0;
+    vec2 flatUV = vec2(1,-1) * flatPosition + 0.5;
+    // vec2 duvdx = vec2(1,-1)*dPdx.xz/TERRAIN_SIZE;
+    // vec2 duvdy = vec2(1,-1)*dPdy.xz/TERRAIN_SIZE;
 
     // vec3 macroNormal = 2.0*textureGrad(macroNormal, uv, duvdx, duvdy).xyz-1.0;
-    vec3 macroNormal = 2.0*textureLod(macroNormal, uv, 0).xyz-1.0;
+    const vec3 macroNormalTS = 2.0*textureLod(macroNormal, flatUV, 0).xyz-1.0;
+    vec2 biplanarWeights = pow(abs(macroNormalTS.xy),vec2(terrainSettings.triplanarSharpness));
+    biplanarWeights /= biplanarWeights.x + biplanarWeights.y;
+    float biplanarWeight = biplanarWeights.x;
 
-    const vec2 scaledUVs = uv*textureSize(materialIDTex,0);
+    const vec2 flipFactorXY = vec2(-sign(macroNormalTS.y), 1);
+    const vec2 flipFactorZY = vec2(-sign(macroNormalTS.x), 1);
+
+    vec2 uvXZ = worldPosNoDisplacement.xz;
+    vec2 dPdxXZ = dPdx.xz;
+    vec2 dPdyXZ = dPdy.xz;
+    
+    vec2 uvXY = worldPosNoDisplacement.xy*flipFactorXY;
+    vec2 dPdxXY = dPdx.xy*flipFactorXY;
+    vec2 dPdyXY = dPdy.xy*flipFactorXY;
+
+    vec2 uvZY = worldPosNoDisplacement.zy*flipFactorZY;
+    vec2 dPdxZY = dPdx.zy*flipFactorZY;
+    vec2 dPdyZY = dPdy.zy*flipFactorZY;
+
+    const vec2 scaledUVs = flatUV*textureSize(materialIDTex,0);
     const ivec2 idsStartTexel = ivec2(scaledUVs);
     const vec2 weights = fract(scaledUVs);
+    const uint materialIDs[4] = uint[4](
+        texelFetch(materialIDTex, idsStartTexel+ivec2(0,0), 0).r,
+        texelFetch(materialIDTex, idsStartTexel+ivec2(0,1), 0).r,
+        texelFetch(materialIDTex, idsStartTexel+ivec2(1,0), 0).r,
+        texelFetch(materialIDTex, idsStartTexel+ivec2(1,1), 0).r
+    );
 
-    const MaterialAttributes maFF = getMaterialAttributesFromTexelAndWorldPos(idsStartTexel+ivec2(0,0), worldPosNoDisplacement, dPdx, dPdy, macroNormal);
-    const MaterialAttributes maFC = getMaterialAttributesFromTexelAndWorldPos(idsStartTexel+ivec2(0,1), worldPosNoDisplacement, dPdx, dPdy, macroNormal);
-    const MaterialAttributes maCF = getMaterialAttributesFromTexelAndWorldPos(idsStartTexel+ivec2(1,0), worldPosNoDisplacement, dPdx, dPdy, macroNormal);
-    const MaterialAttributes maCC = getMaterialAttributesFromTexelAndWorldPos(idsStartTexel+ivec2(1,1), worldPosNoDisplacement, dPdx, dPdy, macroNormal);
-    const MaterialAttributes maF = lerp(maFF, maFC, weights.y);
-    const MaterialAttributes maC = lerp(maCF, maCC, weights.y);
+    MaterialAttributes matAttributes[4];
+    for(int i=0; i<4; i++)
+    {
+        if((materialIDs[i] & 0x80) > 0)
+        {
+            matAttributes[i] = biplanarSampleOfMaterialAttributesFromID(
+                materialIDs[i] & 0x7F, uvXY, dPdxXY, dPdyXY, flipFactorXY, uvZY, dPdxZY, dPdyZY, flipFactorZY, biplanarWeight, macroNormalTS
+            );
+        }
+        else
+        {
+            matAttributes[i] = flatSampleOfMaterialAttributesFromID(
+                materialIDs[i] & 0x7F, uvXZ, dPdxXZ, dPdyXZ, macroNormalTS
+            );
+        }
+    }
+
+    const MaterialAttributes maF = lerp(matAttributes[0], matAttributes[1], weights.y);
+    const MaterialAttributes maC = lerp(matAttributes[2], matAttributes[3], weights.y);
     const MaterialAttributes attributes = lerp(maF, maC, weights.x);
     const vec3 diffuse = attributes.diffuseRoughness.rgb;
     const float roughness = attributes.diffuseRoughness.w;

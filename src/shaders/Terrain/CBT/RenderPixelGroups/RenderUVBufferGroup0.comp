@@ -38,18 +38,11 @@ layout(std430, binding = 3) buffer textureInfoBuffer
     float textureScales[];
 };
 
-// Reorient normal blending for blending material normal maps and terrain normal:
-// https://blog.selfshadow.com/publications/blending-in-detail/
-vec3 reorientNormalBlend(vec3 t, vec3 u)
-{
-    t += vec3(0,0,1);
-    u *= vec3(-1,-1,1);
-    return normalize(t*dot(t, u) - u*t.z);
-}
-
 #define ONLY_DEFINES
 #include "../transform.glsl"
-#include "../FetchAttributesFromID.glsl"
+#define ONLY_FUNCTIONS
+#include "../FetchAttributes.glsl"
+
 #include "../../../General/lighting.glsl"
 
 vec3 worldPositionFromDepth(vec2 texCoord, float depthBufferDepth)
